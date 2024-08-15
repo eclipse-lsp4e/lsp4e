@@ -9,9 +9,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.semanticTokens;
 
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
@@ -21,7 +18,6 @@ import org.eclipse.jface.text.rules.IToken;
 import org.eclipse.lsp4e.internal.StyleUtil;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.SemanticTokenModifiers;
-import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 
@@ -29,10 +25,7 @@ import org.eclipse.swt.custom.StyleRange;
  * The Class SemanticTokensDataStreamProcessor translates a stream of integers
  * as defined by the LSP SemanticTokenRequests into a list of StyleRanges.
  */
-public class SemanticTokensDataStreamProcessor {
-
-	private final Function<Position, Integer> offsetMapper;
-	private final Function<String, @Nullable IToken> tokenTypeMapper;
+public class SemanticTokensDataStreamProcessor extends AbstractcSemanticTokensDataStreamProcessor<IToken, StyleRange> {
 
 	/**
 	 * Creates a new instance of {@link SemanticTokensDataStreamProcessor}.
@@ -42,99 +35,28 @@ public class SemanticTokensDataStreamProcessor {
 	 */
 	public SemanticTokensDataStreamProcessor(final Function<String, @Nullable IToken> tokenTypeMapper,
 			final Function<Position, Integer> offsetMapper) {
-		this.tokenTypeMapper = tokenTypeMapper;
-		this.offsetMapper = offsetMapper;
+		super(offsetMapper, tokenTypeMapper);
 	}
 
-	/**
-	 * Get the StyleRanges for the given data stream and tokens legend.
-	 *
-	 * @param dataStream
-	 * @param semanticTokensLegend
-	 */
-	public List<StyleRange> getStyleRanges(final List<Integer> dataStream,
-			final SemanticTokensLegend semanticTokensLegend) {
-		final var styleRanges = new ArrayList<StyleRange>(dataStream.size() / 5);
-
-		int idx = 0;
-		int prevLine = 0;
-		int line = 0;
-		int offset = 0;
-		int length = 0;
-		String tokenType = null;
-		for (Integer data : dataStream) {
-			switch (idx % 5) {
-			case 0: // line
-				line += data;
-				break;
-			case 1: // offset
-				if (line == prevLine) {
-					offset += data;
-				} else {
-					offset = offsetMapper.apply(new Position(line, data));
-				}
-				break;
-			case 2: // length
-				length = data;
-				break;
-			case 3: // token type
-				tokenType = tokenType(data, semanticTokensLegend.getTokenTypes());
-				break;
-			case 4: // token modifier
-				prevLine = line;
-				List<String> tokenModifiers = tokenModifiers(data, semanticTokensLegend.getTokenModifiers());
-				StyleRange styleRange = getStyleRange(offset, length, textAttribute(tokenType));
-				if (tokenModifiers.stream().anyMatch(x -> x.equals(SemanticTokenModifiers.Deprecated))) {
-					if (styleRange == null) {
-						styleRange = new StyleRange();
-						styleRange.start = offset;
-						styleRange.length = length;
-					}
-					StyleUtil.DEPRECATE.applyStyles(styleRange);
-				}
-				if (styleRange != null) {
-					styleRanges.add(styleRange);
-				}
-				break;
+	@Override
+	protected @Nullable StyleRange createTokenData(@Nullable IToken tokenType, int offset, int length, List<String> tokenModifiers) {
+		StyleRange styleRange = getStyleRange(offset, length, textAttribute(tokenType));
+		if (tokenModifiers.stream().anyMatch(x -> x.equals(SemanticTokenModifiers.Deprecated))) {
+			if (styleRange == null) {
+				styleRange = new StyleRange();
+				styleRange.start = offset;
+				styleRange.length = length;
 			}
-			idx++;
+			StyleUtil.DEPRECATE.applyStyles(styleRange);
 		}
-		return styleRanges;
+		return styleRange;
 	}
 
-	private @Nullable String tokenType(final Integer data, final List<String> legend) {
-		try {
-			return legend.get(data);
-		} catch (IndexOutOfBoundsException e) {
-			return null; // no match
-		}
-	}
-
-	private List<String> tokenModifiers(final Integer data, final List<String> legend) {
-		if (data.intValue() == 0) {
-			return Collections.emptyList();
-		}
-		final var bitSet = BitSet.valueOf(new long[] { data });
-		final var tokenModifiers = new ArrayList<String>();
-		for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
-			try {
-				tokenModifiers.add(legend.get(i));
-			} catch (IndexOutOfBoundsException e) {
-				// no match
-			}
-		}
-
-		return tokenModifiers;
-	}
-
-	private @Nullable TextAttribute textAttribute(final @Nullable String tokenType) {
+	private @Nullable TextAttribute textAttribute(final @Nullable IToken tokenType) {
 		if (tokenType != null) {
-			IToken token = tokenTypeMapper.apply(tokenType);
-			if (token != null) {
-				Object data = token.getData();
-				if (data instanceof final TextAttribute textAttribute) {
-					return textAttribute;
-				}
+			Object data = tokenType.getData();
+			if (data instanceof final TextAttribute textAttribute) {
+				return textAttribute;
 			}
 		}
 		return null;

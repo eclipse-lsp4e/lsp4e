@@ -40,5 +40,26 @@
             name="LS Java Quick Proposals">
       </quickAssistProcessor>
    </extension>
+   <extension
+         point="org.eclipse.jdt.ui.semanticTokens">
+      <provider
+            class="org.eclipse.lsp4e.jdt.LSJavaSemanticTokensProvider">
+      </provider>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="org.eclipse.lsp4e.jdt.preferences.LspJdtPrefsInitializer">
+      </initializer>
+   </extension>
+   <extension
+         point="org.eclipse.ui.preferencePages">
+      <page
+            category="org.eclipse.lsp4e.preferences"
+            class="org.eclipse.lsp4e.jdt.preferences.LspJdtPreferencesPage"
+            id="org.eclipse.lsp4e.jdt"
+            name="%languageservers.jdt.preferences.page">
+      </page>
+   </extension>
 
 </plugin>

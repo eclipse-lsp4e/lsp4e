@@ -35,7 +35,7 @@ public class SemanticTokensDataStreamProcessorTest extends AbstractTest {
 				new StyleRange(24, 7, SemanticTokensTestUtil.RED, null)//
 				);
 
-		List<StyleRange> styleRanges = processor.getStyleRanges(expectedStream, getSemanticTokensLegend());
+		List<StyleRange> styleRanges = processor.getTokensData(expectedStream, getSemanticTokensLegend());
 
 		assertEquals(expectedStyleRanges, styleRanges);
 	}
