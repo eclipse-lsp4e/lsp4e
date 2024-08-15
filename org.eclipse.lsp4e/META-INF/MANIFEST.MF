@@ -55,6 +55,7 @@ Export-Package: org.eclipse.lsp4e;x-friends:="org.eclipse.lsp4e.debug,org.eclips
  org.eclipse.lsp4e.operations.format;x-internal:=true,
  org.eclipse.lsp4e.operations.hover;x-internal:=true,
  org.eclipse.lsp4e.operations.rename;x-internal:=true,
+ org.eclipse.lsp4e.operations.semanticTokens,
  org.eclipse.lsp4e.outline;x-internal:=true,
  org.eclipse.lsp4e.server;version="0.1.0",
  org.eclipse.lsp4e.ui
