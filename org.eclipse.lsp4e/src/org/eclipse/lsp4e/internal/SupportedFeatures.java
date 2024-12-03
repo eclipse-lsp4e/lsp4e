@@ -50,6 +50,8 @@ import org.eclipse.lsp4j.SignatureHelpCapabilities;
 import org.eclipse.lsp4j.SymbolCapabilities;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.SymbolKindCapabilities;
+import org.eclipse.lsp4j.SymbolTag;
+import org.eclipse.lsp4j.SymbolTagSupportCapabilities;
 import org.eclipse.lsp4j.SynchronizationCapabilities;
 import org.eclipse.lsp4j.TextDocumentClientCapabilities;
 import org.eclipse.lsp4j.TypeDefinitionCapabilities;
@@ -110,6 +112,7 @@ public class SupportedFeatures {
 		final var documentSymbol = new DocumentSymbolCapabilities();
 		documentSymbol.setHierarchicalDocumentSymbolSupport(true);
 		documentSymbol.setSymbolKind(new SymbolKindCapabilities(List.of(SymbolKind.values())));
+		documentSymbol.setTagSupport(new SymbolTagSupportCapabilities(List.of(SymbolTag.values())));
 		textDocumentClientCapabilities.setDocumentSymbol(documentSymbol);
 		textDocumentClientCapabilities.setFoldingRange(new FoldingRangeCapabilities());
 		textDocumentClientCapabilities.setFormatting(new FormattingCapabilities(true));
@@ -136,7 +139,9 @@ public class SupportedFeatures {
 		workspaceClientCapabilities.setApplyEdit(true);
 		workspaceClientCapabilities.setConfiguration(true);
 		workspaceClientCapabilities.setExecuteCommand(new ExecuteCommandCapabilities(true));
-		workspaceClientCapabilities.setSymbol(new SymbolCapabilities(true));
+		SymbolCapabilities symbolCapabilities = new SymbolCapabilities(true);
+		symbolCapabilities.setTagSupport(new SymbolTagSupportCapabilities(List.of(SymbolTag.values())));
+		workspaceClientCapabilities.setSymbol(symbolCapabilities);
 		workspaceClientCapabilities.setWorkspaceFolders(true);
 		final var editCapabilities = new WorkspaceEditCapabilities();
 		editCapabilities.setDocumentChanges(true);
