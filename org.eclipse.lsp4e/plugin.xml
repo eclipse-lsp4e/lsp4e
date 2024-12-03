@@ -281,7 +281,7 @@
                label="Link with Editor"
                style="toggle">
             <visibleWhen>
-               <reference definitionId="org.eclipse.lsp4e.activePartHasCNFOutlinePage" />
+               <reference definitionId="org.eclipse.lsp4e.activeEditorHasCNFOutlinePage" />
             </visibleWhen>
          </command>
       </menuContribution>
@@ -293,7 +293,7 @@
                label="Show Kind"
                style="toggle">
             <visibleWhen>
-               <reference definitionId="org.eclipse.lsp4e.activePartHasCNFOutlinePage" />
+               <reference definitionId="org.eclipse.lsp4e.activeEditorHasCNFOutlinePage" />
             </visibleWhen>
          </command>
       </menuContribution>
@@ -305,7 +305,7 @@
                label="Hide...">
             <visibleWhen>
                <reference
-                     definitionId="org.eclipse.lsp4e.activePartHasCNFOutlinePage">
+                     definitionId="org.eclipse.lsp4e.activeEditorHasCNFOutlinePage">
                </reference>
             </visibleWhen>
          </menu>
