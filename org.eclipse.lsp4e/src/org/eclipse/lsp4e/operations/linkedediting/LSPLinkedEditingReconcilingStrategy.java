@@ -127,12 +127,11 @@ public class LSPLinkedEditingReconcilingStrategy extends LSPLinkedEditingBase
 	public void initialReconcile() {
 		final var sourceViewer = this.sourceViewer;
 		if (sourceViewer != null) {
-			ISelectionProvider selectionProvider = sourceViewer.getSelectionProvider();
 			final StyledText textWidget = sourceViewer.getTextWidget();
-			if (textWidget != null && selectionProvider != null) {
+			if (textWidget != null) {
 				textWidget.getDisplay().asyncExec(() -> {
 					if (!textWidget.isDisposed()) {
-						updateLinkedEditing(selectionProvider.getSelection());
+						updateLinkedEditing(sourceViewer.getSelectionProvider().getSelection());
 					}
 				});
 			}

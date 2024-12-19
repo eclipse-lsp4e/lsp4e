@@ -100,12 +100,7 @@ public class SemanticTokensTestUtil {
 	};
 
 	public static Function<String, IToken> keywordTokenTypeMapper(final IToken token) {
-		return t -> {
-			if ("keyword".equals(t)) {
-				return token;
-			}
-			return null;
-		};
+		return t -> "keyword".equals(t) ? token : null;
 	}
 
 	public static @NonNull Function<Position, Integer> offsetMapper(IDocument document) {

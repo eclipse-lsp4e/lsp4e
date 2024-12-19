@@ -13,20 +13,11 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test;
 
-import static org.eclipse.lsp4e.LSPEclipseUtils.getDocument;
-import static org.eclipse.lsp4e.LSPEclipseUtils.getTextViewer;
-import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSPDocumentInfosFor;
-import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSWrapper;
-import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSWrappers;
-import static org.eclipse.lsp4e.LanguageServiceAccessor.hasActiveLanguageServers;
+import static org.eclipse.lsp4e.LSPEclipseUtils.*;
+import static org.eclipse.lsp4e.LanguageServiceAccessor.*;
 import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -57,7 +48,7 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 	private static final Predicate<ServerCapabilities> MATCH_ALL = capabilities -> true;
 
 	@Test
-	public void testGetLSWrapper() throws IOException {
+	public void testGetLSWrapper() {
 		var serverDefinition = LanguageServersRegistry.getInstance().getDefinition("org.eclipse.lsp4e.test.server");
 		assertNotNull(serverDefinition);
 

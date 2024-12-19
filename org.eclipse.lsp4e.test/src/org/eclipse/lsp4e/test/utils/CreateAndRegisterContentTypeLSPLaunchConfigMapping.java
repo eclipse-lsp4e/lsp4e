@@ -12,7 +12,7 @@
 package org.eclipse.lsp4e.test.utils;
 
 import java.io.File;
-import java.io.IOException;
+import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -88,7 +88,7 @@ public class CreateAndRegisterContentTypeLSPLaunchConfigMapping implements IStar
 	private String getClassPath(Class<?> clazz) {
 		ClassLoader loader = clazz.getClassLoader();
 		if (loader instanceof URLClassLoader urlClassLoader) {
-			return List.of(urlClassLoader.getURLs()).stream().map(url -> url.getFile()).collect(Collectors.joining(System.getProperty("path.separator")));
+			return List.of(urlClassLoader.getURLs()).stream().map(URL::getFile).collect(Collectors.joining(System.getProperty("path.separator")));
 		}
 		final var toProcess = new LinkedList<Bundle>();
 		final var processed = new HashSet<Bundle>();
@@ -108,13 +108,8 @@ public class CreateAndRegisterContentTypeLSPLaunchConfigMapping implements IStar
 		}
 		return processed.stream()
 				.filter(bundle -> bundle.getBundleId() != 0)
-				.map(bundle -> {
-					try {
-						return FileLocator.getBundleFile(bundle);
-					} catch (IOException e) {
-						return null;
-					}
-				}).flatMap(location -> {
+				.map(bundle -> FileLocator.getBundleFileLocation(bundle).orElse(null))
+				.flatMap(location -> {
 					if (location.isFile()) {
 						return Arrays.stream(new String[] { location.getAbsolutePath() });
 					}

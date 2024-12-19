@@ -14,7 +14,6 @@ package org.eclipse.lsp4e.test.commands;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
 import static org.junit.Assert.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -131,7 +130,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 	}
 
 	private Predicate<ServerCapabilities> handlesCommand(String command) {
-		return (cap) -> {
+		return cap -> {
 			ExecuteCommandOptions commandProvider = cap.getExecuteCommandProvider();
 			return commandProvider != null && commandProvider.getCommands().contains(command);
 		};

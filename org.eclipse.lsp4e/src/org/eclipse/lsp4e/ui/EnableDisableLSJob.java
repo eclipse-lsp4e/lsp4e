@@ -19,7 +19,6 @@ import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
-import org.eclipse.lsp4e.LanguageServersRegistry.LanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.ui.IEditorReference;
 
@@ -38,13 +37,10 @@ public class EnableDisableLSJob extends Job {
 	@Override
 	protected IStatus run(@Nullable IProgressMonitor monitor) {
 		for (ContentTypeToLanguageServerDefinition changedDefinition : serverDefinitions) {
-			LanguageServerDefinition serverDefinition = changedDefinition.getValue();
-			if (serverDefinition != null) {
-				if (!changedDefinition.isEnabled(null)) {
-					LanguageServiceAccessor.disableLanguageServerContentType(changedDefinition);
-				} else if (editors != null) {
-					LanguageServiceAccessor.enableLanguageServerContentType(changedDefinition, editors);
-				}
+			if (!changedDefinition.isEnabled(null)) {
+				LanguageServiceAccessor.disableLanguageServerContentType(changedDefinition);
+			} else if (editors != null) {
+				LanguageServiceAccessor.enableLanguageServerContentType(changedDefinition, editors);
 			}
 		}
 		return Status.OK_STATUS;

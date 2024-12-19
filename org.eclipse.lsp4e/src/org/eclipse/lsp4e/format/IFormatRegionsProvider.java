@@ -33,31 +33,32 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 
 /**
- * Can be implemented by clients as OSGi service
- * to provide editor specific formatting regions for the format-on-save feature.
- * The OSGi component service has to implement the {@code serverDefinitionId} property.
+ * Can be implemented by clients as an OSGi service
+ * to provide editor-specific formatting regions for the format-on-save feature.
+ * The OSGi component service must implement the {@code serverDefinitionId} property.
  * The value must be the {@code server id} of the corresponding {@code languageServer} extension point.
- * This service will then be used for documents who are connected to this language server.
- * <p>Example:
- * <pre>{@code
- * @Component(property = { "serverDefinitionId:String=org.eclipse.cdt.lsp.server" })
- * public class FormatOnSave implements IFormatRegionsProvider {
- *  	@Reference
- *  	private EditorConfiguration configuration;
+ * This service will then be used for documents connected to this language server.
  *
- *  	IRegion[] getFormattingRegions(IDocument document) {
- *  		//formats whole document:
- *  		if(configuration.formatOnSaveEnabled()) {
- *  			if (configuration.formatEditedLines()) {
- * 					return IFormatRegionsProvider.calculateEditedLineRegions(document);
- * 				} else {
- * 					return IFormatRegionsProvider.allLines(document);
- * 				}
- * 			}
- *			return null;
- * 		}
+ * <p>Example:</p>
+ * <pre><code>
+ * @Component(property={"serverDefinitionId:String=org.eclipse.cdt.lsp.server"})
+ * public class FormatOnSave implements IFormatRegionsProvider {
+ *   @Reference
+ *   private EditorConfiguration configuration;
+ *
+ *   IRegion[] getFormattingRegions(IDocument document) {
+ *     // Formats the whole document:
+ *     if (configuration.formatOnSaveEnabled()) {
+ *       if (configuration.formatEditedLines()) {
+ *         return IFormatRegionsProvider.calculateEditedLineRegions(document);
+ *       } else {
+ *         return IFormatRegionsProvider.allLines(document);
+ *       }
+ *     }
+ *     return null;
+ *   }
  * }
- * </pre>
+ * </code></pre>
  */
 public interface IFormatRegionsProvider {
 

@@ -88,7 +88,7 @@ public class LSPProgressManager {
 		final var languageServerDefinition = this.languageServerDefinition;
 
 		final var jobName = languageServerDefinition == null //
-				|| languageServerDefinition.label == null || languageServerDefinition.label.isBlank() //
+				|| languageServerDefinition.label.isBlank() //
 				? Messages.LSPProgressManager_BackgroundJobName
 				: languageServerDefinition.label;
 		Job job = Job.create(jobName, (ICoreRunnable) mon -> {

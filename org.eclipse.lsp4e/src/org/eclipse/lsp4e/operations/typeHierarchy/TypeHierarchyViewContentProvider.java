@@ -29,7 +29,6 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.LanguageServers.LanguageServerDocumentExecutor;
-import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.Pair;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4e.ui.views.HierarchyViewInput;
@@ -93,16 +92,9 @@ public class TypeHierarchyViewContentProvider implements ITreeContentProvider {
 		ITreeContentProvider.super.inputChanged(viewer, oldInput, newInput);
 
 		if (newInput instanceof HierarchyViewInput viewInput) {
-
-			var document = viewInput.getDocument();
-			this.document = document;
-			if (document != null) {
-				try {
-					initialise(document, viewInput.getOffset(), (TreeViewer) viewer);
-				} catch (BadLocationException e) {
-					handleRootError();
-				}
-			} else {
+			try {
+				initialise(viewInput.getDocument(), viewInput.getOffset(), (TreeViewer) viewer);
+			} catch (BadLocationException e) {
 				handleRootError();
 			}
 		} else {

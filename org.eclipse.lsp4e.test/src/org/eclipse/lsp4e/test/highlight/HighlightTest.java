@@ -148,6 +148,7 @@ public class HighlightTest extends AbstractTestWithProject{
 			}
 		}
 		Assert.assertNotNull(viewer2);
+		Assert.assertNotNull(editorToClose);
 
 		final var annotationModel2 = viewer2.getAnnotationModel();
 

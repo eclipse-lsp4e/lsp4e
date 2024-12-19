@@ -521,33 +521,31 @@ public final class LSPEclipseUtils {
 		}
 
 		final var edit = new MultiTextEdit();
-		for (TextEdit textEdit : edits) {
-			if (textEdit != null) {
-				int offset = toOffset(textEdit.getRange().getStart(), document);
-				int length = toOffset(textEdit.getRange().getEnd(), document) - offset;
-				if (length < 0) {
-					// Must be a bad location: we bail out to avoid corrupting the document.
-					throw new BadLocationException("Invalid location information found applying edits"); //$NON-NLS-1$
-				}
-				// check if that edit would actually change the document
-				var newText = textEdit.getNewText();
-				if (!document.get(offset, length).equals(newText)) {
-					if (newText.length() > 0) {
-						var zeroBasedDocumentLines = Math.max(0, document.getNumberOfLines() - 1);
-						var endLine = textEdit.getRange().getEnd().getLine();
-						endLine = endLine > zeroBasedDocumentLines ? zeroBasedDocumentLines : endLine;
-						// Do not split "\r\n" line ending:
-						if ("\r\n".equals(document.getLineDelimiter(endLine))) { //$NON-NLS-1$;
-							// if last char in the newText is a carriage return:
-							if ('\r' == newText.charAt(newText.length()-1) && offset + length < document.getLength()) {
-								// replace the whole line:
-								newText = newText + '\n';
-								length++;
-							}
+		for (final TextEdit textEdit : edits) {
+			int offset = toOffset(textEdit.getRange().getStart(), document);
+			int length = toOffset(textEdit.getRange().getEnd(), document) - offset;
+			if (length < 0) {
+				// Must be a bad location: we bail out to avoid corrupting the document.
+				throw new BadLocationException("Invalid location information found applying edits"); //$NON-NLS-1$
+			}
+			// check if that edit would actually change the document
+			var newText = textEdit.getNewText();
+			if (!document.get(offset, length).equals(newText)) {
+				if (newText.length() > 0) {
+					var zeroBasedDocumentLines = Math.max(0, document.getNumberOfLines() - 1);
+					var endLine = textEdit.getRange().getEnd().getLine();
+					endLine = endLine > zeroBasedDocumentLines ? zeroBasedDocumentLines : endLine;
+					// Do not split "\r\n" line ending:
+					if ("\r\n".equals(document.getLineDelimiter(endLine))) { //$NON-NLS-1$;
+						// if last char in the newText is a carriage return:
+						if ('\r' == newText.charAt(newText.length()-1) && offset + length < document.getLength()) {
+							// replace the whole line:
+							newText = newText + '\n';
+							length++;
 						}
 					}
-					edit.addChild(new ReplaceEdit(offset, length, newText));
 				}
+				edit.addChild(new ReplaceEdit(offset, length, newText));
 			}
 		}
 
@@ -1055,15 +1053,13 @@ public final class LSPEclipseUtils {
 			.filter(Objects::nonNull)
 			.findFirst();
 
-		doc.ifPresent(document -> {
-			UI.getDisplay().syncExec(() -> {
-				try {
-					LSPEclipseUtils.applyEdits(document, firstDocumentEdits);
-				} catch (BadLocationException ex) {
-					LanguageServerPlugin.logError(ex);
-				}
-			});
-		});
+		doc.ifPresent(document -> UI.getDisplay().syncExec(() -> {
+			try {
+				LSPEclipseUtils.applyEdits(document, firstDocumentEdits);
+			} catch (BadLocationException ex) {
+				LanguageServerPlugin.logError(ex);
+			}
+		}));
 		return doc.isPresent();
 	}
 

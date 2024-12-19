@@ -81,13 +81,9 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 	}
 
 	protected static @Nullable String getInlayHintString(InlayHint inlayHint) {
-		Either<String, @Nullable List<InlayHintLabelPart>> label = inlayHint.getLabel();
-		return label.map(Function.identity(), (parts) -> {
-			if (parts == null) {
-				return null;
-			}
-			return parts.stream().map(InlayHintLabelPart::getValue).collect(Collectors.joining());
-		});
+		return inlayHint.getLabel().map(Function.identity(), parts -> parts == null //
+				? null
+				: parts.stream().map(InlayHintLabelPart::getValue).collect(Collectors.joining()));
 	}
 
 	@Override

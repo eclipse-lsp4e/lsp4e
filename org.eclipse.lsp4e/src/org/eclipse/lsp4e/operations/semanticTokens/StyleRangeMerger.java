@@ -96,10 +96,12 @@ public class StyleRangeMerger {
 	}
 
 	/**
-	 * Whether a given style must additionally modify beyond the result of textPresentation's merge.
+	 * Checks if the given style requires modifications beyond the
+	 * standard {@code textPresentation} merge.
 	 *
-	 * @param style
-	 * @return
+	 * @param style the {@link StyleRange} to evaluate
+	 * @return {@code true} if additional modifications are needed;
+	 *         {@code false} otherwise
 	 */
 	protected boolean isStyleModifying(StyleRange style) {
 		int mask = SWT.NORMAL;

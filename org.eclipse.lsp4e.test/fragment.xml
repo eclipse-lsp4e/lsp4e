@@ -170,7 +170,6 @@
       </content-type>
       <content-type
             base-type="org.eclipse.lsp4e.test.content-type"
-            childContentTypename="child"
             file-extensions="lsptchild"
             id="org.eclipse.lsp4e.test.childContentType"
             name="lsptchild"
@@ -178,7 +177,6 @@
       </content-type>
       <content-type
             base-type="org.eclipse.lsp4e.test.content-type"
-            childContentTypename="child"
             file-extensions="lsptchildNoLS"
             id="org.eclipse.lsp4e.test.childContentTypeNpLS"
             name="lsptchild-no-ls"
@@ -271,7 +269,7 @@
            class="org.eclipse.lsp4e.test.references.FindReferencesTest$UiFreezeEventLogger">
      </logger>
   </extension>
-  
+
    <extension
          point="org.eclipse.tm4e.registry.grammars">
       <grammar
@@ -289,5 +287,5 @@
             class="org.eclipse.tm4e.ui.text.TMPresentationReconciler"
             contentType="org.eclipse.lsp4e.test.content-type.tm">
       </presentationReconciler>
-   </extension> 
+   </extension>
 </fragment>

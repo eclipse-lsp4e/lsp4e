@@ -22,7 +22,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.debug.debugmodel.DSPDebugTarget;
 import org.eclipse.lsp4e.debug.debugmodel.DSPStackFrame;
 import org.eclipse.lsp4e.debug.debugmodel.DSPValue;
-import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4j.debug.EvaluateArguments;
 import org.eclipse.lsp4j.debug.EvaluateResponse;
 

@@ -141,9 +141,8 @@ public class LSJavaHoverProvider extends JavadocHover {
 						bodyEndIdx = lsHtml.indexOf(BODY_CLOSE, bodyStartIdx);
 						if (bodyEndIdx >= bodyStartIdx && bodyEndIdx <= lsHtml.length()) {
 							return jdtHtml.substring(0, insertPosition) + lsHtml.substring(bodyStartIdx, bodyEndIdx) + SEPARATOR + jdtHtml.substring(insertPosition);
-						} else {
-							LanguageServerPlugin.logWarning("LS Hover Html and JDT hover html were naively concatenated as LS hover HTML BODY tag closing bracket is at invalid position", null);
 						}
+						LanguageServerPlugin.logWarning("LS Hover Html and JDT hover html were naively concatenated as LS hover HTML BODY tag closing bracket is at invalid position", null);
 					} else {
 						LanguageServerPlugin.logWarning("LS Hover Html and JDT hover html were naively concatenated as LS hover HTML BODY tag closing bracket wasn't found", null);
 					}

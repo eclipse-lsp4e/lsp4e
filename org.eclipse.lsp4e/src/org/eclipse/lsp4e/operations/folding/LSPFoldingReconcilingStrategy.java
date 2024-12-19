@@ -109,7 +109,7 @@ public class LSPFoldingReconcilingStrategy
 			if (!isCollapsed()) {
 				// working with rectangle, so line height
 				FontMetrics metrics = gc.getFontMetrics();
-				if (metrics != null && ((rectangle.height / metrics.getHeight()) <= 1)) {
+				if ((rectangle.height / metrics.getHeight()) <= 1) {
 					// do not draw annotations that only span one line and
 					// mark them as not visible
 					visible = false;

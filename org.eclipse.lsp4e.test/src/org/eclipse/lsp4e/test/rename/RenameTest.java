@@ -72,7 +72,7 @@ public class RenameTest extends AbstractTestWithProject {
 		ICommandService commandService = PlatformUI.getWorkbench().getService(ICommandService.class);
 		Command command = commandService.getCommand(IWorkbenchCommandConstants.FILE_RENAME);
 
-		waitForAndAssertCondition(2_000, () -> command.isEnabled());
+		waitForAndAssertCondition(2_000, command::isEnabled);
 		assertTrue(command.isHandled());
 	}
 
@@ -238,7 +238,7 @@ public class RenameTest extends AbstractTestWithProject {
 			display.addFilter(SWT.Paint, pressOKonRenameDialogPaint);
 			ExecutionEvent executionEvent = handlerService.createExecutionEvent(command, e);
 			command.executeWithChecks(executionEvent);
-			waitForAndAssertCondition("Rename dialog not shown", 3_000, display, () -> renameDialogOkPressed.get());
+			waitForAndAssertCondition("Rename dialog not shown", 3_000, display, renameDialogOkPressed::get);
 			IDocument document = LSPEclipseUtils.getDocument(editor);
 			waitForAndAssertCondition("document not modified, rename not applied", 3_000, display,
 					() -> "new".equals(document.get()));
