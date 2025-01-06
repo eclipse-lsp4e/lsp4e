@@ -254,16 +254,10 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 
 		// Use @link{TextDocumentSaveReason.Manual} as the platform does not give enough information to be accurate
 		final var params = new WillSaveTextDocumentParams(identifier, TextDocumentSaveReason.Manual);
-
+		CompletableFuture<@Nullable List<TextEdit>> edits = languageServerWrapper.executeImpl(ls -> ls.getTextDocumentService().willSaveWaitUntil(params));
 		try {
-			List<TextEdit> edits = languageServerWrapper.executeImpl(ls -> ls.getTextDocumentService().willSaveWaitUntil(params))
-				.get(lsToWillSaveWaitUntilTimeout(), TimeUnit.SECONDS);
-			try {
-				LSPEclipseUtils.applyEdits(document, edits);
-			} catch (BadLocationException e) {
-				LanguageServerPlugin.logError(e);
-			}
-		} catch (ExecutionException e) {
+			LSPEclipseUtils.applyEdits(document, edits.get(lsToWillSaveWaitUntilTimeout(), TimeUnit.SECONDS));
+		} catch (ExecutionException | BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 		} catch (TimeoutException e) {
 			Integer timeoutCount = castNonNull(WILL_SAVE_WAIT_UNTIL_TIMEOUT_MAP.compute(identifier.getUri(),
@@ -276,6 +270,8 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 		} catch (InterruptedException e) {
 			LanguageServerPlugin.logError(e);
 			Thread.currentThread().interrupt();
+		}  finally {
+			edits.cancel(true);
 		}
 	}
 
