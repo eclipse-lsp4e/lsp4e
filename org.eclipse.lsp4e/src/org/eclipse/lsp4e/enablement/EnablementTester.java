@@ -13,6 +13,8 @@
 package org.eclipse.lsp4e.enablement;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.eclipse.core.expressions.EvaluationContext;
@@ -40,6 +42,7 @@ public final class EnablementTester {
 	private final Expression expression;
 	private final String description;
 	private final Supplier<@Nullable IEvaluationContext> parent;
+	private final Map<URI, IResource> cache = new HashMap<>();
 
 	public EnablementTester(Expression expression, String description) {
 		this(() -> null, expression, description);
@@ -69,7 +72,7 @@ public final class EnablementTester {
 		IResource resource = null;
 		try {
 			IDocument document = null;
-			resource = LSPEclipseUtils.findResourceFor(uri);
+			resource = getResourceFor(uri);
 			if (resource != null) {
 				document = LSPEclipseUtils.getExistingDocument(resource);
 				if (document == null) {
@@ -102,6 +105,27 @@ public final class EnablementTester {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Cache resource for URI because each call to {@link LSPEclipseUtils#findResourceFor(URI)} takes ~300 microseconds.
+	 * And the evaluate method gets called several thousand times in UI thread during editing a LS backed file.
+	 * @param uri
+	 * @return
+	 */
+	private @Nullable IResource getResourceFor(@Nullable URI uri) {
+		if (uri != null) {
+			var resource = cache.get(uri);
+			if (resource != null && resource.isAccessible()) {
+				return resource;
+			}
+			resource = LSPEclipseUtils.findResourceFor(uri);
+			if (resource != null) {
+				cache.put(uri, resource);
+			}
+			return resource;
+		}
+		return null;
 	}
 
 }
