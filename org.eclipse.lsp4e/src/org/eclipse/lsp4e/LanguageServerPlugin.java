@@ -16,6 +16,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+import org.eclipse.core.resources.IResourceChangeEvent;
+import org.eclipse.core.resources.IResourceChangeListener;
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
@@ -58,6 +60,8 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	public void start(BundleContext context) throws Exception {
 		super.start(context);
 		plugin = this;
+		context.registerService(IResourceChangeListener.class, ResourceForUriCache.getInstance(), IResourceChangeListener.getMaskProperties(
+			 		IResourceChangeEvent.POST_CHANGE));
 	}
 
 	@Override
