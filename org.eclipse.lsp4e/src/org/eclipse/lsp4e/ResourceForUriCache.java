@@ -77,7 +77,7 @@ public final class ResourceForUriCache implements IResourceChangeListener {
 		if (event.getDelta() != null) {
 			try {
 				event.getDelta().accept(delta -> {
-					if ((delta.getKind() | URI_CHANGED) == URI_CHANGED) {
+					if ((delta.getKind() & URI_CHANGED) != 0) {
 						var uri = delta.getResource().getLocationURI();
 						if (uri != null) {
 							cache.invalidate(uri);
@@ -86,7 +86,7 @@ public final class ResourceForUriCache implements IResourceChangeListener {
 					return true;
 				});
 			} catch (CoreException e) {
-				Platform.getLog(getClass()).log(e.getStatus());
+				Platform.getLog(getClass()).error(e.getMessage(), e);
 			}
 		}
 	}
