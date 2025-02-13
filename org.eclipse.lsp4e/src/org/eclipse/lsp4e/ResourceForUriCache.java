@@ -12,52 +12,50 @@
 
 package org.eclipse.lsp4e;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
-
 import java.net.URI;
 
 import org.eclipse.core.resources.IResource;
-import org.eclipse.core.resources.IResourceChangeEvent;
-import org.eclipse.core.resources.IResourceChangeListener;
-import org.eclipse.core.resources.IResourceDelta;
-import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.annotation.Nullable;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 /**
- * Caches the {@link LSPEclipseUtils#findResourceFor(URI)} call. <code>ResourceForUriCache.getInstance().get(URI)</code>
+ * <p>Caches the {@link LSPEclipseUtils#findResourceFor(URI)} call. <code>ResourceForUriCache.getInstance().get(URI)</code>
  * can an be used instead of a direct call to LSPEclipseUtils.findResourceFor(URI),
  * because the call is very time consuming.
  *
- * The cache is limited to 100 resources elements.
- * Resources are removed in case the URI has changed due to a resource move or delete operation.
+ * <p>NOTE: In case a resource has been moved or deleted the entry will not be removed automatically.
+ * It's up to the caller to check if the resource is accessible.
+ *
+ * <p>The cache is limited to 100 resource elements. It uses least-recently-used eviction if limit exceeds.
+ * The cache will try to evict entries that haven't been used recently.
+ * Therefore entries can be removed before the limit exceeds.
  */
-public final class ResourceForUriCache implements IResourceChangeListener {
-	private static final int URI_CHANGED = IResourceDelta.REPLACED |
-			IResourceDelta.MOVED_FROM |
-			IResourceDelta.MOVED_TO |
-			IResourceDelta.REMOVED |
-			IResourceDelta.REMOVED_PHANTOM;
-
+public final class ResourceForUriCache {
 	private static final Cache<URI, IResource> cache =  CacheBuilder.newBuilder().maximumSize(100).build();
-	private static @Nullable ResourceForUriCache instance;
+	private static final ResourceForUriCache INSTANCE = new ResourceForUriCache();
 
 	private ResourceForUriCache() {
 		//  use getInstance()
 	}
 
-	public static synchronized ResourceForUriCache getInstance() {
-		if (instance == null) {
-			instance = new ResourceForUriCache();
-		}
-		return castNonNull(instance);
+	public static ResourceForUriCache getInstance() {
+		return INSTANCE;
 	}
 
+	/**
+	 * <p>Returns the cached IResource for the given URI. Tries to determine the IResource
+	 * if it's not already in the cache. Returns NULL if the IResource could not be determined,
+	 * e.g. the URI points to a file outside the workspace.
+	 *
+	 * <p>NOTE: In case a resource has been moved or deleted the entry will not be removed automatically.
+	 * It's up to the caller to check if the resource is accessible.
+	 * @param uri
+	 * @return IResource or NULL
+	 */
 	@Nullable
-	public synchronized IResource get(@Nullable URI uri) {
+	public IResource get(@Nullable URI uri) {
 		IResource resource = null;
 		if (uri != null) {
 			resource = cache.getIfPresent(uri);
@@ -71,26 +69,6 @@ public final class ResourceForUriCache implements IResourceChangeListener {
 		}
 		return resource;
 	}
-
-	@Override
-	public void resourceChanged(IResourceChangeEvent event) {
-		if (event.getDelta() != null) {
-			try {
-				event.getDelta().accept(delta -> {
-					if ((delta.getKind() & URI_CHANGED) != 0) {
-						var uri = delta.getResource().getLocationURI();
-						if (uri != null) {
-							cache.invalidate(uri);
-						}
-					}
-					return true;
-				});
-			} catch (CoreException e) {
-				Platform.getLog(getClass()).error(e.getMessage(), e);
-			}
-		}
-	}
-
 }
 
 
