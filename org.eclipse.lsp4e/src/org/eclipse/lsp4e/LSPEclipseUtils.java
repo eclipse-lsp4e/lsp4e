@@ -94,6 +94,7 @@ import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionProvider;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.DocumentInputStream;
+import org.eclipse.lsp4e.internal.ResourceForUriCache;
 import org.eclipse.lsp4e.refactoring.CreateFileChange;
 import org.eclipse.lsp4e.refactoring.DeleteExternalFile;
 import org.eclipse.lsp4e.refactoring.LSPTextChange;

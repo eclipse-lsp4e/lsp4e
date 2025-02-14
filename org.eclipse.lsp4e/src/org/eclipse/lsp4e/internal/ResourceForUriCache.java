@@ -10,7 +10,7 @@
  *   See git history
  *******************************************************************************/
 
-package org.eclipse.lsp4e;
+package org.eclipse.lsp4e.internal;
 
 import java.net.URI;
 
@@ -20,7 +20,7 @@ import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.Adapters;
 import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.lsp4e.internal.ArrayUtil;
+import org.eclipse.lsp4e.LSPEclipseUtils;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
