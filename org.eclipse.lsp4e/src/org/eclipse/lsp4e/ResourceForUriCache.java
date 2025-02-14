@@ -14,8 +14,13 @@ package org.eclipse.lsp4e;
 
 import java.net.URI;
 
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.IWorkspaceRoot;
+import org.eclipse.core.resources.ResourcesPlugin;
+import org.eclipse.core.runtime.Adapters;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.lsp4e.internal.ArrayUtil;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -33,6 +38,7 @@ import com.google.common.cache.CacheBuilder;
  * Therefore entries can be removed before the limit exceeds.
  */
 public final class ResourceForUriCache {
+	private static final String FILE_SCHEME = "file"; //$NON-NLS-1$
 	private static final Cache<URI, IResource> cache =  CacheBuilder.newBuilder().maximumSize(100).build();
 	private static final ResourceForUriCache INSTANCE = new ResourceForUriCache();
 
@@ -56,19 +62,45 @@ public final class ResourceForUriCache {
 	 */
 	@Nullable
 	public IResource get(@Nullable URI uri) {
+		// Note: The load method in CacheLoader/LoadingCache cannot be applied here because
+		// the load method has to return a non-null value.
+		// But it cannot be guaranteed that there can be a IResource fetched for the given URI.
 		IResource resource = null;
 		if (uri != null) {
 			resource = cache.getIfPresent(uri);
 			if (resource != null) {
 				return resource;
 			}
-			resource = LSPEclipseUtils.findResourceFor(uri);
+			resource = findResourceFor(uri);
 			if (resource != null) {
 				cache.put(uri, resource);
 			}
 		}
 		return resource;
 	}
+
+	@Nullable
+	private static IResource findResourceFor(@Nullable URI uri) {
+		if (uri == null) {
+			return null;
+		}
+		if (FILE_SCHEME.equals(uri.getScheme())) {
+			IWorkspaceRoot wsRoot = ResourcesPlugin.getWorkspace().getRoot();
+
+			IFile[] files = wsRoot.findFilesForLocationURI(uri);
+			if (files.length > 0) {
+				IFile file = LSPEclipseUtils.findMostNested(files);
+				if(file!=null) {
+					return file;
+				}
+			}
+
+			return ArrayUtil.findFirst(wsRoot.findContainersForLocationURI(uri));
+		} else {
+			return Adapters.adapt(uri, IResource.class, true);
+		}
+	}
+
 }
 
 

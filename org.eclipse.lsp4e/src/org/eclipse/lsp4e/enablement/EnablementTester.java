@@ -28,7 +28,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
-import org.eclipse.lsp4e.ResourceForUriCache;
 
 /**
  * Represents enabledWhen element from plugin.xml
@@ -41,7 +40,6 @@ public final class EnablementTester {
 	private final Expression expression;
 	private final String description;
 	private final Supplier<@Nullable IEvaluationContext> parent;
-	private final ResourceForUriCache cache = ResourceForUriCache.getInstance();
 
 	public EnablementTester(Expression expression, String description) {
 		this(() -> null, expression, description);
@@ -71,7 +69,7 @@ public final class EnablementTester {
 		IResource resource = null;
 		try {
 			IDocument document = null;
-			resource = cache.get(uri);
+			resource = LSPEclipseUtils.findResourceFor(uri);
 			if (resource != null) {
 				document = LSPEclipseUtils.getExistingDocument(resource);
 				if (document == null) {
