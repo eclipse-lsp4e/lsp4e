@@ -65,25 +65,23 @@ public final class ResourceForUriCache {
 		// Note: The load method in CacheLoader/LoadingCache cannot be applied here because
 		// the load method has to return a non-null value.
 		// But it cannot be guaranteed that there can be a IResource fetched for the given URI.
+		URI localURI = uri;
 		IResource resource = null;
-		if (uri != null) {
-			resource = cache.getIfPresent(uri);
+		if (localURI != null) {
+			resource = cache.getIfPresent(localURI);
 			if (resource != null) {
 				return resource;
 			}
-			resource = findResourceFor(uri);
+			resource = findResourceFor(localURI);
 			if (resource != null) {
-				cache.put(uri, resource);
+				cache.put(localURI, resource);
 			}
 		}
 		return resource;
 	}
 
 	@Nullable
-	private static IResource findResourceFor(@Nullable URI uri) {
-		if (uri == null) {
-			return null;
-		}
+	private static IResource findResourceFor(URI uri) {
 		if (FILE_SCHEME.equals(uri.getScheme())) {
 			IWorkspaceRoot wsRoot = ResourcesPlugin.getWorkspace().getRoot();
 
