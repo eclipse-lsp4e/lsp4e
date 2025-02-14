@@ -186,7 +186,6 @@ public final class LSPEclipseUtils {
 	private static final String MARKDOWN = "markdown"; //$NON-NLS-1$
 	private static final String MD = "md"; //$NON-NLS-1$
 	private static final int MAX_BROWSER_NAME_LENGTH = 30;
-	private static final ResourceForUriCache resourceForUriCache = ResourceForUriCache.getInstance();
 
 	private LSPEclipseUtils() {
 		// this class shouldn't be instantiated
@@ -460,7 +459,7 @@ public final class LSPEclipseUtils {
 
 	@Nullable
 	public static IResource findResourceFor(@Nullable URI uri) {
-		return resourceForUriCache.get(uri);
+		return ResourceForUriCache.get(uri);
 	}
 
 	public static @Nullable IFile findMostNested(IFile[] files) {

@@ -26,10 +26,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 
 /**
- * <p>Caches the {@link LSPEclipseUtils#findResourceFor(URI)} call. <code>ResourceForUriCache.getInstance().get(URI)</code>
- * can an be used instead of a direct call to LSPEclipseUtils.findResourceFor(URI),
- * because the call is very time consuming.
- *
  * <p>NOTE: In case a resource has been moved or deleted the entry will not be removed automatically.
  * It's up to the caller to check if the resource is accessible.
  *
@@ -39,15 +35,10 @@ import com.google.common.cache.CacheBuilder;
  */
 public final class ResourceForUriCache {
 	private static final String FILE_SCHEME = "file"; //$NON-NLS-1$
-	private static final Cache<URI, IResource> cache =  CacheBuilder.newBuilder().maximumSize(100).build();
-	private static final ResourceForUriCache INSTANCE = new ResourceForUriCache();
+	private static final Cache<URI, IResource> cache = CacheBuilder.newBuilder().maximumSize(100).build();
 
 	private ResourceForUriCache() {
-		//  use getInstance()
-	}
-
-	public static ResourceForUriCache getInstance() {
-		return INSTANCE;
+		// this class shouldn't be instantiated
 	}
 
 	/**
@@ -61,7 +52,7 @@ public final class ResourceForUriCache {
 	 * @return IResource or NULL
 	 */
 	@Nullable
-	public IResource get(@Nullable URI uri) {
+	public static IResource get(@Nullable URI uri) {
 		// Note: The load method in CacheLoader/LoadingCache cannot be applied here because
 		// the load method has to return a non-null value.
 		// But it cannot be guaranteed that there can be a IResource fetched for the given URI.
