@@ -795,8 +795,8 @@
    <extension point="org.eclipse.ui.commandImages">
       <image
             commandId="org.eclipse.lsp4e.collapseAllOutline"
-            disabledIcon="platform:/plugin/org.eclipse.jdt.ui/icons/full/dlcl16/collapseall.png"
-            icon="platform:/plugin/org.eclipse.jdt.ui/icons/full/elcl16/collapseall.png" />
+            disabledIcon="platform:/plugin/org.eclipse.ui/icons/full/dlcl16/collapseall.png"
+            icon="platform:/plugin/org.eclipse.ui/icons/full/elcl16/collapseall.png" />
       <image
             commandId="org.eclipse.lsp4e.toggleSortOutline"
             disabledIcon="icons/full/dlcl16/alphab_sort_co.png"
