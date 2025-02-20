@@ -145,17 +145,17 @@ public final class CompletionProposalTools {
 	 * @return score of the match where the lower the number, the better the score
 	 *         and -1 mean there was no match
 	 */
-	public static int getScoreOfFilterMatch(String documentFilter, String completionFilter) {
-		documentFilter = documentFilter.toLowerCase();
-		completionFilter = completionFilter.toLowerCase();
-		return getScoreOfFilterMatchHelper(0, documentFilter, completionFilter);
+	public static int getScoreOfFilterMatch(final String documentFilter, final String completionFilter) {
+		return getScoreOfFilterMatchHelper(0, documentFilter.toLowerCase(), completionFilter.toLowerCase());
 	}
 
-	private static int getScoreOfFilterMatchHelper(int prefixLength, String documentFilter, String completionFilter) {
+	private static int getScoreOfFilterMatchHelper(final int prefixLength, final String documentFilter,
+			final String completionFilter) {
 		if (documentFilter.isEmpty()) {
 			return 0;
 		}
-		char searchChar = documentFilter.charAt(0);
+
+		final char searchChar = documentFilter.charAt(0);
 		int i = completionFilter.indexOf(searchChar);
 		if (i == -1) {
 			return -1;
@@ -166,17 +166,10 @@ public final class CompletionProposalTools {
 			return i + prefixLength;
 		}
 
-		int matchLength = commonPrefixLength(documentFilter, completionFilter.substring(i));
-		if (matchLength == documentFilterLength) {
-			return i + prefixLength;
-		}
-		int bestScore = i + getScoreOfFilterMatchHelper(prefixLength + i + matchLength,
-				documentFilter.substring(matchLength),
-				completionFilter.substring(i + matchLength));
+		int bestScore = Integer.MAX_VALUE;
 
-		i = completionFilter.indexOf(searchChar, i + 1);
 		while (i != -1) {
-			matchLength = commonPrefixLength(documentFilter, completionFilter.substring(i));
+			final int matchLength = commonPrefixLength(documentFilter, completionFilter.substring(i));
 			if (matchLength == documentFilterLength) {
 				return i + prefixLength;
 			}
