@@ -166,7 +166,7 @@ public final class CompletionProposalTools {
 			return i + prefixLength;
 		}
 
-		int matchLength = lengthOfPrefixMatch(documentFilter, completionFilter.substring(i));
+		int matchLength = commonPrefixLength(documentFilter, completionFilter.substring(i));
 		if (matchLength == documentFilterLength) {
 			return i + prefixLength;
 		}
@@ -176,7 +176,7 @@ public final class CompletionProposalTools {
 
 		i = completionFilter.indexOf(searchChar, i + 1);
 		while (i != -1) {
-			matchLength = lengthOfPrefixMatch(documentFilter, completionFilter.substring(i));
+			matchLength = commonPrefixLength(documentFilter, completionFilter.substring(i));
 			if (matchLength == documentFilterLength) {
 				return i + prefixLength;
 			}
@@ -192,10 +192,10 @@ public final class CompletionProposalTools {
 		return prefixLength + bestScore;
 	}
 
-	private static int lengthOfPrefixMatch(String first, String second) {
+	private static int commonPrefixLength(final String first, final String second) {
 		int i;
-		final var maxLength = Math.min(first.length(), second.length());
-		for (i = 0; i < maxLength; i++) {
+		final var maxCommonLength = Math.min(first.length(), second.length());
+		for (i = 0; i < maxCommonLength; i++) {
 			if (first.charAt(i) != second.charAt(i))
 				break;
 		}
