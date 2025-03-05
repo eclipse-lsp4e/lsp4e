@@ -100,16 +100,25 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 				int end = LSPEclipseUtils.toOffset(link.getRange().getEnd(), document);
 				int length = end - start;
 				final var linkRegion = new Region(start, length);
+				int offset = viewer.getVisibleRegion().getOffset();
+				int widgetStart = start - offset;
+				int widgetEnd = end - offset;
+				if (widgetStart < 0 && widgetEnd > 0) {
+					widgetStart = 0;
+				}
 
 				// Update existing style range with underline or create a new style range with
 				// underline
 				StyleRange styleRange = null;
-				StyleRange[] styleRanges = viewer.getTextWidget().getStyleRanges(start, length);
+				StyleRange[] styleRanges = widgetStart > 0
+						? viewer.getTextWidget().getStyleRanges(widgetStart, widgetEnd - widgetStart)
+						: null;
 				if (styleRanges != null && styleRanges.length > 0) {
 					// It exists some styles for the range of document link, update just the
 					// underline style.
 					for (StyleRange s : styleRanges) {
 						s.underline = true;
+						s.start += offset; // must be model (document) coordinate
 					}
 					final var presentation = new TextPresentation(linkRegion, 100);
 					presentation.replaceStyleRanges(styleRanges);
