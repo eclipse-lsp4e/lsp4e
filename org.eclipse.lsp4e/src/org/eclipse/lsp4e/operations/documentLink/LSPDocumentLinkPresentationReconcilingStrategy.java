@@ -93,6 +93,9 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 		if (document == null || links == null || viewer == null) {
 			return;
 		}
+		IRegion visibleRegion = viewer.getVisibleRegion();
+		int visibleRegionOffset = visibleRegion.getOffset();
+		int visibleRegionEnd = visibleRegionOffset + visibleRegion.getLength();
 		for (DocumentLink link : links) {
 			try {
 				// Compute link region
@@ -100,16 +103,24 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 				int end = LSPEclipseUtils.toOffset(link.getRange().getEnd(), document);
 				int length = end - start;
 				final var linkRegion = new Region(start, length);
+				int widgetStart = -1;
+				int widgetEnd = -1;
+				if (start <= visibleRegionEnd && end >= visibleRegionOffset) {
+					widgetStart = (start >= visibleRegionOffset) ? start - visibleRegionOffset : 0;
+					widgetEnd = (end <= visibleRegionEnd) ? end - visibleRegionOffset : visibleRegion.getLength();
+				} // else link is completely outside of visible region
 
-				// Update existing style range with underline or create a new style range with
-				// underline
+				// Update existing style range with underline or create a new style range with underline
 				StyleRange styleRange = null;
-				StyleRange[] styleRanges = viewer.getTextWidget().getStyleRanges(start, length);
+				StyleRange[] styleRanges = widgetStart > -1
+						? viewer.getTextWidget().getStyleRanges(widgetStart, widgetEnd - widgetStart)
+						: null;
 				if (styleRanges != null && styleRanges.length > 0) {
 					// It exists some styles for the range of document link, update just the
 					// underline style.
 					for (StyleRange s : styleRanges) {
 						s.underline = true;
+						s.start += visibleRegionOffset; // must be model (document) coordinate
 					}
 					final var presentation = new TextPresentation(linkRegion, 100);
 					presentation.replaceStyleRanges(styleRanges);
