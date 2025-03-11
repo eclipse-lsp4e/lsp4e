@@ -21,6 +21,7 @@ import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.ITextViewerLifecycle;
 import org.eclipse.jface.text.Region;
 import org.eclipse.jface.text.TextPresentation;
+import org.eclipse.jface.text.TextViewer;
 import org.eclipse.jface.text.reconciler.DirtyRegion;
 import org.eclipse.jface.text.reconciler.IReconcilingStrategy;
 import org.eclipse.jface.text.reconciler.IReconcilingStrategyExtension;
@@ -93,34 +94,70 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 		if (document == null || links == null || viewer == null) {
 			return;
 		}
-		IRegion visibleRegion = viewer.getVisibleRegion();
-		int visibleRegionOffset = visibleRegion.getOffset();
-		int visibleRegionEnd = visibleRegionOffset + visibleRegion.getLength();
+		TextViewer textViewer = viewer instanceof TextViewer ? (TextViewer) viewer : null;
 		for (DocumentLink link : links) {
 			try {
 				// Compute link region
 				int start = LSPEclipseUtils.toOffset(link.getRange().getStart(), document);
 				int end = LSPEclipseUtils.toOffset(link.getRange().getEnd(), document);
 				int length = end - start;
-				final var linkRegion = new Region(start, length);
-				int widgetStart = -1;
-				int widgetEnd = -1;
-				if (start <= visibleRegionEnd && end >= visibleRegionOffset) {
-					widgetStart = (start >= visibleRegionOffset) ? start - visibleRegionOffset : 0;
-					widgetEnd = (end <= visibleRegionEnd) ? end - visibleRegionOffset : visibleRegion.getLength();
-				} // else link is completely outside of visible region
-
+				var linkRegion = new Region(start, length);
 				// Update existing style range with underline or create a new style range with underline
 				StyleRange styleRange = null;
-				StyleRange[] styleRanges = widgetStart > -1
-						? viewer.getTextWidget().getStyleRanges(widgetStart, widgetEnd - widgetStart)
-						: null;
+				StyleRange[] styleRanges = null;
+				int startOffset = 0;
+				if (textViewer != null) {
+					// returns widget region just for visible part of link region
+					var widgetRange = textViewer.modelRange2WidgetRange(linkRegion);
+					if (widgetRange != null) {
+						int widgetOffset = widgetRange.getOffset();
+						styleRanges = textViewer.getTextWidget().getStyleRanges(widgetOffset, widgetRange.getLength());
+
+						// only part of the link area may be visible, so we need to adjust our document coordinates
+						int visibleStart = textViewer.widgetOffset2ModelOffset(widgetOffset);
+						int visibleLength =
+								textViewer.widgetOffset2ModelOffset(widgetOffset + widgetRange.getLength())
+								- visibleStart;
+						startOffset = visibleStart - widgetOffset;
+						if (visibleLength > linkRegion.getLength()) {
+							/*
+							 * It's possible that link falls into a folded area in a such way that
+							 * translating widget range back to document range results in larger range, in
+							 * which case we must back-off by 1 from widget range.
+							 *
+							 * Example:
+							 * 1     text of visible line
+							 * 2*    start-of-the-link
+							 * 3*    end-of-the-link
+							 * 4     text of visible line
+							 *
+							 * Line 3 is folded into line 2, therefore not visible.
+							 * Link range spanning region until end of line 3 (includes line 2 terminator but not
+							 * line 3 terminator) is translated to widget range spanning whole line 2 including it's
+							 * line terminator. Since visually 4th line starts right after line terminator at the end
+							 * of line 2, when translated back to document range it becomes region spanning line 2 and 3
+							 * until start of line 4, therefore line 3 terminator as well - region larger than link.
+							 */
+							visibleLength =
+								textViewer.widgetOffset2ModelOffset(widgetOffset + widgetRange.getLength() - 1)
+								- visibleStart;
+						}
+						if (visibleStart > linkRegion.getOffset() || visibleLength < linkRegion.getLength()) {
+							linkRegion = new Region(visibleStart, visibleLength);
+						}
+					} else {
+						// whole link is not visible - outside model coverage (visible region) or inside folded areas
+						continue;
+					}
+				} else {
+					styleRanges = viewer.getTextWidget().getStyleRanges(start, length);
+				}
 				if (styleRanges != null && styleRanges.length > 0) {
 					// It exists some styles for the range of document link, update just the
 					// underline style.
 					for (StyleRange s : styleRanges) {
 						s.underline = true;
-						s.start += visibleRegionOffset; // must be model (document) coordinate
+						s.start += startOffset; // shift to align with start of link (in document coordinates)
 					}
 					final var presentation = new TextPresentation(linkRegion, 100);
 					presentation.replaceStyleRanges(styleRanges);
