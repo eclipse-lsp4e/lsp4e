@@ -41,14 +41,14 @@ import org.junit.Test;
 public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	
 	private static final String CONTENT = """
-				1st_line #LINK1 1st_line
-				2nd_line #LINK2_START
-				#LINK2_END 3rd_line #LINK3 3rd_line
+				1st-line #LINK1 1st-line
+				2nd-line #LINK2_START
+				#LINK2_END 3rd-line #LINK3 3rd-line
 				#LINK4
-				5th_line #LINK5_START_#LINK5_END
+				5th-line #LINK5_START_#LINK5_END
 				#LINK6_START
 				#LINK6_END
-				8th_line #LINK7 8th_line""";
+				8th-line #LINK7 8th-line""";
 	
 	private static final List<DocumentLink> CONTENT_LINKS = List.of(
 			new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file://link1"),
@@ -91,15 +91,15 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		});
 		viewer.addTextPresentationListener(this::textPresentationListener);
 		
-		TestUtils.waitForAndAssertCondition(1_000, () -> textPresentations.size() == 7);
+		waitForAndAssertTextPresentations(doc);
 		
-		assertEquals(linkRegion(0, doc), textPresentations.get(0).getExtent());
-		assertEquals(linkRegion(1, doc), textPresentations.get(1).getExtent());
-		assertEquals(linkRegion(2, doc), textPresentations.get(2).getExtent());
-		assertEquals(linkRegion(3, doc), textPresentations.get(3).getExtent());
-		assertEquals(linkRegion(4, doc), textPresentations.get(4).getExtent());
-		assertEquals(linkRegion(5, doc), textPresentations.get(5).getExtent());
-		assertEquals(linkRegion(6, doc), textPresentations.get(6).getExtent());
+		assertEquals(1, getStylesCount(textPresentations.get(0)));
+		assertEquals(2, getStylesCount(textPresentations.get(1))); // link2 spans 2 visible lines, 2nd and 3rd
+		assertEquals(1, getStylesCount(textPresentations.get(2)));
+		assertEquals(1, getStylesCount(textPresentations.get(3)));
+		assertEquals(1, getStylesCount(textPresentations.get(4)));
+		assertEquals(2, getStylesCount(textPresentations.get(5))); // link6 spans 2 visible lines, 6th and 7th
+		assertEquals(1, getStylesCount(textPresentations.get(6)));
 		
 		var styles = viewer.getTextWidget().getStyleRanges();
 		
@@ -158,15 +158,15 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		});
 		viewer.addTextPresentationListener(this::textPresentationListener);
 		
-		TestUtils.waitForAndAssertCondition(1_000, () -> textPresentations.size() == 4);
+		waitForAndAssertTextPresentations(doc);
 		
-		// no textPresentation for link1
-		assertEquals(tail(linkRegion(1, doc), 10), textPresentations.get(0).getExtent()); // visible 2nd part of link2
-		assertEquals(linkRegion(2, doc), textPresentations.get(1).getExtent()); // whole link3
-		assertEquals(linkRegion(3, doc), textPresentations.get(2).getExtent()); // whole link4
-		assertEquals(head(linkRegion(4, doc), 12), textPresentations.get(3).getExtent()); // visible 1st part of link5
-		// no textPresentation for link6
-		// no textPresentation for link7
+		assertEquals(1, getStylesCount(textPresentations.get(0)));
+		assertEquals(2, getStylesCount(textPresentations.get(1))); // link2 spans 2 lines, invisible 2nd and visible 3rd
+		assertEquals(1, getStylesCount(textPresentations.get(2)));
+		assertEquals(1, getStylesCount(textPresentations.get(3)));
+		assertEquals(2, getStylesCount(textPresentations.get(4))); // end of visible region cuts link into 2 styles
+		assertEquals(1, getStylesCount(textPresentations.get(5)));
+		assertEquals(1, getStylesCount(textPresentations.get(6)));
 		
 		var styles = viewer.getTextWidget().getStyleRanges();
 		
@@ -212,16 +212,15 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		});
 		viewer.addTextPresentationListener(this::textPresentationListener);
 		
-		TestUtils.waitForAndAssertCondition(10_000, () -> textPresentations.size() == 6);
+		waitForAndAssertTextPresentations(doc);
 		
-		assertEquals(linkRegion(0, doc), textPresentations.get(0).getExtent()); // whole link1
-		assertEquals(tail(linkRegion(1, doc), 10), textPresentations.get(1).getExtent()); // visible 2nd part of link2
-		assertEquals(linkRegion(2, doc), textPresentations.get(2).getExtent()); // whole link3
-		assertEquals(linkRegion(3, doc), textPresentations.get(3).getExtent()); // whole link4
-		// no textPresentation for link5
-		assertEquals(head(linkRegion(5, doc), 12), textPresentations.get(4).getExtent()); // visible 1st part of link6
-		// no textPresentation for link7
-		assertEquals(linkRegion(6, doc), textPresentations.get(5).getExtent()); // whole link7
+		assertEquals(1, getStylesCount(textPresentations.get(0)));
+		assertEquals(2, getStylesCount(textPresentations.get(1))); // link2 spans 2 lines, folded 2nd and visible 3rd
+		assertEquals(1, getStylesCount(textPresentations.get(2)));
+		assertEquals(1, getStylesCount(textPresentations.get(3)));
+		assertEquals(1, getStylesCount(textPresentations.get(4)));
+		assertEquals(2, getStylesCount(textPresentations.get(5))); // link6 spans 2 lines, visible 6th and folded 7th
+		assertEquals(1, getStylesCount(textPresentations.get(6)));
 		
 		var styles = viewer.getTextWidget().getStyleRanges();
 		
@@ -248,6 +247,44 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		assertEquals(textStyle(pos += len, 9, COLOR_8TH_LINE), styles[12]);
 	}
 	
+	private void waitForAndAssertTextPresentations(IDocument document) throws BadLocationException {
+		TestUtils.waitForAndAssertCondition(1_000, () -> textPresentations.size() == 7);
+		
+		Region linkRegion = linkRegion(0, document); 
+		assertEquals(linkRegion, textPresentations.get(0).getExtent());
+		assertEquals(linkRegion, textPresentations.get(0).getCoverage());
+		
+		linkRegion = linkRegion(1, document); 
+		assertEquals(linkRegion, textPresentations.get(1).getExtent());
+		assertEquals(linkRegion, textPresentations.get(1).getCoverage());
+		
+		linkRegion = linkRegion(2, document); 
+		assertEquals(linkRegion, textPresentations.get(2).getExtent());
+		assertEquals(linkRegion, textPresentations.get(2).getCoverage());
+		
+		linkRegion = linkRegion(3, document); 
+		assertEquals(linkRegion, textPresentations.get(3).getExtent());
+		assertEquals(linkRegion, textPresentations.get(3).getCoverage());
+		
+		linkRegion = linkRegion(4, document); 
+		assertEquals(linkRegion, textPresentations.get(4).getExtent());
+		assertEquals(linkRegion, textPresentations.get(4).getCoverage());
+		
+		linkRegion = linkRegion(5, document); 
+		assertEquals(linkRegion, textPresentations.get(5).getExtent());
+		assertEquals(linkRegion, textPresentations.get(5).getCoverage());
+		
+		linkRegion = linkRegion(6, document); 
+		assertEquals(linkRegion, textPresentations.get(6).getExtent());
+		assertEquals(linkRegion, textPresentations.get(6).getCoverage());
+	}
+	
+	private int getStylesCount(TextPresentation presentation) {
+		var list = new ArrayList<>(2);
+		presentation.getAllStyleRangeIterator().forEachRemaining(list::add);
+		return list.size();
+	}
+
 	private StyleRange textStyle(int start, int length, Color backgroundColor ) {
 		return new StyleRange(start, length, null, backgroundColor);
 	}
@@ -266,14 +303,6 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		return new Region(startOffset, (document.getLineOffset(end.getLine()) + end.getCharacter()) - startOffset);
 	}
 	
-	private Region head(Region region, int length) {
-		return new Region(region.getOffset(), length);
-	}
-	
-	private Region tail(Region region, int length) {
-		return new Region(region.getOffset() + region.getLength() - length, length);
-	}
-	
 	private void foldLines(int startLine, int endLine, ProjectionViewer viewer) throws BadLocationException {
 		var doc = viewer.getDocument();
 		int firstLineOffset = doc.getLineOffset(startLine);
@@ -282,7 +311,7 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 				new ProjectionAnnotation(true),
 				new org.eclipse.jface.text.Position(firstLineOffset, lastLineEndOffset - firstLineOffset));
 	}
-
+	
 	private void textPresentationListener(TextPresentation textPresentation) {
 		textPresentations.add(textPresentation);
 	}
