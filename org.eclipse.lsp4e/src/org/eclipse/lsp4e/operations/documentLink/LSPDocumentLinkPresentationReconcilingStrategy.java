@@ -106,88 +106,51 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 				int length = end - start;
 				final var linkRegion = new Region(start, length);
 
-				// Update existing style range with underline or create a new style range with
-				// underline
-				StyleRange styleRange = null;
+				// Create a new style range with underline for the whole link region, then add existing style range(s)
+				// updated with underline on top (if there are any)
+				var styleRange = new StyleRange();
+				styleRange.underline = true;
+				styleRange.start = start;
+				styleRange.length = length;
+				final var presentation = new TextPresentation(linkRegion, 100);
+				presentation.addStyleRange(styleRange);
+
 				StyleRange[] styleRanges = null;
 				if (textViewer != null) {
-					// returns widget region just for visible part of link region
+					// Returns widget region just for visible part of the link region
 					var widgetRange = textViewer.modelRange2WidgetRange(linkRegion);
 					if (widgetRange != null) {
 						int widgetOffset = widgetRange.getOffset();
 						styleRanges = textViewer.getTextWidget().getStyleRanges(widgetOffset, widgetRange.getLength());
 						if (styleRanges != null && styleRanges.length > 0) {
-							// There are some styles for the range of document link, update just the underline style.
-
-							// only part of the link area may be visible, so we need to adjust our document coordinates
+							// There are some styles for the range of document link, first update the underline style.
+							// Only part of the link area may be visible, so we need to adjust our document coordinates
 							int visibleStart = textViewer.widgetOffset2ModelOffset(widgetOffset);
 							int startOffset = visibleStart - widgetOffset;
 							for (StyleRange s : styleRanges) {
 								s.underline = true;
-								s.start += startOffset; // shift to align with start of link in document coordinates
+								s.start += startOffset; // shift to translate to document coordinates
 							}
-							// fill the gaps at the start/end of the link region if not fully covered by existing styles
-							styleRanges = fillStartEndGaps(styleRanges, start, end);
+							// Then overlay on top of whole-region style range
+							presentation.replaceStyleRanges(styleRanges);
 						}
 					}
 				} else {
 					styleRanges = viewer.getTextWidget().getStyleRanges(start, length);
 					if (styleRanges != null && styleRanges.length > 0) {
-						// There are some styles for the range of document link, update just the underline style.
+						// There are some styles for the range of document link, first update the underline style.
 						for (StyleRange s : styleRanges) {
 							s.underline = true;
 						}
+						// Then overlay on top of whole-region style range
+						presentation.replaceStyleRanges(styleRanges);
 					}
 				}
-				if (styleRanges != null && styleRanges.length > 0) {
-					final var presentation = new TextPresentation(linkRegion, 100);
-					presentation.replaceStyleRanges(styleRanges);
-					viewer.changeTextPresentation(presentation, false);
-
-				} else {
-					// No styles for the range of document link, create a style range with underline
-					styleRange = new StyleRange();
-					styleRange.underline = true;
-					styleRange.start = start;
-					styleRange.length = length;
-
-					final var presentation = new TextPresentation(linkRegion, 100);
-					presentation.replaceStyleRange(styleRange);
-					viewer.changeTextPresentation(presentation, false);
-				}
-
+				viewer.changeTextPresentation(presentation, false);
 			} catch (BadLocationException e) {
 				LanguageServerPlugin.logError(e);
 			}
 		}
-	}
-
-	private StyleRange[] fillStartEndGaps(StyleRange[] styleRanges, int linkStart, int linkEnd) {
-		var lastStyle = styleRanges[styleRanges.length - 1];
-		int startGap = styleRanges[0].start - linkStart;
-		int endGap = linkEnd - (lastStyle.start + lastStyle.length);
-		int stylesToAdd = startGap > 0 ? 1 : 0 + endGap > 0 ? 1 : 0;
-		if (stylesToAdd > 0) {
-			StyleRange[] modifiedRanges = new StyleRange[styleRanges.length + stylesToAdd];
-			StyleRange styleRange;
-			if (startGap > 0) {
-				System.arraycopy(styleRanges, 0, modifiedRanges, 1, styleRanges.length);
-				modifiedRanges[0] = styleRange = new StyleRange();
-				styleRange.underline = true;
-				styleRange.start = linkStart;
-				styleRange.length = startGap;
-			} else {
-				System.arraycopy(styleRanges, 0, modifiedRanges, 0, styleRanges.length);
-			}
-			if (endGap > 0) {
-				modifiedRanges[modifiedRanges.length - 1] = styleRange = new StyleRange();
-				styleRange.underline = true;
-				styleRange.start = linkEnd - endGap;
-				styleRange.length = endGap;
-			}
-			return modifiedRanges;
-		}
-		return styleRanges;
 	}
 
 	@Override
