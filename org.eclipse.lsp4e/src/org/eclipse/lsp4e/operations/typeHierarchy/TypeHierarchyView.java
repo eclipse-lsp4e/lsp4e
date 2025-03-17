@@ -49,6 +49,7 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
+import org.eclipse.lsp4e.internal.NullSafetyHelper;
 import org.eclipse.lsp4e.outline.SymbolsLabelProvider;
 import org.eclipse.lsp4e.outline.SymbolsModel;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
@@ -330,8 +331,8 @@ public class TypeHierarchyView extends ViewPart {
 	private FilteredTree getFilteredTree(Composite parent) {
 		return new FilteredTree(parent, SWT.BORDER, new PatternFilter(), true, false) {
 			@Override
-			protected Composite createFilterControls(Composite parent) {
-				final var composite = new Composite(parent, SWT.NONE);
+			protected Composite createFilterControls(@Nullable Composite parent) {
+				final var composite = new Composite(NullSafetyHelper.castNonNull(parent), SWT.NONE);
 				final var layout = new GridLayout(2, false);
 				layout.horizontalSpacing=0;
 				layout.marginWidth=0;

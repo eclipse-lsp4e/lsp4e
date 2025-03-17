@@ -129,10 +129,11 @@ public class MockLanguageServer implements LanguageServer {
 			try {
 				future.join();
 			} catch (CancellationException | CompletionException e) {
+				Throwable cause = e.getCause();
 				System.err.println("Error waiting for in flight requests prior to teardown: " //
 						+ e.getClass().getSimpleName() + " with message "
 						+ (e.getMessage() == null ? "<null>" : '"' + e.getMessage()) //
-						+ (e.getCause() instanceof Throwable cause //
+						+ (cause != null //
 								? " caused by " + cause.getClass().getSimpleName() + " with message "
 										+ (cause.getMessage() == null ? "<null>" : '"' + cause.getMessage()) //
 								: ""));
