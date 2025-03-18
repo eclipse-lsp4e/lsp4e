@@ -31,7 +31,7 @@ class LSJavaProposal implements IJavaCompletionProposal {
 	 // Based on org.eclipse.jdt.internal.ui.text.java.RelevanceComputer
 	private static final int DEFAULT_RELEVANCE = (RelevanceConstants.R_DEFAULT + LS_DEFAULT_RELEVANCE) * 16;
 
-	private static final int RANGE_WITHIN_CATEGORY = Math.round((MAX_BASE_RELEVANCE - DEFAULT_RELEVANCE) / 4);
+	private static final int RANGE_WITHIN_CATEGORY = Math.round((MAX_BASE_RELEVANCE - DEFAULT_RELEVANCE) / 4f);
 
 	protected ICompletionProposal delegate;
 	private boolean relevanceComputed = false;
