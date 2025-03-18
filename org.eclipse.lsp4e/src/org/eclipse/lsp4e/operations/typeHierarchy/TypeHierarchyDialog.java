@@ -9,7 +9,6 @@
 package org.eclipse.lsp4e.operations.typeHierarchy;
 
 
-import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.dialogs.PopupDialog;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextSelection;
@@ -58,7 +57,7 @@ public class TypeHierarchyDialog extends PopupDialog {
 	protected Control createDialogArea(Composite parent) {
 		final var filteredTree = new FilteredTree(parent, SWT.BORDER, new PatternFilter(), true, false) {
 			@Override
-			protected Composite createFilterControls(@Nullable Composite parent) {
+			protected Composite createFilterControls(Composite parent) {
 				final var composite = new Composite(NullSafetyHelper.castNonNull(parent), SWT.NONE);
 				final var layout = new GridLayout(2, false);
 				layout.horizontalSpacing=0;

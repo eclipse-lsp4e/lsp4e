@@ -12,7 +12,6 @@
 package org.eclipse.lsp4e.jdt;
 
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.ui.text.java.IInvocationContext;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
@@ -53,13 +52,13 @@ public class LspJavaQuickAssistProcessor extends LSPCodeActionQuickAssistProcess
 	}
 
 	@Override
-	public boolean hasAssists(@NonNullByDefault({}) IInvocationContext context) throws CoreException {
+	public boolean hasAssists(final IInvocationContext context) throws CoreException {
 		return this.canAssist(getContext(context));
 	}
 
 	@Override
-	public IJavaCompletionProposal @Nullable [] getAssists(@NonNullByDefault({}) IInvocationContext context,
-			@NonNullByDefault({}) IProblemLocation[] locations) throws CoreException {
+	public IJavaCompletionProposal @Nullable [] getAssists(final IInvocationContext context,
+			final IProblemLocation[] locations) throws CoreException {
 
 		ICompletionProposal[] proposals = computeQuickAssistProposals(getContext(context));
 		if (proposals == null)

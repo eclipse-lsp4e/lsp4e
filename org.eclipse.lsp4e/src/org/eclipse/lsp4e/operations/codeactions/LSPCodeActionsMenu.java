@@ -109,7 +109,7 @@ public class LSPCodeActionsMenu extends ContributionItem implements IWorkbenchCo
 			final @Nullable List<@Nullable Either<Command, CodeAction>> codeActions) {
 		final var job = new UIJob(menu.getDisplay(), Messages.updateCodeActions_menu) {
 			@Override
-			public IStatus runInUIThread(@Nullable IProgressMonitor monitor) {
+			public IStatus runInUIThread(IProgressMonitor monitor) {
 				if (ex != null) {
 					final var item = new MenuItem(menu, SWT.NONE, index);
 					item.setText(String.valueOf(ex.getMessage()));

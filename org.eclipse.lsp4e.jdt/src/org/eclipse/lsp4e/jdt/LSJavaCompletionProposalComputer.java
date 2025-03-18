@@ -11,7 +11,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.jdt;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -19,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.eclipse.core.runtime.IProgressMonitor;
-import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.ui.text.java.ContentAssistInvocationContext;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposalComputer;
@@ -44,23 +42,25 @@ public class LSJavaCompletionProposalComputer implements IJavaCompletionProposal
 	}
 
 	@Override
-	@NonNullByDefault({})
 	public List<ICompletionProposal> computeCompletionProposals(ContentAssistInvocationContext context,
 			IProgressMonitor monitor) {
+		final var viewer = context.getViewer();
+		if(viewer == null)
+			return List.of();
 		CompletableFuture<ICompletionProposal[]> future = CompletableFuture.supplyAsync(() ->
-			lsContentAssistProcessor.computeCompletionProposals(context.getViewer(), context.getInvocationOffset()));
+			lsContentAssistProcessor.computeCompletionProposals(viewer, context.getInvocationOffset()));
 
 		try {
 			return List.of(asJavaProposals(future));
 		} catch (ExecutionException | TimeoutException e) {
 			LanguageServerPlugin.logError(e);
 			javaCompletionSpecificErrorMessage = createErrorMessage(e);
-			return Collections.emptyList();
+			return List.of();
 		} catch (InterruptedException e) {
 			LanguageServerPlugin.logError(e);
 			javaCompletionSpecificErrorMessage = createErrorMessage(e);
 			Thread.currentThread().interrupt();
-			return Collections.emptyList();
+			return List.of();
 		}
 	}
 
@@ -82,7 +82,6 @@ public class LSJavaCompletionProposalComputer implements IJavaCompletionProposal
 		ICompletionProposal[] originalProposals = future.get(TIMEOUT_LENGTH, TIMEOUT_UNIT);
 
 		final var javaProposals = new ICompletionProposal[originalProposals.length];
-
 		for (int i = 0; i < originalProposals.length; i++) {
 			if (originalProposals[i] instanceof ICompletionProposalExtension2) {
 				javaProposals[i] = new LSJavaProposalExtension2(originalProposals[i]);
@@ -92,15 +91,16 @@ public class LSJavaCompletionProposalComputer implements IJavaCompletionProposal
 				javaProposals[i] = new LSJavaProposal(originalProposals[i]);
 			}
 		}
-		
 		return javaProposals;
 	}
 
 	@Override
-	@NonNullByDefault({})
 	public List<IContextInformation> computeContextInformation(ContentAssistInvocationContext context,
 			IProgressMonitor monitor) {
-		IContextInformation[] contextInformation = lsContentAssistProcessor.computeContextInformation(context.getViewer(), context.getInvocationOffset());
+		final var viewer = context.getViewer();
+		if(viewer == null)
+			return List.of();
+		IContextInformation[] contextInformation = lsContentAssistProcessor.computeContextInformation(viewer, context.getInvocationOffset());
 		return contextInformation == null ? List.of() : List.of(contextInformation);
 	}
 

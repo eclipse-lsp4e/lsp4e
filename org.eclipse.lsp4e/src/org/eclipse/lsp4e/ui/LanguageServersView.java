@@ -121,7 +121,7 @@ public class LanguageServersView extends ViewPart {
 		final var columnIndex = columnLabelProviders.size();
 		tableColumn.addSelectionListener(new SelectionAdapter() {
 			@Override
-			public void widgetSelected(@Nullable final SelectionEvent e) {
+			public void widgetSelected(final SelectionEvent e) {
 				if (columnIndex == 0) // ignore the column with buttons
 					return;
 				if (tableSortColumn == columnIndex) {

@@ -90,7 +90,7 @@ public class LSPLinkedEditingBase implements IPreferenceChangeListener {
 	@Override
 	public void preferenceChange(PreferenceChangeEvent event) {
 		if (event.getKey().equals(LINKED_EDITING_PREFERENCE)) {
-			this.fEnabled = Boolean.parseBoolean(event.getNewValue().toString());
+			this.fEnabled = Boolean.parseBoolean(String.valueOf(event.getNewValue()));
 		}
 	}
 }

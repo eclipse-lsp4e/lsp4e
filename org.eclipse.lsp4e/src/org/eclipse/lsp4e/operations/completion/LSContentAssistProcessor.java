@@ -109,7 +109,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	private final Comparator<LSCompletionProposal> proposalComparator = new LSCompletionProposalComparator();
 
 	@Override
-	public ICompletionProposal @Nullable [] computeCompletionProposals(ITextViewer viewer, int offset) {
+	public ICompletionProposal[] computeCompletionProposals(ITextViewer viewer, int offset) {
 		IDocument document = viewer.getDocument();
 		if (document == null) {
 			return NO_COMPLETION_PROPOSALS;
