@@ -82,6 +82,7 @@ public class CallHierarchyLabelProvider extends LabelProvider implements IStyled
 	 *            the call container detail to append.
 	 */
 	protected void appendDetail(final StyledString styledString, final String detail) {
+		styledString.append(" - ", StyledString.QUALIFIER_STYLER); //$NON-NLS-1$
 		styledString.append(detail, StyledString.QUALIFIER_STYLER);
 	}
 }
