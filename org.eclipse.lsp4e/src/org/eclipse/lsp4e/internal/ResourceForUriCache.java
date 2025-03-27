@@ -46,8 +46,8 @@ public final class ResourceForUriCache {
 	 * if it's not already in the cache. Returns NULL if the IResource could not be determined,
 	 * e.g. the URI points to a file outside the workspace.
 	 *
-	 * <p>NOTE: In case a resource has been moved or deleted the entry will not be removed automatically.
-	 * It's up to the caller to check if the resource is accessible.
+	 * <p>In case a resource has been moved or deleted, the cache entry will be invalidated,
+	 * and this method will re-attempt to find the IResource.
 	 * @param uri
 	 * @return IResource or NULL
 	 */
@@ -61,7 +61,10 @@ public final class ResourceForUriCache {
 		if (localURI != null) {
 			resource = cache.getIfPresent(localURI);
 			if (resource != null) {
-				return resource;
+				if (resource.isAccessible()) {
+					return resource;
+				}
+				cache.invalidate(localURI);
 			}
 			resource = findResourceFor(localURI);
 			if (resource != null) {
