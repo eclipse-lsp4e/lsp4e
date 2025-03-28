@@ -97,7 +97,6 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 		if (document == null || links == null || viewer == null) {
 			return;
 		}
-		TextViewer textViewer = viewer instanceof TextViewer ? (TextViewer) viewer : null;
 		for (DocumentLink link : links) {
 			try {
 				// Compute link region
@@ -116,7 +115,7 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 				presentation.addStyleRange(styleRange);
 
 				StyleRange[] styleRanges = null;
-				if (textViewer != null) {
+				if (viewer instanceof TextViewer textViewer) {
 					// Returns widget region just for visible part of the link region
 					var widgetRange = textViewer.modelRange2WidgetRange(linkRegion);
 					if (widgetRange != null) {
@@ -138,12 +137,8 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 				} else {
 					styleRanges = viewer.getTextWidget().getStyleRanges(start, length);
 					if (styleRanges != null && styleRanges.length > 0) {
-						// There are some styles for the range of document link, first update the underline style.
-						for (StyleRange s : styleRanges) {
-							s.underline = true;
-						}
 						// Then overlay on top of whole-region style range
-						presentation.replaceStyleRanges(styleRanges);
+						presentation.mergeStyleRanges(styleRanges);
 					}
 				}
 				viewer.changeTextPresentation(presentation, false);
