@@ -11,6 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.jdt;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -22,10 +23,9 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.ui.text.java.ContentAssistInvocationContext;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposalComputer;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
-import org.eclipse.jface.text.contentassist.ICompletionProposalExtension;
-import org.eclipse.jface.text.contentassist.ICompletionProposalExtension2;
 import org.eclipse.jface.text.contentassist.IContextInformation;
 import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
 
 @SuppressWarnings({ "restriction" })
@@ -51,7 +51,7 @@ public class LSJavaCompletionProposalComputer implements IJavaCompletionProposal
 			lsContentAssistProcessor.computeCompletionProposals(viewer, context.getInvocationOffset()));
 
 		try {
-			return List.of(asJavaProposals(future));
+			return List.of(asJavaProposals(future, context));
 		} catch (ExecutionException | TimeoutException e) {
 			LanguageServerPlugin.logError(e);
 			javaCompletionSpecificErrorMessage = createErrorMessage(e);
@@ -77,21 +77,12 @@ public class LSJavaCompletionProposalComputer implements IJavaCompletionProposal
 	 * This method wraps around the LSCompletionProposal with a IJavaCompletionProposal, and it sets the relevance
 	 * number that JDT uses to sort proposals in a desired order.
 	 */
-	private ICompletionProposal[] asJavaProposals(CompletableFuture<ICompletionProposal[]> future)
+	private ICompletionProposal[] asJavaProposals(CompletableFuture<ICompletionProposal[]> future, ContentAssistInvocationContext context)
 			throws InterruptedException, ExecutionException, TimeoutException {
 		ICompletionProposal[] originalProposals = future.get(TIMEOUT_LENGTH, TIMEOUT_UNIT);
 
-		final var javaProposals = new ICompletionProposal[originalProposals.length];
-		for (int i = 0; i < originalProposals.length; i++) {
-			if (originalProposals[i] instanceof ICompletionProposalExtension2) {
-				javaProposals[i] = new LSJavaProposalExtension2(originalProposals[i]);
-			} else if (originalProposals[i] instanceof ICompletionProposalExtension) {
-				javaProposals[i] = new LSJavaProposalExtension(originalProposals[i]);
-			} else {
-				javaProposals[i] = new LSJavaProposal(originalProposals[i]);
-			}
-		}
-		return javaProposals;
+		return Arrays.stream(originalProposals).filter(LSCompletionProposal.class::isInstance).map(LSCompletionProposal.class::cast).map(LSJavaProposal::new).toArray(LSJavaProposal[]::new);
+		
 	}
 
 	@Override

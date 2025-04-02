@@ -166,6 +166,24 @@ public class LSCompletionProposal
 		}
 	}
 
+	protected LSCompletionProposal(LSCompletionProposal p) {
+		this.item = p.item;
+		this.document = p.document;
+		this.languageServerWrapper = p.languageServerWrapper;
+		this.initialOffset = p.initialOffset;
+		this.currentOffset = p.currentOffset;
+		this.bestOffset = p.bestOffset;
+		this.isIncomplete = p.isIncomplete;
+
+		this.viewer = p.viewer;
+		this.selection = p.selection;
+		this.firstPosition = p.firstPosition;
+		this.rankCategory = p.rankCategory;
+		this.rankCategory = p.rankScore;
+		this.documentFilter = p.documentFilter;
+		this.documentFilterAddition = p.documentFilterAddition;
+	}
+
 	/**
 	 * See {@link CompletionProposalTools#getFilterFromDocument} for filter
 	 * generation logic
@@ -333,7 +351,7 @@ public class LSCompletionProposal
 	}
 
 	@Override
-	public String getAdditionalProposalInfo(IProgressMonitor monitor) {
+	public Object getAdditionalProposalInfo(IProgressMonitor monitor) {
 		if (languageServerWrapper.isActive() && resolvesCompletionItem(languageServerWrapper.getServerCapabilities())) {
 			resolveItem();
 		}
@@ -755,7 +773,7 @@ public class LSCompletionProposal
 
 	@Override
 	public @Nullable String getAdditionalProposalInfo() {
-		return getAdditionalProposalInfo(new NullProgressMonitor());
+		return (String) getAdditionalProposalInfo(new NullProgressMonitor());
 	}
 
 	@Override

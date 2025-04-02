@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Language Server Protocol client for Eclipse IDE (Incubation)
 Bundle-SymbolicName: org.eclipse.lsp4e;singleton:=true
-Bundle-Version: 0.18.20.qualifier
+Bundle-Version: 0.18.21.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Require-Bundle: org.eclipse.core.runtime;bundle-version="3.12.0",
  org.eclipse.equinox.common;bundle-version="3.8.0",
@@ -56,7 +56,8 @@ Export-Package: org.eclipse.lsp4e;x-friends:="org.eclipse.lsp4e.debug,org.eclips
  org.eclipse.lsp4e.operations.hover;x-internal:=true,
  org.eclipse.lsp4e.operations.rename;x-internal:=true,
  org.eclipse.lsp4e.outline;x-internal:=true,
- org.eclipse.lsp4e.server;version="0.1.0"
+ org.eclipse.lsp4e.server;version="0.1.0",
+ org.eclipse.lsp4e.ui
 Bundle-Vendor: Eclipse LSP4E
 Import-Package: com.google.common.base,
  com.google.gson;version="2.7.0"

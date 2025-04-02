@@ -13,7 +13,10 @@
 package org.eclipse.lsp4e.test.completion;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.net.URI;
@@ -600,7 +603,7 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		item.setDetail("");
 		final var completionProposal = new LSCompletionProposal(document, 0,
 				item, wrapper);
-		String addInfo = completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
+		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
 		assertTrue(addInfo.isEmpty());
 	}
 
@@ -615,7 +618,7 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		item.setDetail("detail");
 		final var completionProposal = new LSCompletionProposal(document, 0,
 				item, wrapper);
-		String addInfo = completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
+		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
 		assertTrue(addInfo.indexOf("<p>detail</p>") >= 0);
 	}
 
@@ -630,7 +633,7 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		item.setDocumentation("");
 		final var completionProposal = new LSCompletionProposal(document, 0,
 				item, wrapper);
-		String addInfo = completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
+		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
 		assertTrue(addInfo.isEmpty());
 	}
 
@@ -645,7 +648,7 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		item.setDocumentation("documentation");
 		final var completionProposal = new LSCompletionProposal(document, 0,
 				item, wrapper);
-		String addInfo = completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
+		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
 		assertFalse(addInfo.isEmpty());
 	}
 
