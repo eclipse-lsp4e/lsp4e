@@ -8,12 +8,13 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.semanticTokens;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.eclipse.core.runtime.IProgressMonitor;
@@ -80,6 +81,8 @@ import org.eclipse.swt.custom.StyledText;
 public class SemanticHighlightReconcilerStrategy
 		implements IReconcilingStrategy, IReconcilingStrategyExtension, ITextPresentationListener, ITextViewerLifecycle {
 
+	public static final String SEMANTIC_HIGHLIGHT_RECONCILER_DISABLED = "semanticHighlightReconciler.disabled"; //$NON-NLS-1$
+
 	private final boolean disabled;
 
 	private @Nullable ITextViewer viewer;
@@ -109,7 +112,7 @@ public class SemanticHighlightReconcilerStrategy
 
 	public SemanticHighlightReconcilerStrategy() {
 		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		disabled = store.getBoolean("semanticHighlightReconciler.disabled"); //$NON-NLS-1$
+		disabled = store.getBoolean(SEMANTIC_HIGHLIGHT_RECONCILER_DISABLED);
 		boolean overrideBold = !store.getBoolean("semanticHighlightReconciler.ignoreBoldNormal"); //$NON-NLS-1$
 		boolean overrideItalic = !store.getBoolean("semanticHighlightReconciler.ignoreItalicNormal"); //$NON-NLS-1$
 		merger = new StyleRangeMerger(overrideBold, overrideItalic);
@@ -171,7 +174,7 @@ public class SemanticHighlightReconcilerStrategy
 		};
 	}
 
-	private SemanticTokensParams getSemanticTokensParams() {
+	private static SemanticTokensParams getSemanticTokensParams(IDocument document) {
 		URI uri = castNonNull(LSPEclipseUtils.toUri(document));
 		final var semanticTokensParams = new SemanticTokensParams();
 		semanticTokensParams.setTextDocument(LSPEclipseUtils.toTextDocumentIdentifier(uri));
@@ -190,7 +193,7 @@ public class SemanticHighlightReconcilerStrategy
 		final var semanticTokensDataStreamProcessor = this.semanticTokensDataStreamProcessor;
 		final var styleRangeHolder = this.styleRangeHolder;
 		if (!dataStream.isEmpty() && semanticTokensDataStreamProcessor != null && styleRangeHolder != null) {
-			List<StyleRange> styleRanges = semanticTokensDataStreamProcessor.getStyleRanges(dataStream,
+			List<StyleRange> styleRanges = semanticTokensDataStreamProcessor.getTokens(dataStream,
 					semanticTokensLegend);
 			styleRangeHolder.saveStyles(styleRanges);
 		}
@@ -205,13 +208,13 @@ public class SemanticHighlightReconcilerStrategy
 		this.document = document;
 	}
 
-	private boolean hasSemanticTokensFull(final ServerCapabilities serverCapabilities) {
+	private static boolean hasSemanticTokensFull(final ServerCapabilities serverCapabilities) {
 		return serverCapabilities.getSemanticTokensProvider() != null
 				&& LSPEclipseUtils.hasCapability(serverCapabilities.getSemanticTokensProvider().getFull());
 	}
 
 	// public for testing
-	public @Nullable SemanticTokensLegend getSemanticTokensLegend(final LanguageServerWrapper wrapper) {
+	public static @Nullable SemanticTokensLegend getSemanticTokensLegend(final LanguageServerWrapper wrapper) {
 		ServerCapabilities serverCapabilities = wrapper.getServerCapabilities();
 		if (serverCapabilities != null) {
 			SemanticTokensWithRegistrationOptions semanticTokensProvider = serverCapabilities
@@ -265,13 +268,9 @@ public class SemanticHighlightReconcilerStrategy
 		cancelSemanticTokensFull();
 		if (document != null) {
 			long modificationStamp = DocumentUtil.getDocumentModificationStamp(document);
-			LanguageServerDocumentExecutor executor = LanguageServers.forDocument(document)
-					.withFilter(this::hasSemanticTokensFull);
 			try {
-				final var semanticTokensFullFuture = executor //
-					.computeFirst((w, ls) -> ls.getTextDocumentService().semanticTokensFull(getSemanticTokensParams()) //
-							.thenApply(semanticTokens -> new VersionedSemanticTokens(modificationStamp,
-									Pair.of(semanticTokens, getSemanticTokensLegend(w)), document)));
+				final var semanticTokensFullFuture = requestFullSemanticTokens(document,
+						(legend, semanticTokens) -> new VersionedSemanticTokens(modificationStamp, Pair.of(semanticTokens, legend), document));
 				this.semanticTokensFullFuture = semanticTokensFullFuture;
 				semanticTokensFullFuture.get() // background thread with cancellation support, no timeout needed
 						.ifPresent(versionedSemanticTokens ->
@@ -285,6 +284,14 @@ public class SemanticHighlightReconcilerStrategy
 				}
 			}
 		}
+	}
+
+	public static <T> CompletableFuture<Optional<T>> requestFullSemanticTokens(IDocument document, BiFunction<@Nullable SemanticTokensLegend, SemanticTokens, T> callback) {
+		LanguageServerDocumentExecutor executor = LanguageServers.forDocument(document)
+				.withFilter(SemanticHighlightReconcilerStrategy::hasSemanticTokensFull);
+		return executor //
+			.computeFirst((w, ls) -> ls.getTextDocumentService().semanticTokensFull(getSemanticTokensParams(document))
+					.thenApply(semanticTokens -> callback.apply(getSemanticTokensLegend(w), semanticTokens)));
 	}
 
 	@Override
