@@ -71,6 +71,7 @@ import org.eclipse.lsp4e.ui.LSPImages;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemDefaults;
+import org.eclipse.lsp4j.CompletionItemLabelDetails;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.ExecuteCommandParams;
@@ -283,9 +284,7 @@ public class LSCompletionProposal
 	@Override
 	public StyledString getStyledDisplayString(IDocument document, int offset, BoldStylerProvider boldStylerProvider) {
 		String rawString = getDisplayString();
-		StyledString res = isDeprecated()
-				? new StyledString(rawString, StyleUtil.DEPRECATE)
-				: new StyledString(rawString);
+		StyledString res = getStyledDisplayString();
 		if (offset > bestOffset) {
 			try {
 				String subString = getDocumentFilter(offset).toLowerCase();
@@ -324,10 +323,19 @@ public class LSCompletionProposal
 
 	@Override
 	public StyledString getStyledDisplayString() {
-		if (Boolean.TRUE.equals(item.getDeprecated())) {
-			return new StyledString(getDisplayString(), StyleUtil.DEPRECATE);
+		StyledString ss = isDeprecated()
+				? new StyledString(getDisplayString(), StyleUtil.DEPRECATE)
+				: new StyledString(getDisplayString());
+		CompletionItemLabelDetails labelDetails = item.getLabelDetails();
+		if (labelDetails != null) {
+			if (labelDetails.getDetail() != null) {
+				ss.append(new StyledString(labelDetails.getDetail(), StyledString.QUALIFIER_STYLER));
+			}
+			if (labelDetails.getDescription() != null) {
+				ss.append(' ' + labelDetails.getDescription(), StyledString.DECORATIONS_STYLER);
+			}
 		}
-		return new StyledString(getDisplayString());
+		return ss;
 	}
 
 	@Override
