@@ -74,8 +74,9 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	private @Nullable IDocument currentDocument;
 	private @Nullable String errorMessage;
 	private final boolean errorAsCompletionItem;
-	private @Nullable CompletableFuture<List<@Nullable Void>> completionLanguageServersFuture;
 	private volatile char[] completionTriggerChars = NO_CHARS;
+	private @Nullable CompletableFuture<List<Object>> completionTriggerCharsFuture;
+	private @Nullable CompletableFuture<List<@Nullable Void>> contextInformationTriggerCharsFuture;
 	private @Nullable CompletableFuture<List<@Nullable Void>> contextInformationLanguageServersFuture;
 	private volatile char[] contextTriggerChars = NO_CHARS;
 	private final boolean incompleteAsCompletionItem;
@@ -142,7 +143,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			// - LSP requests 'textDocument/completions'
 			// - completionLanguageServersFuture
 			final var cancellationSupport = new CancellationSupport();
-			final var completionLanguageServersFuture = this.completionLanguageServersFuture = cancellationSupport.execute(
+			final var completionLanguageServersFuture = cancellationSupport.execute(
 					LanguageServers.forDocument(document).withFilter(capabilities -> capabilities.getCompletionProvider() != null) //
 					.collectAll((w, ls) -> cancellationSupport.execute(ls.getTextDocumentService().completion(param)) //
 							.thenAccept(completion -> {
@@ -226,22 +227,23 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			completionTriggerChars = NO_CHARS;
 			contextTriggerChars = NO_CHARS;
 
-			completionLanguageServersFuture = triggerCharsCancellationSupport.execute(//
-					LanguageServers.forDocument(document)
-					.withFilter(capabilities -> capabilities.getCompletionProvider() != null) //
-					.collectAll((w, ls) -> {
-						List<String> triggerChars = castNonNull(w.getServerCapabilities()).getCompletionProvider().getTriggerCharacters();
-						completionTriggerChars = mergeTriggers(completionTriggerChars,triggerChars);
-						return CompletableFuture.completedFuture(null);
-					}));
-			contextInformationLanguageServersFuture = triggerCharsCancellationSupport.execute(//
-					LanguageServers.forDocument(document)
-					.withFilter(capabilities -> capabilities.getSignatureHelpProvider() != null) //
-					.collectAll((w, ls) -> {
-						List<String> triggerChars = castNonNull(w.getServerCapabilities()).getSignatureHelpProvider().getTriggerCharacters();
-						contextTriggerChars = mergeTriggers(contextTriggerChars, triggerChars);
-						return CompletableFuture.completedFuture(null);
-					}));
+			completionTriggerCharsFuture = LanguageServers.forDocument(document)
+				.withFilter(capabilities -> capabilities.getCompletionProvider() != null) //
+				.collectAll((w, ls) -> {
+					List<String> triggerChars = castNonNull(w.getServerCapabilities()).getCompletionProvider().getTriggerCharacters();
+					completionTriggerChars = mergeTriggers(completionTriggerChars,triggerChars);
+					return CompletableFuture.completedFuture(null);
+			});
+			triggerCharsCancellationSupport.execute(completionTriggerCharsFuture);
+
+			contextInformationTriggerCharsFuture = LanguageServers.forDocument(document)
+				.withFilter(capabilities -> capabilities.getSignatureHelpProvider() != null) //
+				.collectAll((w, ls) -> {
+					List<String> triggerChars = castNonNull(w.getServerCapabilities()).getSignatureHelpProvider().getTriggerCharacters();
+					contextTriggerChars = mergeTriggers(contextTriggerChars, triggerChars);
+					return CompletableFuture.completedFuture(null);
+			});
+			contextInformationLanguageServersFuture = triggerCharsCancellationSupport.execute(contextInformationTriggerCharsFuture);
 		}
 
 	}
@@ -375,14 +377,14 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	@Override
 	public char @Nullable [] getCompletionProposalAutoActivationCharacters() {
 		initiateLanguageServers();
-		getFuture(completionLanguageServersFuture);
+		getFuture(completionTriggerCharsFuture);
 		return completionTriggerChars;
 	}
 
 	@Override
 	public char @Nullable [] getContextInformationAutoActivationCharacters() {
 		initiateLanguageServers();
-		getFuture(contextInformationLanguageServersFuture);
+		getFuture(contextInformationTriggerCharsFuture);
 		return contextTriggerChars;
 	}
 
