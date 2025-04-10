@@ -269,9 +269,8 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 				.filter(proposal -> {
 					// Stop the compute of ICompletionProposal if the completion has been cancelled
 					cancelChecker.checkCanceled();
-					return true;
-				}).filter(proposal -> proposal.validate(document, offset, null)) //
-				.map(ICompletionProposal.class::cast)
+					return proposal.validate(document, offset, null);
+				}).map(ICompletionProposal.class::cast)
 				.toList();
 	}
 
