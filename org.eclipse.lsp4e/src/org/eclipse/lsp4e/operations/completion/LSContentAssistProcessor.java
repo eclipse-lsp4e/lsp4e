@@ -175,6 +175,8 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			this.errorMessage = createErrorMessage(offset, e);
 			Thread.currentThread().interrupt();
 			return createErrorProposal(offset, e);
+		} catch (CancellationException e) {
+			// return the elements already collected, if any
 		}
 
 		final var completeProposals = new ArrayList<LSCompletionProposal>();
