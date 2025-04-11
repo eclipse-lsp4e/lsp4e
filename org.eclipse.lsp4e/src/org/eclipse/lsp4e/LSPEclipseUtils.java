@@ -87,10 +87,10 @@ import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextOperationTarget;
+import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.RewriteSessionEditProcessor;
 import org.eclipse.jface.text.TextSelection;
-import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.ISelectionProvider;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.DocumentInputStream;
@@ -258,7 +258,7 @@ public final class LSPEclipseUtils {
 		return param;
 	}
 
-	public static @Nullable ISelection toSelection(Range range, IDocument document) {
+	public static @Nullable ITextSelection toSelection(Range range, IDocument document) {
 		try {
 			int offset = toOffset(range.getStart(), document);
 			int endOffset = toOffset(range.getEnd(), document);
@@ -771,7 +771,7 @@ public final class LSPEclipseUtils {
 			if (targetDocument != null) {
 				ISelectionProvider selectionProvider = part.getEditorSite().getSelectionProvider();
 				if (selectionProvider != null) {
-					ISelection selection = toSelection(optionalRange, targetDocument);
+					ITextSelection selection = toSelection(optionalRange, targetDocument);
 					if (selection != null) {
 						selectionProvider.setSelection(selection);
 					}
