@@ -75,7 +75,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	private @Nullable String errorMessage;
 	private final boolean errorAsCompletionItem;
 	private volatile char[] completionTriggerChars = NO_CHARS;
-	private @Nullable CompletableFuture<List<Object>> completionTriggerCharsFuture;
+	private @Nullable CompletableFuture<List<@Nullable Void>> completionTriggerCharsFuture;
 	private @Nullable CompletableFuture<List<@Nullable Void>> contextInformationTriggerCharsFuture;
 	private @Nullable CompletableFuture<List<@Nullable Void>> contextInformationLanguageServersFuture;
 	private volatile char[] contextTriggerChars = NO_CHARS;
