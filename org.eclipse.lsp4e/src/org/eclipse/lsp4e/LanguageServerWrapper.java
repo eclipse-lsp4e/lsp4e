@@ -196,7 +196,7 @@ public class LanguageServerWrapper {
 	private final AtomicReference<@Nullable IProgressMonitor> initializeFutureMonitorRef = new AtomicReference<>();
 	private final int initializeFutureNumberOfStages = 7;
 	private @Nullable LanguageClientImpl languageClient;
-	private @Nullable ServerCapabilities serverCapabilities;
+	private volatile @Nullable ServerCapabilities serverCapabilities;
 	private final Timer timer = new Timer("Stop Language Server Task Processor"); //$NON-NLS-1$
 	private @Nullable TimerTask stopTimerTask;
 
@@ -935,7 +935,16 @@ public class LanguageServerWrapper {
 	}
 
 	public CompletableFuture<ServerCapabilities> getServerCapabilitiesAsync() {
-		return getInitializedServer().thenApply(ls -> castNonNull(this.serverCapabilities));
+		return getInitializedServer().thenCompose(ls -> {
+			final var serverCapabilities = this.serverCapabilities;
+			if (serverCapabilities == null) {
+				// This can happen if the server shuts down immediately after initialization,
+				// but before this callback was invoked.
+				return CompletableFuture
+						.failedFuture(new IllegalStateException("serverCapabilities unexpectedly null after initialization")); //$NON-NLS-1$
+			}
+			return CompletableFuture.completedFuture(serverCapabilities);
+		});
 	}
 
 	/**
