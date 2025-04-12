@@ -44,12 +44,12 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.outline.LSSymbolsContentProvider.OutlineViewerInput;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
+import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.navigator.CommonViewer;
 import org.eclipse.ui.navigator.CommonViewerSorter;
@@ -211,10 +211,12 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 				// the symbol to select is the same than current selected symbol, don't select it.
 				return;
 			}
-			Display.getDefault().asyncExec(() -> {
-				final var treePath = new TreePath(path.toArray());
-				viewer.reveal(treePath);
-				viewer.setSelection(new TreeSelection(treePath), true);
+			UI.runOnUIThread(() -> {
+				if(!viewer.getControl().isDisposed()) {
+					final var treePath = new TreePath(path.toArray());
+					viewer.reveal(treePath);
+					viewer.setSelection(new TreeSelection(treePath), true);
+				}
 			});
 		}
 	}
