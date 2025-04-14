@@ -34,6 +34,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.tm4e.ui.internal.utils.UI;
 import org.eclipse.ui.editors.text.EditorsUI;
 import org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants;
 
@@ -92,10 +93,18 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 	}
 
 	private void updateBrowserSize(final Browser browser) {
+		if (browser.isDisposed())
+			return;
+
 		@Nullable
 		Point constraints = getSizeConstraints();
 		Point hint = computeSizeHint();
 		setSize(hint.x, hint.y);
+
+		if (!"complete".equals(safeEvaluate(browser, "return document.readyState"))) { //$NON-NLS-1$ //$NON-NLS-2$
+			UI.getDisplay().timerExec(200, () -> updateBrowserSize(browser));
+			return;
+		}
 
 		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"nowrap\""); //$NON-NLS-1$
 		Double width = 20 + (safeEvaluate(browser, "return document.body.scrollWidth;") instanceof Double evaluated ? evaluated : 0); //$NON-NLS-1$
