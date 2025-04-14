@@ -86,41 +86,45 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 			if (getInput() == null)
 				return;
 			final var browser = (Browser) event.getSource();
-			@Nullable
-			Point constraints = getSizeConstraints();
-			Point hint = computeSizeHint();
-			setSize(hint.x, hint.y);
-
-			safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"nowrap\""); //$NON-NLS-1$
-			Double width = 20 + (safeEvaluate(browser, "return document.body.scrollWidth;") instanceof Double evaluated ? evaluated : 0); //$NON-NLS-1$
-			setSize(width.intValue(), hint.y);
-
-			safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"normal\""); //$NON-NLS-1$
-			Double height = safeEvaluate(browser, "return document.body.scrollHeight;") instanceof Double evaluated ? evaluated : 0; //$NON-NLS-1$
-			Object marginTop = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginTop;"); //$NON-NLS-1$
-			Object marginBottom = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginBottom;"); //$NON-NLS-1$
-			if (Platform.getPreferencesService().getBoolean(EditorsUI.PLUGIN_ID,
-					AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SHOW_TEXT_HOVER_AFFORDANCE, true,
-					null)) {
-				FontData[] fontDatas = JFaceResources.getDialogFont().getFontData();
-				height += fontDatas[0].getHeight();
-			}
-
-			width = width * 1.5;
-			if (Util.isWin32()) {
-				height = adjust(height, marginTop);
-				height = adjust(height, marginBottom);
-			}
-			if (constraints != null && constraints.x < width) {
-				width = (double) constraints.x;
-			}
-			if (constraints != null && constraints.y < height) {
-				height = (double) constraints.y;
-			}
-
-			setSize(width.intValue(), height.intValue());
+			updateBrowserSize(browser);
 		}));
 		b.setJavascriptEnabled(true);
+	}
+
+	private void updateBrowserSize(final Browser browser) {
+		@Nullable
+		Point constraints = getSizeConstraints();
+		Point hint = computeSizeHint();
+		setSize(hint.x, hint.y);
+
+		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"nowrap\""); //$NON-NLS-1$
+		Double width = 20 + (safeEvaluate(browser, "return document.body.scrollWidth;") instanceof Double evaluated ? evaluated : 0); //$NON-NLS-1$
+		setSize(width.intValue(), hint.y);
+
+		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"normal\""); //$NON-NLS-1$
+		Double height = safeEvaluate(browser, "return document.body.scrollHeight;") instanceof Double evaluated ? evaluated : 0; //$NON-NLS-1$
+		Object marginTop = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginTop;"); //$NON-NLS-1$
+		Object marginBottom = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginBottom;"); //$NON-NLS-1$
+		if (Platform.getPreferencesService().getBoolean(EditorsUI.PLUGIN_ID,
+				AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SHOW_TEXT_HOVER_AFFORDANCE, true,
+				null)) {
+			FontData[] fontDatas = JFaceResources.getDialogFont().getFontData();
+			height += fontDatas[0].getHeight();
+		}
+
+		width = width * 1.5;
+		if (Util.isWin32()) {
+			height = adjust(height, marginTop);
+			height = adjust(height, marginBottom);
+		}
+		if (constraints != null && constraints.x < width) {
+			width = (double) constraints.x;
+		}
+		if (constraints != null && constraints.y < height) {
+			height = (double) constraints.y;
+		}
+
+		setSize(width.intValue(), height.intValue());
 	}
 
 	private static @Nullable Object safeEvaluate(Browser browser, String expression) {
