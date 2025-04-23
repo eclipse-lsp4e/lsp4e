@@ -38,7 +38,6 @@ import org.eclipse.lsp4e.LanguageServers.LanguageServerDocumentExecutor;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.CodeActionContext;
 import org.eclipse.lsp4j.CodeActionParams;
-import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
@@ -197,8 +196,7 @@ public class LSPCodeActionQuickAssistProcessor implements IQuickAssistProcessor 
 		final var params = new CodeActionParams();
 		params.setTextDocument(castNonNull(LSPEclipseUtils.toTextDocumentIdentifier(doc)));
 		try {
-			params.setRange(new Range(LSPEclipseUtils.toPosition(offset, doc), LSPEclipseUtils
-					.toPosition(offset + (length > 0 ? length : 0), doc)));
+			params.setRange(LSPEclipseUtils.toRange(offset, offset + (length > 0 ? length : 0), doc));
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 		}

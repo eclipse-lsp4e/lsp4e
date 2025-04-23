@@ -29,8 +29,6 @@ import org.eclipse.lsp4e.internal.DocumentUtil;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentRangeFormattingParams;
 import org.eclipse.lsp4j.FormattingOptions;
-import org.eclipse.lsp4j.Position;
-import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.ui.editors.text.EditorsUI;
@@ -80,12 +78,10 @@ public class LSPFormatter {
 		final var rangeParams = new DocumentRangeFormattingParams();
 		rangeParams.setTextDocument(docId);
 		rangeParams.setOptions(formatOptions);
-		boolean fullFormat = textSelection.getLength() == 0;
-		Position start = LSPEclipseUtils.toPosition(fullFormat ? 0 : textSelection.getOffset(), document);
-		Position end = LSPEclipseUtils.toPosition(
-				fullFormat ? document.getLength() : textSelection.getOffset() + textSelection.getLength(),
-				document);
-		rangeParams.setRange(new Range(start, end));
+		final boolean isFullFormat = textSelection.isEmpty();
+		final int startAt = isFullFormat ? 0 : textSelection.getOffset();
+		final int endAt = isFullFormat ? document.getLength() : startAt + textSelection.getLength();
+		rangeParams.setRange(LSPEclipseUtils.toRange(startAt, endAt, document));
 		return rangeParams;
 	}
 

@@ -191,6 +191,11 @@ public final class LSPEclipseUtils {
 		// this class shouldn't be instantiated
 	}
 
+	public static Range toRange(final int startOffset, final int endOffset, final IDocument document)
+			throws BadLocationException {
+		return new Range(toPosition(startOffset, document), toPosition(endOffset, document));
+	}
+
 	public static Position toPosition(int offset, IDocument document) throws BadLocationException {
 		final var res = new Position();
 		res.setLine(document.getLineOfOffset(offset));

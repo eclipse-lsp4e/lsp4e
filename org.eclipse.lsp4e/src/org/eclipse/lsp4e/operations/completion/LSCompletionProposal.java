@@ -485,9 +485,7 @@ public class LSCompletionProposal
 		try {
 			if (textEdit == null) {
 				insertText = getInsertText();
-				Position start = LSPEclipseUtils.toPosition(bestOffset, document);
-				Position end = LSPEclipseUtils.toPosition(offset, document); // need 2 distinct objects
-				textEdit = new TextEdit(new Range(start, end), insertText);
+				textEdit = new TextEdit(LSPEclipseUtils.toRange(bestOffset, offset, document), insertText);
 			} else if (offset > initialOffset) {
 				// characters were added after completion was activated
 				int shift = offset - initialOffset;
@@ -729,9 +727,7 @@ public class LSCompletionProposal
 		if (textEdit != null) {
 			return textEdit.map(TextEdit::getRange, InsertReplaceEdit::getInsert);
 		} else {
-				Position start = LSPEclipseUtils.toPosition(bestOffset, document);
-				Position end = LSPEclipseUtils.toPosition(initialOffset, document);
-				return new Range(start, end);
+			return LSPEclipseUtils.toRange(bestOffset, initialOffset, document);
 		}
 	}
 

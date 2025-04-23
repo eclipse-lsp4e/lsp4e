@@ -55,7 +55,6 @@ import org.eclipse.lsp4j.DocumentRangeFormattingParams;
 import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.MessageParams;
 import org.eclipse.lsp4j.MessageType;
-import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
@@ -198,9 +197,7 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 			int length = event.getLength();
 			try {
 				// try to convert the Eclipse start/end offset to LS range.
-				final var range = new Range(LSPEclipseUtils.toPosition(offset, document),
-						LSPEclipseUtils.toPosition(offset + length, document));
-				changeEvent.setRange(range);
+				changeEvent.setRange(LSPEclipseUtils.toRange(offset, offset + length, document));
 				changeEvent.setText(newText);
 				changeEvent.setRangeLength(length);
 			} catch (BadLocationException e) {

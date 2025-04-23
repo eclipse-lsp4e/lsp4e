@@ -69,8 +69,8 @@ public class LSPCodeActionsMenu extends ContributionItem implements IWorkbenchCo
 			this.document = document;
 			final var selection = (ITextSelection) textEditor.getSelectionProvider().getSelection();
 			try {
-				this.range = new Range(LSPEclipseUtils.toPosition(selection.getOffset(), document),
-						LSPEclipseUtils.toPosition(selection.getOffset() + selection.getLength(), document));
+				this.range = LSPEclipseUtils.toRange(selection.getOffset(),
+						selection.getOffset() + selection.getLength(), document);
 			} catch (BadLocationException e) {
 				LanguageServerPlugin.logError(e);
 			}
