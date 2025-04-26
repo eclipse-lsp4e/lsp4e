@@ -41,6 +41,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.preference.IPersistentPreferenceStore;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.lsp4e.client.DefaultLanguageClient;
 import org.eclipse.lsp4e.enablement.EnablementTester;
 import org.eclipse.lsp4e.operations.diagnostics.LSPDiagnosticsToMarkers;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
@@ -109,8 +110,8 @@ public class LanguageServersRegistry {
 
 		public abstract StreamConnectionProvider createConnectionProvider();
 
-		public LanguageClientImpl createLanguageClient() {
-			return new LanguageClientImpl();
+		public DefaultLanguageClient createLanguageClient() {
+			return new DefaultLanguageClient();
 		}
 
 		public Class<? extends LanguageServer> getServerInterface() {
@@ -173,12 +174,12 @@ public class LanguageServersRegistry {
 		}
 
 		@Override
-		public LanguageClientImpl createLanguageClient() {
-			LanguageClientImpl languageClient = null;
+		public DefaultLanguageClient createLanguageClient() {
+			DefaultLanguageClient languageClient = null;
 			String clientImpl = extension.getAttribute(CLIENT_IMPL_ATTRIBUTE);
 			if (clientImpl != null && !clientImpl.isEmpty()) {
 				try {
-					languageClient = (LanguageClientImpl) extension.createExecutableExtension(CLIENT_IMPL_ATTRIBUTE);
+					languageClient = (DefaultLanguageClient) extension.createExecutableExtension(CLIENT_IMPL_ATTRIBUTE);
 				} catch (CoreException e) {
 					StatusManager.getManager().handle(e, LanguageServerPlugin.PLUGIN_ID);
 				}
@@ -241,8 +242,8 @@ public class LanguageServersRegistry {
 		}
 
 		@Override
-		public LanguageClientImpl createLanguageClient() {
-			LanguageClientImpl client = super.createLanguageClient();
+		public DefaultLanguageClient createLanguageClient() {
+			DefaultLanguageClient client = super.createLanguageClient();
 			client.setDiagnosticsConsumer(new LSPDiagnosticsToMarkers(id, null, null));
 			return client;
 		}

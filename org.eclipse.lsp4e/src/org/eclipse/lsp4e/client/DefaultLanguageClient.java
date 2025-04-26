@@ -11,7 +11,7 @@
  *  Miro Spoenemann (TypeFox) - extracted to separate file
  *  Rubén Porras Campo (Avaloq Evolution AG) - progress creation/notification implementation
  *******************************************************************************/
-package org.eclipse.lsp4e;
+package org.eclipse.lsp4e.client;
 
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
@@ -28,6 +28,10 @@ import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.source.SourceViewer;
+import org.eclipse.lsp4e.LSPEclipseUtils;
+import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.LanguageServerWrapper;
+import org.eclipse.lsp4e.ServerMessageHandler;
 import org.eclipse.lsp4e.progress.LSPProgressManager;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4e.ui.UI;
@@ -51,7 +55,10 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.ui.IEditorReference;
 import org.eclipse.ui.IWorkbenchPage;
 
-public class LanguageClientImpl implements LanguageClient {
+/**
+ * A default LanguageClient implementation which can be extended.
+ */
+public class DefaultLanguageClient implements LanguageClient {
 
 	private Consumer<PublishDiagnosticsParams> diagnosticConsumer = lateNonNull();
 	private final LSPProgressManager progressManager = new LSPProgressManager();
@@ -65,7 +72,7 @@ public class LanguageClientImpl implements LanguageClient {
 		progressManager.connect(server, wrapper.serverDefinition);
 	}
 
-	protected void setDiagnosticsConsumer(Consumer<PublishDiagnosticsParams> diagnosticConsumer) {
+	public void setDiagnosticsConsumer(Consumer<PublishDiagnosticsParams> diagnosticConsumer) {
 		this.diagnosticConsumer = diagnosticConsumer;
 	}
 

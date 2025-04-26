@@ -71,6 +71,7 @@ import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LanguageServersRegistry.LanguageServerDefinition;
+import org.eclipse.lsp4e.client.DefaultLanguageClient;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
@@ -195,7 +196,7 @@ public class LanguageServerWrapper {
 	private @Nullable CompletableFuture<@Nullable Void> initializeFuture;
 	private final AtomicReference<@Nullable IProgressMonitor> initializeFutureMonitorRef = new AtomicReference<>();
 	private final int initializeFutureNumberOfStages = 7;
-	private @Nullable LanguageClientImpl languageClient;
+	private @Nullable DefaultLanguageClient languageClient;
 	private volatile @Nullable ServerCapabilities serverCapabilities;
 	private final Timer timer = new Timer("Stop Language Server Task Processor"); //$NON-NLS-1$
 	private @Nullable TimerTask stopTimerTask;
@@ -961,7 +962,7 @@ public class LanguageServerWrapper {
 		return null;
 	}
 
-	void registerCapability(RegistrationParams params) {
+	public void registerCapability(RegistrationParams params) {
 		final var serverCapabilities = this.serverCapabilities;
 		Assert.isNotNull(serverCapabilities,
 				"Dynamic capability registration failed! Server not yet initialized?"); //$NON-NLS-1$
@@ -1096,7 +1097,7 @@ public class LanguageServerWrapper {
 		}
 	}
 
-	void unregisterCapability(UnregistrationParams params) {
+	public void unregisterCapability(UnregistrationParams params) {
 		params.getUnregisterations().forEach(reg -> {
 			String id = reg.getId();
 			Runnable unregistrator;

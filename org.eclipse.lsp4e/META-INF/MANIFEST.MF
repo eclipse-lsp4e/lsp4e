@@ -47,6 +47,7 @@ Bundle-Localization: plugin
 Bundle-ActivationPolicy: lazy
 Bundle-Activator: org.eclipse.lsp4e.LanguageServerPlugin
 Export-Package: org.eclipse.lsp4e;x-friends:="org.eclipse.lsp4e.debug,org.eclipse.lsp4e.jdt",
+ org.eclipse.lsp4e.client,
  org.eclipse.lsp4e.command;x-internal:=true,
  org.eclipse.lsp4e.format;x-internal:=true,
  org.eclipse.lsp4e.internal;x-friends:="org.eclipse.lsp4e.debug,org.eclipse.lsp4e.jdt",
