@@ -64,10 +64,13 @@ public class LspJavaQuickAssistProcessor extends LSPCodeActionQuickAssistProcess
 		ICompletionProposal[] proposals = computeQuickAssistProposals(getContext(context));
 		if (proposals == null)
 			return NO_JAVA_COMPLETION_PROPOSALS;
-
-		return Arrays.stream(proposals).filter(LSCompletionProposal.class::isInstance)
-				.map(LSCompletionProposal.class::cast).map(LSJavaProposal::new).toArray(LSJavaProposal[]::new);
-
+		
+		return Arrays.stream(proposals).map(p -> {
+			if (p instanceof LSCompletionProposal lscp) {
+				return new LSJavaProposal(lscp);
+			}
+			return new LSJavaCompletionWrappingCompletionProposal(p);
+		}).toArray(IJavaCompletionProposal[]::new);
 	}
 
 }

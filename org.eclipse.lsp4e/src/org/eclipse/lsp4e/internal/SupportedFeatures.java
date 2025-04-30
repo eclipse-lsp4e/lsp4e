@@ -42,6 +42,7 @@ import org.eclipse.lsp4j.HoverCapabilities;
 import org.eclipse.lsp4j.InlayHintCapabilities;
 import org.eclipse.lsp4j.InsertTextMode;
 import org.eclipse.lsp4j.MarkupKind;
+import org.eclipse.lsp4j.OnTypeFormattingCapabilities;
 import org.eclipse.lsp4j.PublishDiagnosticsCapabilities;
 import org.eclipse.lsp4j.RangeFormattingCapabilities;
 import org.eclipse.lsp4j.ReferencesCapabilities;
@@ -129,7 +130,7 @@ public class SupportedFeatures {
 				MarkupKind.MARKDOWN, //
 				MarkupKind.PLAINTEXT));
 		textDocumentClientCapabilities.setHover(hoverCapabilities);
-		textDocumentClientCapabilities.setOnTypeFormatting(null); // TODO
+		textDocumentClientCapabilities.setOnTypeFormatting(new OnTypeFormattingCapabilities(true));
 		textDocumentClientCapabilities.setRangeFormatting(new RangeFormattingCapabilities());
 		textDocumentClientCapabilities.setReferences(new ReferencesCapabilities());
 		final var renameCapabilities = new RenameCapabilities();

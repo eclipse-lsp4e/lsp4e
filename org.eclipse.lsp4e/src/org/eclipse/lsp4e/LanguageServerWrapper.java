@@ -82,6 +82,7 @@ import org.eclipse.lsp4j.ClientInfo;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
 import org.eclipse.lsp4j.DocumentFormattingOptions;
+import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
 import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.InitializeParams;
@@ -1039,6 +1040,11 @@ public class LanguageServerWrapper {
 				final Either<Boolean, TypeHierarchyRegistrationOptions> typeHierarchyBeforeRegistration = serverCapabilities.getTypeHierarchyProvider();
 				serverCapabilities.setTypeHierarchyProvider(Boolean.TRUE);
 				addRegistration(reg, () -> serverCapabilities.setTypeHierarchyProvider(typeHierarchyBeforeRegistration));
+				break;
+			case "textDocument/onTypeFormatting": //$NON-NLS-1$
+				final var onTypeFormattingBeforeRegistration = serverCapabilities.getDocumentOnTypeFormattingProvider();
+				serverCapabilities.setDocumentOnTypeFormattingProvider(reg.getRegisterOptions() instanceof DocumentOnTypeFormattingOptions opts ? opts : null);
+				addRegistration(reg, () -> serverCapabilities.setDocumentOnTypeFormattingProvider(onTypeFormattingBeforeRegistration));
 				break;
 		}});
 	}

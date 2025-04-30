@@ -926,5 +926,12 @@
             id="org.eclipse.lsp4e.pathParameterType"
             type="org.eclipse.core.runtime.IPath" />
    </extension>
+   <extension
+         point="org.eclipse.ui.genericeditor.autoEditStrategies">
+      <autoEditStrategy
+            class="org.eclipse.lsp4e.format.DocumentFormatOnTypeAutoEditStrategy"
+            contentType="org.eclipse.core.runtime.text">
+      </autoEditStrategy>
+   </extension>
 
 </plugin>
