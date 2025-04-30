@@ -11,6 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.jdt;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
@@ -32,12 +33,12 @@ class LSJavaCompletionWrappingCompletionProposal implements IJavaCompletionPropo
 	}
 
 	@Override
-	public Point getSelection(IDocument document) {
+	public @Nullable Point getSelection(IDocument document) {
 		return delegate.getSelection(document);
 	}
 
 	@Override
-	public String getAdditionalProposalInfo() {
+	public @Nullable String getAdditionalProposalInfo() {
 		return delegate.getAdditionalProposalInfo();
 	}
 
@@ -47,12 +48,12 @@ class LSJavaCompletionWrappingCompletionProposal implements IJavaCompletionPropo
 	}
 
 	@Override
-	public Image getImage() {
+	public @Nullable Image getImage() {
 		return delegate.getImage();
 	}
 
 	@Override
-	public IContextInformation getContextInformation() {
+	public @Nullable IContextInformation getContextInformation() {
 		return delegate.getContextInformation();
 	}
 
