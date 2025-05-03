@@ -152,7 +152,7 @@ public class LSPLinkedEditingReconcilingStrategy extends LSPLinkedEditingBase
 	}
 
 	private void updateLinkedEditing(ISelection selection) {
-		if (selection instanceof ITextSelection textSelection) {
+		if (selection instanceof ITextSelection textSelection && textSelection.getLength() == 0) {
 			updateLinkedEditing(textSelection.getOffset());
 		}
 	}

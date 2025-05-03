@@ -12,7 +12,10 @@
 package org.eclipse.lsp4e.test.linkedediting;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,38 +42,13 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 
 	@Test
 	public void testLinkedEditing() throws CoreException {
-		final var ranges = new ArrayList<Range>();
-		ranges.add(new Range(new Position(1, 3), new Position(1, 7)));
-		ranges.add(new Range(new Position(3, 4), new Position(3, 8)));
+		final var sourceViewer = setupSimpleHtmlPageViewer();
 
-		final var linkkedEditingRanges = new LinkedEditingRanges(ranges);
-		MockLanguageServer.INSTANCE.setLinkedEditingRanges(linkkedEditingRanges);
-
-		IFile testFile = TestUtils.createUniqueTestFile(project, "<html>\n  <body>\n    a body text\n  </body>\n</html>");
-		ITextViewer viewer = TestUtils.openTextViewer(testFile);
-
-		viewer.getTextWidget().setCaretOffset(11);
-
-		if (!(viewer instanceof ISourceViewer)) {
-			Assert.fail();
-		}
-
-		final var sourceViewer = (ISourceViewer) viewer;
-
-		viewer.getTextWidget().setSelection(11); // 10-14 <body|>
+		sourceViewer.getTextWidget().setSelection(11); // 10-14 <body|>
 
 		final var annotations = new HashMap<org.eclipse.jface.text.Position, Annotation>();
 
-		waitForAndAssertCondition(3_000, () -> {
-			Iterator<Annotation> iterator = sourceViewer.getAnnotationModel().getAnnotationIterator();
-			while (iterator.hasNext()) {
-				Annotation annotation = iterator.next();
-				if (annotation.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")) {
-					return true;
-				}
-			}
-			return false;
-		});
+		waitForAnnotationsPresent(sourceViewer);
 
 		IAnnotationModel model = sourceViewer.getAnnotationModel();
 		final Iterator<Annotation> iterator = model.getAnnotationIterator();
@@ -86,6 +64,80 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 
 	@Test
 	public void testLinkedEditingExitPolicy() throws CoreException {
+		final var sourceViewer = setupSimpleHtmlPageViewer();
+
+		// Test linked editing annotation in a tag name position
+		sourceViewer.getTextWidget().setCaretOffset(14);
+		sourceViewer.getTextWidget().setSelection(14); // 10-14 <body| class="test">
+		waitForAnnotationsPresent(sourceViewer);
+
+		IAnnotationModel model = sourceViewer.getAnnotationModel();
+		List<Annotation> annotations = findAnnotations(sourceViewer, 14).stream().filter(a -> a.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")).toList();
+		assertEquals("Exepected only 1 link annotation here, got " + annotations, 1, annotations.size());
+		Annotation masterAnnotation = findAnnotation(sourceViewer, "org.eclipse.ui.internal.workbench.texteditor.link.master");
+		assertNotNull(masterAnnotation);
+		assertTrue(annotations.contains(masterAnnotation));
+		org.eclipse.jface.text.Position masterPosition = model.getPosition(masterAnnotation);
+		assertNotNull(masterPosition);
+		Annotation slaveAnnotation = findAnnotation(sourceViewer, "org.eclipse.ui.internal.workbench.texteditor.link.slave");
+		assertNotNull(slaveAnnotation);
+		org.eclipse.jface.text.Position slavePosition = model.getPosition(slaveAnnotation);
+		assertNotNull(slavePosition);
+		assertEquals(sourceViewer.getTextWidget().getTextRange(masterPosition.getOffset(), masterPosition.getLength()),
+				sourceViewer.getTextWidget().getTextRange(slavePosition.getOffset(), slavePosition.getLength()));
+
+		// Test linked editing annotation out of a tag name position (should be absent)
+		sourceViewer.getTextWidget().setCaretOffset(15);
+		sourceViewer.getTextWidget().setSelection(15); // 10-14 <body |class="test">
+		waitForAnnotationsPresent(sourceViewer);
+
+		model = sourceViewer.getAnnotationModel();
+		// No "linked" annotation is to be found at this offset
+		assertFalse(findAnnotations(sourceViewer, 15).stream().anyMatch(a -> a.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")));
+	}
+
+	@Test
+	public void testSelectionChange() throws CoreException {
+
+		final var ranges = new ArrayList<Range>();
+		ranges.add(new Range(new Position(0, 0), new Position(0, 5)));
+		ranges.add(new Range(new Position(0, 6), new Position(0, 12)));
+
+		final var linkedEditingRanges = new LinkedEditingRanges(ranges, "[:A-Z_a-z]*\\b");
+		MockLanguageServer.INSTANCE.setLinkedEditingRanges(linkedEditingRanges);
+
+		IFile testFile = TestUtils.createUniqueTestFile(project, "first second");
+		ITextViewer viewer = TestUtils.openTextViewer(testFile);
+
+		if (!(viewer instanceof ISourceViewer)) {
+			Assert.fail();
+		}
+
+		var sourceViewer = (ISourceViewer) viewer;
+
+		sourceViewer.getTextWidget().setSelection(9,3); //selection range with caret at beginning
+
+		waitForAndAssertCondition(3_000, () -> findAnnotations(sourceViewer, 1).size() != 0);
+
+		assertEquals(3, sourceViewer.getTextWidget().getCaretOffset());
+
+	}
+
+	private void waitForAnnotationsPresent(final ISourceViewer sourceViewer) {
+		waitForAndAssertCondition(3_000, () -> {
+			Iterator<Annotation> iterator = sourceViewer.getAnnotationModel().getAnnotationIterator();
+			while (iterator.hasNext()) {
+				Annotation annotation = iterator.next();
+				if (annotation.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")) {
+					return true;
+				}
+			}
+			return false;
+		});
+	}
+
+
+	private ISourceViewer setupSimpleHtmlPageViewer() throws CoreException {
 		final var ranges = new ArrayList<Range>();
 		ranges.add(new Range(new Position(1, 3), new Position(1, 7)));
 		ranges.add(new Range(new Position(3, 4), new Position(3, 8)));
@@ -100,56 +152,9 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 			Assert.fail();
 		}
 
-		final var sourceViewer = (ISourceViewer) viewer;
-
-		// Test linked editing annotation in a tag name position
-		viewer.getTextWidget().setCaretOffset(14);
-		viewer.getTextWidget().setSelection(14); // 10-14 <body| class="test">
-		waitForAndAssertCondition(3_000, () -> {
-			Iterator<Annotation> iterator = sourceViewer.getAnnotationModel().getAnnotationIterator();
-			while (iterator.hasNext()) {
-				Annotation annotation = iterator.next();
-				if (annotation.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")) {
-//					System.out.println("testLinkedEditingExitPolicy: Wait for annotation succeeded: " + annotation.getType());
-					return true;
-				}
-			}
-			return false;
-		});
-
-		IAnnotationModel model = sourceViewer.getAnnotationModel();
-		List<Annotation> annotations = findAnnotations(sourceViewer, 14).stream().filter(a -> a.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")).toList();
-		assertEquals("Exepected only 1 link annotation here, got " + annotations, 1, annotations.size());
-		Annotation masterAnnotation = findAnnotation(sourceViewer, "org.eclipse.ui.internal.workbench.texteditor.link.master");
-		assertNotNull(masterAnnotation);
-		assertTrue(annotations.contains(masterAnnotation));
-		org.eclipse.jface.text.Position masterPosition = model.getPosition(masterAnnotation);
-		assertNotNull(masterPosition);
-		Annotation slaveAnnotation = findAnnotation(sourceViewer, "org.eclipse.ui.internal.workbench.texteditor.link.slave");
-		assertNotNull(slaveAnnotation);
-		org.eclipse.jface.text.Position slavePosition = model.getPosition(slaveAnnotation);
-		assertNotNull(slavePosition);
-		assertEquals(viewer.getTextWidget().getTextRange(masterPosition.getOffset(), masterPosition.getLength()),
-				viewer.getTextWidget().getTextRange(slavePosition.getOffset(), slavePosition.getLength()));
-
-		// Test linked editing annotation out of a tag name position (should be absent)
-		viewer.getTextWidget().setCaretOffset(15);
-		viewer.getTextWidget().setSelection(15); // 10-14 <body |class="test">
-		waitForAndAssertCondition(3_000, () -> {
-			Iterator<Annotation> iterator = sourceViewer.getAnnotationModel().getAnnotationIterator();
-			while (iterator.hasNext()) {
-				Annotation annotation = iterator.next();
-				if (annotation.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")) {
-					return true;
-				}
-			}
-			return false;
-		});
-
-		model = sourceViewer.getAnnotationModel();
-		// No "linked" annotation is to be found at this offset
-		assertFalse(findAnnotations(sourceViewer, 15).stream().anyMatch(a -> a.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")));
+		return (ISourceViewer) viewer;
 	}
+
 
 	private List<Annotation> findAnnotations(ISourceViewer sourceViewer, int offset) {
 		final var annotations = new ArrayList<Annotation>();
