@@ -14,7 +14,10 @@
 package org.eclipse.lsp4e.test.rename;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -55,7 +58,6 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IWorkbenchCommandConstants;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.handlers.IHandlerService;
@@ -70,7 +72,7 @@ public class RenameTest extends AbstractTestWithProject {
 		final var editor = (ITextEditor) TestUtils.openEditor(file);
 		editor.selectAndReveal(1, 0);
 		ICommandService commandService = PlatformUI.getWorkbench().getService(ICommandService.class);
-		Command command = commandService.getCommand(IWorkbenchCommandConstants.FILE_RENAME);
+		Command command = commandService.getCommand("org.eclipse.lsp4e.refactorings.rename");
 
 		waitForAndAssertCondition(2_000, command::isEnabled);
 		assertTrue(command.isHandled());
@@ -89,7 +91,7 @@ public class RenameTest extends AbstractTestWithProject {
 			final var editor = (ITextEditor) TestUtils.openEditor(file);
 
 			ICommandService commandService = PlatformUI.getWorkbench().getService(ICommandService.class);
-			Command command = commandService.getCommand(IWorkbenchCommandConstants.FILE_RENAME);
+			Command command = commandService.getCommand("org.eclipse.lsp4e.refactorings.rename");
 			assertFalse(command.isEnabled());
 
 			editor.selectAndReveal(1, 0);
@@ -214,7 +216,7 @@ public class RenameTest extends AbstractTestWithProject {
 		editor.selectAndReveal(1, 0);
 		ICommandService commandService = PlatformUI.getWorkbench().getService(ICommandService.class);
 		IHandlerService handlerService = PlatformUI.getWorkbench().getService(IHandlerService.class);
-		Command command = commandService.getCommand(IWorkbenchCommandConstants.FILE_RENAME);
+		Command command = commandService.getCommand("org.eclipse.lsp4e.refactorings.rename");
 		assertTrue(command.isEnabled() && command.isHandled());
 		final var e = new Event();
 		e.widget = editor.getAdapter(Control.class);
