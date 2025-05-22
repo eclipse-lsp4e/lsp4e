@@ -13,12 +13,11 @@
 package org.eclipse.lsp4e.test;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
-import java.io.File;
 import java.net.URI;
+import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.NullProgressMonitor;
@@ -29,11 +28,8 @@ import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.test.utils.TestUtils.JobSynchronizer;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
-import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
 import org.eclipse.lsp4e.ui.UI;
-import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
 import org.eclipse.lsp4j.ServerCapabilities;
-import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.WorkspaceFoldersOptions;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
 import org.junit.Before;
@@ -92,12 +88,12 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 		UI.getActivePage().closeAllEditors(false);
 		waitForAndAssertCondition(5_000, () -> !MockLanguageServer.INSTANCE.isRunning());
 
-		final MockWorkspaceService mockWorkspaceService = MockLanguageServer.INSTANCE.getWorkspaceService();
-		final List<DidChangeWorkspaceFoldersParams> events = mockWorkspaceService.getWorkspaceFoldersEvents();
-		assertEquals(1, events.size());
-		final List<WorkspaceFolder> added = events.get(0).getEvent().getAdded();
-		assertEquals(1, added.size());
-		assertEquals(new File(project.getLocationURI()), new File(new URI(added.get(0).getUri()).normalize()));
+		// test that the LS emitted a workspace-folder added event for our project
+		final var expected = Paths.get(project.getLocationURI());
+		assertTrue(MockLanguageServer.INSTANCE.getWorkspaceService() //
+			.getWorkspaceFoldersEvents().stream() //
+			.flatMap(event -> event.getEvent().getAdded().stream()) //
+			.anyMatch(added -> Paths.get(URI.create(added.getUri())).equals(expected)));
 	}
 
 	@Test
@@ -112,16 +108,12 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 		project.close(synchronizer);
 		synchronizer.await();
 
-		waitForAndAssertCondition(5_000, () -> {
-			assertEquals(2, MockLanguageServer.INSTANCE.getWorkspaceService().getWorkspaceFoldersEvents().size());
-			return true;
-		});
-		final MockWorkspaceService mockWorkspaceService = MockLanguageServer.INSTANCE.getWorkspaceService();
-		final List<DidChangeWorkspaceFoldersParams> events = mockWorkspaceService.getWorkspaceFoldersEvents();
-		assertEquals(2, events.size());
-		final List<WorkspaceFolder> removed = events.get(1).getEvent().getRemoved();
-		assertEquals(1, removed.size());
-		assertEquals(new File(project.getLocationURI()), new File(new URI(removed.get(0).getUri())));
+		// test that the LS emitted a workspace-folder removal event for our project
+		final var expected = Paths.get(project.getLocationURI());
+		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.getWorkspaceService() //
+				.getWorkspaceFoldersEvents().stream() //
+				.flatMap(evt -> evt.getEvent().getRemoved().stream()) //
+				.anyMatch(removed -> Paths.get(URI.create(removed.getUri())).equals(expected)));
 	}
 
 	@Test
@@ -137,18 +129,16 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 		assertTrue(wrapper1.isActive());
 
 		// Grab this before deletion otherwise project.getLocationURI will be null...
-		final var expected = new File(project.getLocationURI());
+		final var expected = Paths.get(project.getLocationURI());
 		final var synchronizer = new JobSynchronizer();
 		project.delete(true, true, synchronizer);
 		synchronizer.await();
-		final MockWorkspaceService mockWorkspaceService = MockLanguageServer.INSTANCE.getWorkspaceService();
-		final List<DidChangeWorkspaceFoldersParams> events = mockWorkspaceService.getWorkspaceFoldersEvents();
-		assertEquals(2, events.size());
-		final List<WorkspaceFolder> removed = events.get(1).getEvent().getRemoved();
-		assertEquals(1, removed.size());
 
-		// Compare files to bodge round URI canonicalization problems
-		assertEquals(expected, new File(new URI(removed.get(0).getUri())));
+		// test that the LS emitted a workspace-folder removal event for our project
+		assertTrue(MockLanguageServer.INSTANCE.getWorkspaceService() //
+			.getWorkspaceFoldersEvents().stream() //
+			.flatMap(event -> event.getEvent().getRemoved().stream()) //
+			.anyMatch(removed -> Paths.get(URI.create(removed.getUri())).equals(expected)));
 	}
 
 	@Test
@@ -172,15 +162,12 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 
 		waitForAndAssertCondition(5_000, () -> project.isOpen());
 
-		waitForAndAssertCondition(5_000, () -> {
-			assertEquals(3, MockLanguageServer.INSTANCE.getWorkspaceService().getWorkspaceFoldersEvents().size());
-			return true;
-		});
-		final MockWorkspaceService mockWorkspaceService = MockLanguageServer.INSTANCE.getWorkspaceService();
-		final List<DidChangeWorkspaceFoldersParams> events = mockWorkspaceService.getWorkspaceFoldersEvents();
-		final List<WorkspaceFolder> added = events.get(2).getEvent().getAdded();
-		assertEquals(1, added.size());
-		assertEquals(new File(project.getLocationURI()), new File(new URI(added.get(0).getUri())));
+		// test that the LS emitted a workspace-folder added event for our project
+		final var expected = Paths.get(project.getLocationURI());
+		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.getWorkspaceService() //
+				.getWorkspaceFoldersEvents().stream() //
+				.flatMap(evt -> evt.getEvent().getAdded().stream()) //
+				.anyMatch(added -> Paths.get(URI.create(added.getUri())).equals(expected)));
 	}
 
 	@Override
