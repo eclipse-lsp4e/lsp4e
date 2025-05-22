@@ -17,7 +17,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,6 +47,9 @@ import java.util.function.UnaryOperator;
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.IFileBuffer;
 import org.eclipse.core.filebuffers.IFileBufferListener;
+import org.eclipse.core.filebuffers.ITextFileBufferManager;
+import org.eclipse.core.filebuffers.LocationKind;
+import org.eclipse.core.filesystem.URIUtil;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -63,6 +66,7 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProduct;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubMonitor;
@@ -151,6 +155,46 @@ public class LanguageServerWrapper {
 			}
 		}
 
+		@Override
+		public void underlyingFileMoved(IFileBuffer buffer, IPath newPath) {
+			URI oldUri = LSPEclipseUtils.toUri(buffer);
+			if (oldUri == null) {
+				return;
+			}
+			DocumentContentSynchronizer documentListener = connectedDocuments.get(oldUri);
+			if (documentListener == null) {
+				return;
+			}
+			ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
+			disconnectTextFileBuffer(bufferManager, buffer.getLocation());
+			IFile newFile = ResourcesPlugin.getWorkspace().getRoot().getFile(newPath);
+			URI newUri = LSPEclipseUtils.toUri(newFile);
+			if (newUri == null) {
+				return;
+			}
+			if (!connectedDocuments.containsKey(newUri)) {
+				try {
+					bufferManager.connect(newPath, LocationKind.IFILE, new NullProgressMonitor());
+					connectedDocuments.put(newUri, documentListener);
+				} catch (CoreException e) {
+					LanguageServerPlugin.logError(e);
+				}
+			}
+		}
+
+		@Override
+		public void underlyingFileDeleted(IFileBuffer buffer) {
+			URI oldUri = LSPEclipseUtils.toUri(buffer);
+			if (oldUri == null) {
+				return;
+			}
+			if (!isConnectedTo(oldUri)) {
+				return;
+			}
+			// We need full path from buffer because file is deleted and disconnectTextFileBuffer(URI) will not work
+			disconnectTextFileBuffer(FileBuffers.getTextFileBufferManager(), buffer.getLocation());
+			disconnect(oldUri);
+		}
 	};
 
 	private static class LanguageServerContext {
@@ -753,6 +797,7 @@ public class LanguageServerWrapper {
 		if (documentListener != null) {
 			documentListener.getDocument().removePrenotifiedDocumentListener(documentListener);
 			documentClosedFuture = documentListener.documentClosed();
+			disconnectTextFileBuffer(uri);
 		}
 		if (this.connectedDocuments.isEmpty()) {
 			if (this.serverDefinition.lastDocumentDisconnectedTimeout != 0) {
@@ -762,6 +807,28 @@ public class LanguageServerWrapper {
 			}
 		}
 		return documentClosedFuture;
+	}
+
+	private static void disconnectTextFileBuffer(URI uri) {
+		IPath location = URIUtil.toPath(uri);
+		if (location == null) {
+			return;
+		}
+		IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(location);
+		if(file != null) {
+			disconnectTextFileBuffer(FileBuffers.getTextFileBufferManager(), file.getFullPath());
+		}
+	}
+
+	private static void disconnectTextFileBuffer(ITextFileBufferManager bufferManager, IPath workspacePath) {
+		if(bufferManager == null || workspacePath == null) {
+			return;
+		}
+		try {
+			bufferManager.disconnect(workspacePath, LocationKind.IFILE, new NullProgressMonitor());
+		} catch (Exception e) {
+			LanguageServerPlugin.logError(e);
+		}
 	}
 
 	public void disconnectContentType(IContentType contentType) {
