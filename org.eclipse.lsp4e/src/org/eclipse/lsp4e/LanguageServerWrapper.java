@@ -47,6 +47,9 @@ import java.util.function.UnaryOperator;
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.IFileBuffer;
 import org.eclipse.core.filebuffers.IFileBufferListener;
+import org.eclipse.core.filebuffers.ITextFileBufferManager;
+import org.eclipse.core.filebuffers.LocationKind;
+import org.eclipse.core.filesystem.URIUtil;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -63,6 +66,7 @@ import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProduct;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubMonitor;
@@ -121,7 +125,10 @@ import com.google.gson.JsonObject;
 
 public class LanguageServerWrapper {
 
-	private final IFileBufferListener fileBufferListener = new FileBufferListenerAdapter() {
+	private final IFileBufferListener fileBufferListener = new LSFileBufferListener();
+
+	private final class LSFileBufferListener extends FileBufferListenerAdapter {
+
 		@Override
 		public void bufferDisposed(IFileBuffer buffer) {
 			final var uri = LSPEclipseUtils.toUri(buffer);
@@ -151,7 +158,53 @@ public class LanguageServerWrapper {
 			}
 		}
 
-	};
+		@Override
+		public void underlyingFileMoved(IFileBuffer buffer, IPath newPath) {
+			URI oldUri = LSPEclipseUtils.toUri(buffer);
+			if (oldUri == null) {
+				return;
+			}
+			DocumentContentSynchronizer documentListener = connectedDocuments.get(oldUri);
+			if (documentListener == null) {
+				return;
+			}
+			ITextFileBufferManager bufferManager = FileBuffers.getTextFileBufferManager();
+			disconnectTextFileBuffer(bufferManager, buffer.getLocation());
+			/*
+			 * This below is not working (will leak file buffer), because the client that connected the document
+			 * via old URI can't always know that the file has moved and so it may try to use old URI.
+			 * Better is to let the client act on bufferDisposed() event above and manually connect to the document if needed.
+			 *
+			IFile newFile = ResourcesPlugin.getWorkspace().getRoot().getFile(newPath);
+			URI newUri = LSPEclipseUtils.toUri(newFile);
+			if (newUri == null) {
+				return;
+			}
+			if (!connectedDocuments.containsKey(newUri)) {
+				try {
+					bufferManager.connect(newPath, LocationKind.IFILE, new NullProgressMonitor());
+					connectedDocuments.put(newUri, documentListener);
+				} catch (CoreException e) {
+					LanguageServerPlugin.logError(e);
+				}
+			}
+			*/
+		}
+
+		@Override
+		public void underlyingFileDeleted(IFileBuffer buffer) {
+			URI oldUri = LSPEclipseUtils.toUri(buffer);
+			if (oldUri == null) {
+				return;
+			}
+			if (!isConnectedTo(oldUri)) {
+				return;
+			}
+			// We need full path from buffer because file is deleted and disconnectTextFileBuffer(URI) will not work
+			disconnectTextFileBuffer(FileBuffers.getTextFileBufferManager(), buffer.getLocation());
+			disconnect(oldUri);
+		}
+	}
 
 	private static class LanguageServerContext {
 		boolean cancelled = false;
@@ -652,7 +705,7 @@ public class LanguageServerWrapper {
 							.didChangeWorkspaceFolders(new DidChangeWorkspaceFoldersParams(wsFolderEvent));
 				}
 				ResourcesPlugin.getWorkspace().addResourceChangeListener(workspaceFolderUpdater,
-						IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_DELETE);
+						IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_DELETE | IResourceChangeEvent.PRE_CLOSE);
 				return Status.OK_STATUS;
 			}
 		}.schedule();
@@ -755,6 +808,7 @@ public class LanguageServerWrapper {
 		if (documentListener != null) {
 			documentListener.getDocument().removePrenotifiedDocumentListener(documentListener);
 			documentClosedFuture = documentListener.documentClosed();
+			disconnectTextFileBuffer(uri);
 		}
 		if (this.connectedDocuments.isEmpty()) {
 			if (this.serverDefinition.lastDocumentDisconnectedTimeout != 0) {
@@ -764,6 +818,28 @@ public class LanguageServerWrapper {
 			}
 		}
 		return documentClosedFuture;
+	}
+
+	private static void disconnectTextFileBuffer(URI uri) {
+		IPath location = URIUtil.toPath(uri);
+		if (location == null) {
+			return;
+		}
+		IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(location);
+		if(file != null) {
+			disconnectTextFileBuffer(FileBuffers.getTextFileBufferManager(), file.getFullPath());
+		}
+	}
+
+	private static void disconnectTextFileBuffer(ITextFileBufferManager bufferManager, IPath workspacePath) {
+		if(bufferManager == null || workspacePath == null) {
+			return;
+		}
+		try {
+			bufferManager.disconnect(workspacePath, LocationKind.IFILE, new NullProgressMonitor());
+		} catch (Exception e) {
+			LanguageServerPlugin.logError(e);
+		}
 	}
 
 	public void disconnectContentType(IContentType contentType) {
@@ -1174,13 +1250,13 @@ public class LanguageServerWrapper {
 		}
 
 		private @Nullable WorkspaceFoldersChangeEvent toWorkspaceFolderEvent(IResourceChangeEvent e) {
-			if (!isPostChangeEvent(e) && !isPreDeletEvent(e)) {
+			if (!isPostChangeEvent(e) && !isPreDeletEvent(e) && !isPreCloseEvent(e)) {
 				return null;
 			}
 
 			// If a project delete then the delta is null, but we get the project in the top-level resource
 			final var wsFolderEvent = new WorkspaceFoldersChangeEvent();
-			if (isPreDeletEvent(e)) {
+			if (isPreDeletEvent(e) || isPreCloseEvent(e)) {
 				final IResource resource = e.getResource();
 				if (resource instanceof IProject project) {
 					wsFolderEvent.getRemoved().add(LSPEclipseUtils.toWorkspaceFolder(project));
@@ -1233,6 +1309,14 @@ public class LanguageServerWrapper {
 		 */
 		private boolean isPreDeletEvent(IResourceChangeEvent e) {
 			return e.getType() == IResourceChangeEvent.PRE_DELETE;
+		}
+
+		/**
+		 *
+		 * @return True if this event is being fired prior to a project being closed
+		 */
+		private boolean isPreCloseEvent(IResourceChangeEvent e) {
+			return e.getType() == IResourceChangeEvent.PRE_CLOSE;
 		}
 
 		/**
