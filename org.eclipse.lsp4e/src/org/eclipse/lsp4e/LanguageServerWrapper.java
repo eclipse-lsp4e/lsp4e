@@ -167,6 +167,8 @@ public class LanguageServerWrapper {
 					shutdown.get(5, TimeUnit.SECONDS);
 				} catch (InterruptedException ex) {
 					Thread.currentThread().interrupt();
+				} catch (TimeoutException ex) {
+					LanguageServerPlugin.logWarning("The server did not stop after 5 seconds",ex); //$NON-NLS-1$
 				} catch (Exception ex) {
 					LanguageServerPlugin.logError(ex.getClass().getSimpleName() + " occurred during shutdown of " //$NON-NLS-1$
 							+ languageServer, ex);
