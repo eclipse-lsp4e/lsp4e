@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <?pde version="3.8"?>
-<target name="LSP4E Target-platform" sequenceNumber="1473749310">
+<target name="LSP4E Target-platform" sequenceNumber="1473749311">
   <locations>
     <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="true" type="InstallableUnit">
       <unit id="org.eclipse.lsp4j" version="0.0.0"/>
@@ -19,8 +19,8 @@
       <repository location="https://download.eclipse.org/tools/orbit/simrel/orbit-aggregation/release/latest"/>
       <unit id="org.commonmark" version="0.0.0"/>
       <unit id="org.commonmark-gfm-tables" version="0.0.0"/>
-      <unit id="com.google.guava" version="33.4.0.jre"/>
-      <unit id="com.google.guava.failureaccess" version="1.0.2"/>
+      <unit id="com.google.guava" version="33.4.8.jre"/>
+      <unit id="com.google.guava.failureaccess" version="1.0.3"/>
     </location>
     <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
       <unit id="org.eclipse.tm4e.feature.feature.group" version="0.0.0"/>
