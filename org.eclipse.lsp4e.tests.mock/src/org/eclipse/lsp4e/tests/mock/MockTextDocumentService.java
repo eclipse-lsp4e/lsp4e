@@ -184,6 +184,10 @@ public class MockTextDocumentService implements TextDocumentService {
 	@Override
 	public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
 			DocumentSymbolParams params) {
+		String documentURI = params.getTextDocument().getUri();
+		if (!documentURI.startsWith("file:///")) {
+			throw new IllegalArgumentException("invalid uri: " + documentURI);
+		}
 		return CompletableFuture.completedFuture(documentSymbols.stream().map(symbol -> {
 			Either<SymbolInformation, DocumentSymbol> res = Either.forRight(symbol);
 			return res;
