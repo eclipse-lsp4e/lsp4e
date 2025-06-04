@@ -11,7 +11,7 @@
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.minimum.version>3.6.3</maven.minimum.version>
-		<tycho-version>4.0.12</tycho-version>
+		<tycho-version>4.0.13</tycho-version>
 		<tycho.scmUrl>scm:git:https://github.com/eclipse-lsp4e/lsp4e.git</tycho.scmUrl>
 		<ui.test.vmargs></ui.test.vmargs>
 		<jgit.dirtyWorkingTree>error</jgit.dirtyWorkingTree>

@@ -10,8 +10,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.semanticTokens;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
-
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -22,7 +20,6 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
-import org.eclipse.lsp4e.LanguageServers.LanguageServerDocumentExecutor;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.lsp4j.SemanticTokensParams;
@@ -37,18 +34,19 @@ public final class SemanticTokensClient {
 
 	}
 
-	public <T> CompletableFuture<Optional<T>> requestFullSemanticTokens(IDocument document, BiFunction<@Nullable SemanticTokensLegend, SemanticTokens, T> callback) {
-		LanguageServerDocumentExecutor executor = LanguageServers.forDocument(document)
+	public <T> CompletableFuture<Optional<T>> requestFullSemanticTokens(IDocument document,
+			BiFunction<@Nullable SemanticTokensLegend, SemanticTokens, T> callback) {
+		URI uri = LSPEclipseUtils.toUri(document);
+		if (uri == null) {
+			return CompletableFuture.completedFuture(Optional.empty());
+		}
+
+		return LanguageServers.forDocument(document)
 				.withFilter(serverCapabilities -> serverCapabilities.getSemanticTokensProvider() != null
-						&& LSPEclipseUtils.hasCapability(serverCapabilities.getSemanticTokensProvider().getFull()));
-
-		URI uri = castNonNull(LSPEclipseUtils.toUri(document));
-		final var semanticTokensParams = new SemanticTokensParams();
-		semanticTokensParams.setTextDocument(LSPEclipseUtils.toTextDocumentIdentifier(uri));
-
-		return executor //
-			.computeFirst((w, ls) -> ls.getTextDocumentService().semanticTokensFull(semanticTokensParams)
-					.thenApply(semanticTokens -> callback.apply(getSemanticTokensLegend(w), semanticTokens)));
+						&& LSPEclipseUtils.hasCapability(serverCapabilities.getSemanticTokensProvider().getFull())) //
+				.computeFirst((w, ls) -> ls.getTextDocumentService()
+						.semanticTokensFull(new SemanticTokensParams(LSPEclipseUtils.toTextDocumentIdentifier(uri)))
+						.thenApply(semanticTokens -> callback.apply(getSemanticTokensLegend(w), semanticTokens)));
 	}
 
 	// public for testing

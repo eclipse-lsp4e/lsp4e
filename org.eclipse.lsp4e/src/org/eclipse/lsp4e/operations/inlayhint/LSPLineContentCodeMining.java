@@ -93,7 +93,7 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 
 		return wrapper.getServerCapabilitiesAsync().thenCompose(capabilities -> {
 			if (!canResolveInlayHint(capabilities)) {
-				CompletableFuture.completedFuture(null);
+				return CompletableFuture.completedFuture(null);
 			}
 			return wrapper.execute(
 					ls -> ls.getTextDocumentService().resolveInlayHint(inlayHint).thenAcceptAsync(resolvedInlayHint -> {
