@@ -215,7 +215,10 @@ public class LSPFoldingReconcilingStrategy
 							updateAnnotation(deletions, existing, additions, foldingRange.getStartLine(),
 									foldingRange.getEndLine(), collapsByDefault);
 						} catch (BadLocationException ex) {
-							LanguageServerPlugin.logError(ex);
+							// This is an expected state, only log when tracing is enabled.
+							if (LanguageServerPlugin.isLogTraceEnabled()) {
+								LanguageServerPlugin.logError(ex);
+							}
 						}
 						isFirstFoldingRange[0] = false;
 					});
