@@ -82,7 +82,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 	}
 
 	@Override
-	public synchronized void accept(PublishDiagnosticsParams diagnostics) {
+	public void accept(PublishDiagnosticsParams diagnostics) {
 		try {
 			String uri = diagnostics.getUri();
 			IResource resource = LSPEclipseUtils.findResourceFor(uri);
