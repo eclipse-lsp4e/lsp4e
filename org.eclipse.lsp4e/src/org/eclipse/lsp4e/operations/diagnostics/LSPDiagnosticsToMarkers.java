@@ -82,7 +82,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 	}
 
 	@Override
-	public void accept(PublishDiagnosticsParams diagnostics) {
+	public synchronized void accept(PublishDiagnosticsParams diagnostics) {
 		try {
 			String uri = diagnostics.getUri();
 			IResource resource = LSPEclipseUtils.findResourceFor(uri);
@@ -144,6 +144,15 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 					return Status.OK_STATUS;
 				}
 
+				// Ensure that markers updates are not done in parallel
+				synchronized(resource) {
+					doRun();
+				}
+
+				return Status.OK_STATUS;
+			}
+
+			private void doRun() throws CoreException {
 				final var toDeleteMarkers = ArrayUtil
 						.asHashSet(resource.findMarkers(markerType, true, IResource.DEPTH_ZERO));
 				toDeleteMarkers
@@ -194,7 +203,6 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 						FileBuffers.getTextFileBufferManager().disconnect(resource.getFullPath(), LocationKind.IFILE, new NullProgressMonitor());
 					}
 				}
-				return Status.OK_STATUS;
 			}
 		};
 		job.setSystem(true);
