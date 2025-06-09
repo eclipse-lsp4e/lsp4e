@@ -318,7 +318,7 @@ public class HighlightReconcilingStrategy
 	}
 
 	@Override
-	public void reconcile(DirtyRegion dirtyRegion, IRegion subRegion) {
+	public void reconcile(DirtyRegion dirtyRegion, @Nullable IRegion subRegion) {
 		// Do nothing
 	}
 

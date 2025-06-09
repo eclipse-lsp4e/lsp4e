@@ -144,7 +144,7 @@ public class LSPLinkedEditingReconcilingStrategy extends LSPLinkedEditingBase
 	}
 
 	@Override
-	public void reconcile(DirtyRegion dirtyRegion, IRegion subRegion) {
+	public void reconcile(DirtyRegion dirtyRegion, @Nullable IRegion subRegion) {
 	}
 
 	@Override

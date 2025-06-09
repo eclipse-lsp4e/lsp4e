@@ -360,7 +360,7 @@ public class LSPFoldingReconcilingStrategy
 	}
 
 	@Override
-	public void reconcile(DirtyRegion dirtyRegion, IRegion partition) {
+	public void reconcile(DirtyRegion dirtyRegion, @Nullable IRegion partition) {
 		// Because a reconcile will be performed always on the whole document (this is specified by the LSP),
 		// prevent consecutive reconciling on every dirty region if the document has not changed.
 		var ts = DocumentUtil.getDocumentModificationStamp(document);

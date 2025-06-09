@@ -259,7 +259,7 @@ public class SemanticHighlightReconcilerStrategy
 	}
 
 	@Override
-	public void reconcile(final DirtyRegion dirtyRegion, final IRegion subRegion) {
+	public void reconcile(final DirtyRegion dirtyRegion, final @Nullable IRegion subRegion) {
 		fullReconcileOnce();
 	}
 
