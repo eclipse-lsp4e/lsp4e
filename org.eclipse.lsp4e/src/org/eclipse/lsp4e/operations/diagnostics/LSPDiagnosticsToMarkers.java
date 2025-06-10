@@ -140,7 +140,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 
 			@Override
 			public IStatus runInWorkspace(@Nullable IProgressMonitor monitor) throws CoreException {
-				if (!resource.exists()) {
+				if (!resource.isAccessible()) {
 					return Status.OK_STATUS;
 				}
 
