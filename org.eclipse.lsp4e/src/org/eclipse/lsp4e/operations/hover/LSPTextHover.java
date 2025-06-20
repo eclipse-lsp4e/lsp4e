@@ -52,6 +52,7 @@ import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.editors.text.EditorsUI;
 
 /**
  * LSP implementation of {@link org.eclipse.jface.text.ITextHover}
@@ -212,7 +213,7 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 				if (BrowserInformationControl.isAvailable(parent)) {
 					return new FocusableBrowserInformationControl(parent);
 				} else {
-					return new DefaultInformationControl(parent);
+					return new DefaultInformationControl(parent, EditorsUI.getTooltipAffordanceString());
 				}
 			}
 		};
