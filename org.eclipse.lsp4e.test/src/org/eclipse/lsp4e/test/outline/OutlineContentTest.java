@@ -82,6 +82,40 @@ public class OutlineContentTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	public void testExternalFileOpenedOnFileStore() throws CoreException, IOException {
+		var testFile = TestUtils.createTempFile("test" + System.currentTimeMillis(), ".lspt");
+
+		try (FileWriter fileWriter =  new FileWriter(testFile)) {
+			fileWriter.write("content\n does\n not\n matter\n but needs to cover the ranges described below");
+		}
+
+		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
+				new Range(new Position(0, 0), new Position(0, 2)),
+				new Range(new Position(0, 0), new Position(0, 2)));
+
+		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
+
+		final var editor = (ITextEditor) TestUtils.openExternalFileOnFileStore(testFile);
+
+		final var outlinePage = (CNFOutlinePage) new EditorToOutlineAdapterFactory().getAdapter(editor, IContentOutlinePage.class);
+		final var shell = new Shell(editor.getEditorSite().getWorkbenchWindow().getShell());
+		shell.setLayout(new FillLayout());
+		outlinePage.createControl(shell);
+		shell.open();
+		final var tree = (Tree) outlinePage.getControl();
+
+		// wait for tree to render
+		waitForAndAssertCondition(5_000, tree.getDisplay(), //
+				() -> List.of(symbolCow) //
+						.equals(Arrays.stream(tree.getItems())
+								.map(e -> ((DocumentSymbolWithURI) e.getData()).symbol)
+								.toList()) //
+		);
+
+		shell.close();
+	}
+
+	@Test
 	public void testOutlineSorting() throws CoreException {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "content\n does\n not\n matter\n but needs to cover the ranges described below");
 		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
