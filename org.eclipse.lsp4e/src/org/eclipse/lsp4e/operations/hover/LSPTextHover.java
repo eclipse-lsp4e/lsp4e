@@ -45,6 +45,7 @@ import org.eclipse.jface.text.Region;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.MarkedString;
@@ -73,7 +74,9 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 		try {
 			return hoverInfoFuture.get(GET_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 		} catch (ExecutionException e) {
-			LanguageServerPlugin.logError(e);
+			if (!CancellationUtil.isRequestCancelledException(e)) {
+				LanguageServerPlugin.logError(e);
+			}
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
