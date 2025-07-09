@@ -315,7 +315,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			return new IContextInformation[] { /* TODO? show error in context information */ };
 		} catch (TimeoutException e) {
 			LanguageServerPlugin.logWarning("Could not compute  context information due to timeout after " //$NON-NLS-1$
-					+ CONTEXT_INFORMATION_TIMEOUT + " milliseconds", e); //$NON-NLS-1$
+					+ CONTEXT_INFORMATION_TIMEOUT + " milliseconds"); //$NON-NLS-1$
 			return new IContextInformation[] { /* TODO? show error in context information */ };
 		}
 		return contextInformations.toArray(IContextInformation[]::new);
@@ -342,7 +342,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
 			LanguageServerPlugin.logWarning(
-					"Could not get trigger characters due to timeout after " + TRIGGERS_TIMEOUT + " milliseconds", e); //$NON-NLS-1$//$NON-NLS-2$
+					"Could not get trigger characters due to timeout after " + TRIGGERS_TIMEOUT + " milliseconds"); //$NON-NLS-1$//$NON-NLS-2$
 		} catch (OperationCanceledException | ResponseErrorException | ExecutionException | CancellationException e) {
 			if (!CancellationUtil.isRequestCancelledException(e)) { // do not report error if the server has cancelled
 																	// the request

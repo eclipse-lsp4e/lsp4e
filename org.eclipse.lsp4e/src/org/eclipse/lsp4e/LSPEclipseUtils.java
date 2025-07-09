@@ -728,7 +728,7 @@ public final class LSPEclipseUtils {
 		if (introUrl != null) {
 			try {
 				if (!introUrl.execute()) {
-					LanguageServerPlugin.logWarning("Failed to execute IntroURL: " + uri, null); //$NON-NLS-1$
+					LanguageServerPlugin.logWarning("Failed to execute IntroURL: " + uri); //$NON-NLS-1$
 				}
 			} catch (Exception t) {
 				LanguageServerPlugin.logWarning("Error executing IntroURL: " + uri, t); //$NON-NLS-1$
@@ -1109,8 +1109,7 @@ public final class LSPEclipseUtils {
 							final var deleteChange = new DeleteResourceChange(resource.getFullPath(), true);
 							change.add(deleteChange);
 						} else {
-							LanguageServerPlugin.logWarning(
-									"Changes outside of visible projects are not supported at the moment.", null); //$NON-NLS-1$
+							LanguageServerPlugin.logWarning("Changes outside of visible projects are not supported at the moment."); //$NON-NLS-1$
 						}
 					} else if (resourceOperation instanceof RenameFile rename) {
 						URI oldURI = URI.create(rename.getOldUri());

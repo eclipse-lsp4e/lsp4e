@@ -130,6 +130,16 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	 *
 	 * @param message
 	 *            User comprehensible message
+	 */
+	public static void logWarning(final @Nullable String message) {
+		logWarning(message, null);
+	}
+
+	/**
+	 * Utility method to log warnings for this plug-in.
+	 *
+	 * @param message
+	 *            User comprehensible message
 	 * @param thr
 	 *            The exception through which we noticed the warning
 	 */
@@ -141,7 +151,7 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 
 	/**
 	 * Returns whether log trace is enabled for this plugin.
-	 * 
+	 *
 	 * @return true if the trace debug option is enabled, false otherwise
 	 */
 	public static boolean isLogTraceEnabled() {

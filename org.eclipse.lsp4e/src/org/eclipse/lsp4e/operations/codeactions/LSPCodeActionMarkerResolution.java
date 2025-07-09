@@ -160,7 +160,7 @@ public class LSPCodeActionMarkerResolution implements IMarkerResolutionGenerator
 						// wait a bit to avoid showing too much "Computing" without looking like a freeze
 					} catch (TimeoutException e) {
 						LanguageServerPlugin.logWarning(
-								"Could not get code actions due to timeout after 300 milliseconds in `textDocument/codeAction`", e); //$NON-NLS-1$
+								"Could not get code actions due to timeout after 300 milliseconds in `textDocument/codeAction`"); //$NON-NLS-1$
 					}
 				}
 			}

@@ -133,7 +133,7 @@ public class LanguageServersRegistry {
 			if (markerType == null) {
 				markerType = extension.getAttribute(MAKER_TYPE_ELEMENT);
 				if (markerType != null) {
-					LanguageServerPlugin.logWarning("Please use the property " + MARKER_TYPE_ELEMENT+ ". The legacy property "+ MAKER_TYPE_ELEMENT + " will be removed.", null); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+					LanguageServerPlugin.logWarning("Please use the property " + MARKER_TYPE_ELEMENT+ ". The legacy property "+ MAKER_TYPE_ELEMENT + " will be removed."); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 				}
 			}
 			IMarkerAttributeComputer markerAttributeComputerElement = null;
@@ -316,7 +316,7 @@ public class LanguageServersRegistry {
 			if (lsDefinition != null) {
 				registerAssociation(mapping.contentType, lsDefinition, mapping.languageId, mapping.enablement);
 			} else {
-				LanguageServerPlugin.logWarning("server '" + mapping.id + "' not available", null); //$NON-NLS-1$ //$NON-NLS-2$
+				LanguageServerPlugin.logWarning("server '" + mapping.id + "' not available"); //$NON-NLS-1$ //$NON-NLS-2$
 			}
 		}
 	}

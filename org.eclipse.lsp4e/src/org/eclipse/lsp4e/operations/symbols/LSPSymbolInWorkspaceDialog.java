@@ -169,8 +169,7 @@ public class LSPSymbolInWorkspaceDialog extends FilteredItemsSelectionDialog {
 						Thread.currentThread().interrupt();
 					} catch (TimeoutException e) {
 						LanguageServerPlugin.logWarning(
-								"Could not get workspace symbols due to timeout after 1 seconds in `workspace/symbol`", //$NON-NLS-1$
-								e);
+								"Could not get workspace symbols due to timeout after 1 seconds in `workspace/symbol`"); //$NON-NLS-1$
 					}
 				});
 	}

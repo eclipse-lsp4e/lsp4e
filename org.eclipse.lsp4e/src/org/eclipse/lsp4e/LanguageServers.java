@@ -229,7 +229,7 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 			LanguageServerPlugin.logError(e);
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not get language server due to timeout after 50 milliseconds", e); //$NON-NLS-1$
+			LanguageServerPlugin.logWarning("Could not get language server due to timeout after 50 milliseconds"); //$NON-NLS-1$
 			return Boolean.TRUE;
 		}
 		return Boolean.FALSE;

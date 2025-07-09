@@ -402,7 +402,7 @@ public class LSCompletionProposal
 			LanguageServerPlugin.logError(e);
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not resolve completion items due to timeout after " + RESOLVE_TIMEOUT + " milliseconds in `completionItem/resolve`", e);  //$NON-NLS-1$//$NON-NLS-2$
+			LanguageServerPlugin.logWarning("Could not resolve completion items due to timeout after " + RESOLVE_TIMEOUT + " milliseconds in `completionItem/resolve`");  //$NON-NLS-1$//$NON-NLS-2$
 		}
 	}
 

@@ -169,7 +169,7 @@ public class CodeActionMarkerResolution extends WorkbenchMarkerResolution implem
 				}
 			} catch (TimeoutException e) {
 				LanguageServerPlugin.logWarning(
-						"Could not resolve code actions due to timeout after 2 seconds in `textDocument/resolveCodeAction`", e); //$NON-NLS-1$
+						"Could not resolve code actions due to timeout after 2 seconds in `textDocument/resolveCodeAction`"); //$NON-NLS-1$
 			} catch (ExecutionException e) {
 				LanguageServerPlugin.logError(e);
 			} catch (InterruptedException e) {

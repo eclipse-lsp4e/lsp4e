@@ -101,7 +101,7 @@ public class DocumentLinkDetector extends AbstractHyperlinkDetector {
 			Thread.currentThread().interrupt();
 			return null;
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not detect hyperlinks due to timeout after 4 seconds", e); //$NON-NLS-1$
+			LanguageServerPlugin.logWarning("Could not detect hyperlinks due to timeout after 4 seconds"); //$NON-NLS-1$
 			return null;
 		}
 	}

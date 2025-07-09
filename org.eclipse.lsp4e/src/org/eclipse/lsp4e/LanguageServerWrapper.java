@@ -221,7 +221,7 @@ public class LanguageServerWrapper {
 				} catch (InterruptedException ex) {
 					Thread.currentThread().interrupt();
 				} catch (TimeoutException ex) {
-					LanguageServerPlugin.logWarning("The server did not stop after 5 seconds",ex); //$NON-NLS-1$
+					LanguageServerPlugin.logWarning("The server did not stop after 5 seconds"); //$NON-NLS-1$
 				} catch (Exception ex) {
 					LanguageServerPlugin.logError(ex.getClass().getSimpleName() + " occurred during shutdown of " //$NON-NLS-1$
 							+ languageServer, ex);
@@ -755,7 +755,7 @@ public class LanguageServerWrapper {
 				LanguageServerPlugin.logError(e);
 				Thread.currentThread().interrupt();
 			} catch (TimeoutException e) {
-				LanguageServerPlugin.logWarning("Could not get if the workspace folder capability is supported due to timeout after 1 second", e); //$NON-NLS-1$
+				LanguageServerPlugin.logWarning("Could not get if the workspace folder capability is supported due to timeout after 1 second"); //$NON-NLS-1$
 			}
 		}
 		return initiallySupportsWorkspaceFolders || supportsWorkspaceFolders(serverCapabilities);
@@ -1053,8 +1053,7 @@ public class LanguageServerWrapper {
 					// enabled on initialization.
 				} else if (supportsWorkspaceFolders(serverCapabilities)) {
 					LanguageServerPlugin.logWarning(
-							"Dynamic registration of 'workspace/didChangeWorkspaceFolders' ignored. It was already enabled before", //$NON-NLS-1$
-							null);
+							"Dynamic registration of 'workspace/didChangeWorkspaceFolders' ignored. It was already enabled before"); //$NON-NLS-1$
 				} else {
 					addRegistration(reg, () -> setWorkspaceFoldersEnablement(false));
 					setWorkspaceFoldersEnablement(true);

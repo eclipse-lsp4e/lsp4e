@@ -80,7 +80,7 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not get hover information due to timeout after " + GET_TIMEOUT_MS + " milliseconds", e); //$NON-NLS-1$ //$NON-NLS-2$
+			LanguageServerPlugin.logWarning("Could not get hover information due to timeout after " + GET_TIMEOUT_MS + " milliseconds"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 		return null;
 	}
@@ -176,7 +176,7 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not get hover region due to timeout after " + GET_TIMEOUT_MS + " milliseconds", e); //$NON-NLS-1$ //$NON-NLS-2$
+			LanguageServerPlugin.logWarning("Could not get hover region due to timeout after " + GET_TIMEOUT_MS + " milliseconds"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 		this.lastRegion = new Region(offset, 0);
 		return this.lastRegion;

@@ -77,7 +77,7 @@ public class WorkspaceSymbolsQuickAccessProvider implements IQuickAccessComputer
 		catch (ExecutionException | InterruptedException e) {
 			LanguageServerPlugin.logError(e);
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not get workspace symbols due to timeout after 1 second in `workspace/symbol`", e); //$NON-NLS-1$
+			LanguageServerPlugin.logWarning("Could not get workspace symbols due to timeout after 1 second in `workspace/symbol`"); //$NON-NLS-1$
 		}
 
 		return res.toArray(QuickAccessElement[]::new);
