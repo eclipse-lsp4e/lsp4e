@@ -39,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -207,7 +208,7 @@ public class LanguageServerWrapper {
 	}
 
 	private static class LanguageServerContext {
-		boolean cancelled = false;
+		final AtomicBoolean cancelled = new AtomicBoolean(false);
 
 		@Nullable Future<?> launcherFuture;
 		@Nullable StreamConnectionProvider lspStreamProvider;
@@ -475,7 +476,7 @@ public class LanguageServerWrapper {
 	}
 
 	private void markInitializationProgress(LanguageServerContext context) {
-		if (context.cancelled) {
+		if (context.cancelled.get()) {
 			throw new CancellationException();
 		}
 		advanceInitializeFutureMonitor();
@@ -643,9 +644,7 @@ public class LanguageServerWrapper {
 
 		LanguageServerContext contextToStop = context;
 		context = new LanguageServerContext();
-		synchronized(contextToStop) {
-			contextToStop.cancelled = true;
-		}
+		contextToStop.cancelled.set(true);
 
 		shutdown(contextToStop);
 	}
