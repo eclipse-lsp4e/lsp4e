@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
+import org.eclipse.core.filesystem.EFS;
+import org.eclipse.core.filesystem.IFileStore;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
@@ -106,6 +108,17 @@ public class TestUtils {
 		IWorkbenchWindow workbenchWindow = UI.getActiveWindow();
 		IWorkbenchPage page = workbenchWindow.getActivePage();
 		IEditorPart part = IDE.openEditor(page, file.toURI(), "org.eclipse.ui.genericeditor.GenericEditor", false);
+		if (part != null) {
+			part.setFocus();
+		}
+		return part;
+	}
+
+	public static IEditorPart openExternalFileOnFileStore(File file) throws PartInitException {
+		IWorkbenchWindow workbenchWindow = UI.getActiveWindow();
+		IWorkbenchPage page = workbenchWindow.getActivePage();
+		IFileStore fileStore = EFS.getLocalFileSystem().getStore(file.toURI());
+		IEditorPart part = IDE.openEditorOnFileStore(page, fileStore);
 		if (part != null) {
 			part.setFocus();
 		}
