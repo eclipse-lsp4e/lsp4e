@@ -180,7 +180,9 @@ public class LSPDocumentLinkPresentationReconcilingStrategy
 
 	@Override
 	public void reconcile(DirtyRegion dirtyRegion, @Nullable IRegion subRegion) {
-		// Do nothing
+		// Underline document by using textDocument/documentLink with some delay as
+		// reconcile method is called in a Thread background.
+		underline();
 	}
 
 	@Override
