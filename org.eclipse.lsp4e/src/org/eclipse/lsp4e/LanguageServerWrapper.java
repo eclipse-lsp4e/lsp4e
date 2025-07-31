@@ -98,6 +98,7 @@ import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.ServerInfo;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
 import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
@@ -251,10 +252,14 @@ public class LanguageServerWrapper {
 	protected final InitializeParams initParams = new InitializeParams();
 
 	private @Nullable CompletableFuture<@Nullable Void> initializeFuture;
+
+	private volatile @Nullable InitializeResult initializeResult;
+	private volatile @Nullable ServerCapabilities serverCapabilities;
+	private volatile @Nullable ServerInfo serverInfo;
+
 	private final AtomicReference<@Nullable IProgressMonitor> initializeFutureMonitorRef = new AtomicReference<>();
 	private final int initializeFutureNumberOfStages = 7;
 	private @Nullable DefaultLanguageClient languageClient;
-	private volatile @Nullable ServerCapabilities serverCapabilities;
 	private final Timer timer = new Timer("Stop Language Server Task Processor"); //$NON-NLS-1$
 	private @Nullable TimerTask stopTimerTask;
 
@@ -414,12 +419,12 @@ public class LanguageServerWrapper {
 						consumer.consume(message);
 						final var lspStreamProvider = workingContext.lspStreamProvider;
 						final var languageServer = workingContext.languageServer;
-						if (lspStreamProvider != null && isActive() &&  languageServer != null) {
+						if (lspStreamProvider != null && isActive() && languageServer != null) {
 							lspStreamProvider.handleMessage(message, languageServer, rootURI);
 						}
 					};
 					initParams.setWorkspaceFolders(getRelevantWorkspaceFolders());
-					final var lspStreamProvider= castNonNull(workingContext.lspStreamProvider);
+					final var lspStreamProvider = castNonNull(workingContext.lspStreamProvider);
 					Launcher<LanguageServer> launcher = serverDefinition.createLauncherBuilder() //
 							.setLocalService(languageClient)//
 							.setRemoteInterface(serverDefinition.getServerInterface())//
@@ -433,12 +438,14 @@ public class LanguageServerWrapper {
 					workingContext.launcherFuture = launcher.startListening();
 				}
 			}).thenCompose(unused -> {
-					markInitializationProgress(workingContext);
-					return initServer(rootURI);
+				markInitializationProgress(workingContext);
+				return initServer(rootURI);
 			}).thenAccept(res -> {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
+					initializeResult = res;
 					serverCapabilities = res.getCapabilities();
+					serverInfo = res.getServerInfo();
 					this.initiallySupportsWorkspaceFolders = supportsWorkspaceFolders(serverCapabilities);
 				}
 			}).thenRun(() -> {
@@ -539,7 +546,7 @@ public class LanguageServerWrapper {
 
 		// no then...Async future here as we want this chain of operation to be sequential and "atomic"-ish
 		return castNonNull(context.languageServer).initialize(initParams);
-		//FIXME race: this.context may not be what it is expected to be, should be parameter
+		// FIXME race: this.context may not be what it is expected to be, should be parameter
 	}
 
 	@Nullable
@@ -639,7 +646,7 @@ public class LanguageServerWrapper {
 	public synchronized void stop() {
 		if (initializeFuture != null) {
 			initializeFuture.cancel(true);
-			initializeFuture= null;
+			initializeFuture = null;
 		}
 
 		LanguageServerContext contextToStop = context;
@@ -825,13 +832,13 @@ public class LanguageServerWrapper {
 			return;
 		}
 		IFile file = ResourcesPlugin.getWorkspace().getRoot().getFileForLocation(location);
-		if(file != null) {
+		if (file != null) {
 			disconnectTextFileBuffer(FileBuffers.getTextFileBufferManager(), file.getFullPath());
 		}
 	}
 
 	private static void disconnectTextFileBuffer(ITextFileBufferManager bufferManager, IPath workspacePath) {
-		if(bufferManager == null || workspacePath == null) {
+		if (bufferManager == null || workspacePath == null) {
 			return;
 		}
 		try {
@@ -870,11 +877,11 @@ public class LanguageServerWrapper {
 	 */
 	@Nullable
 	protected LanguageServer getServer() {
-		CompletableFuture<LanguageServer> languagServerFuture = getInitializedServer();
+		CompletableFuture<LanguageServer> languageServerFuture = getInitializedServer();
 		if (Display.getCurrent() != null) { // UI Thread
 			return context.languageServer;
 		} else {
-			return languagServerFuture.join();
+			return languageServerFuture.join();
 		}
 	}
 
@@ -989,6 +996,19 @@ public class LanguageServerWrapper {
 		return res;
 	}
 
+	public CompletableFuture<InitializeResult> getInitializeResultAsync() {
+		return getInitializedServer().thenCompose(ls -> {
+			final var initializeResult = this.initializeResult;
+			if (initializeResult == null) {
+				// This can happen if the server shuts down immediately after initialization,
+				// but before this callback was invoked.
+				return CompletableFuture.failedFuture(
+						new IllegalStateException("initializeResult unexpectedly null after initialization")); //$NON-NLS-1$
+			}
+			return CompletableFuture.completedFuture(initializeResult);
+		});
+	}
+
 	/**
 	 * <b>IMPORTANT:</b> If the server isn't yet initialized this method will be
 	 * blocking for up to 10 seconds!
@@ -1019,11 +1039,15 @@ public class LanguageServerWrapper {
 			if (serverCapabilities == null) {
 				// This can happen if the server shuts down immediately after initialization,
 				// but before this callback was invoked.
-				return CompletableFuture
-						.failedFuture(new IllegalStateException("serverCapabilities unexpectedly null after initialization")); //$NON-NLS-1$
+				return CompletableFuture.failedFuture(
+						new IllegalStateException("serverCapabilities unexpectedly null after initialization")); //$NON-NLS-1$
 			}
 			return CompletableFuture.completedFuture(serverCapabilities);
 		});
+	}
+
+	public CompletableFuture<@Nullable ServerInfo> getServerInfoAsync() {
+		return getInitializedServer().thenApply(ls -> this.serverInfo);
 	}
 
 	/**
