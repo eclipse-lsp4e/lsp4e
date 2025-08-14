@@ -67,10 +67,11 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 	private @Nullable IRegion lastRegion;
 	private @Nullable ITextViewer lastViewer;
 	private @Nullable CompletableFuture<List<Hover>> request;
+	private @Nullable CompletableFuture<@Nullable String> hoverInfoFuture;
 
 	@Override
 	public @Nullable String getHoverInfo(ITextViewer textViewer, IRegion hoverRegion) {
-		CompletableFuture<@Nullable String> hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
+		hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
 		try {
 			return hoverInfoFuture.get(GET_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 		} catch (ExecutionException e) {
@@ -183,8 +184,21 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 	}
 
 	/**
-	 * Initialize hover requests with hover (if available) and codelens (if
-	 * available).
+	 * Cancel the last call of 'hover'.
+	 */
+	private void cancel() {
+		if (request != null) {
+			request.cancel(true);
+			request = null;
+		}
+		if (hoverInfoFuture != null) {
+			hoverInfoFuture.cancel(true);
+			hoverInfoFuture = null;
+		}
+	}
+
+	/**
+	 * Initialize hover requests with hover (if available).
 	 *
 	 * @param viewer
 	 *            the text viewer.
@@ -192,6 +206,7 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 	 *            the hovered offset.
 	 */
 	private void initiateHoverRequest(ITextViewer viewer, int offset) {
+		cancel();
 		final IDocument document = viewer.getDocument();
 		if (document == null) {
 			return;
