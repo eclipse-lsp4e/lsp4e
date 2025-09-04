@@ -21,7 +21,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -45,7 +44,6 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LanguageServersRegistry.LanguageServerDefinition;
-import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.services.LanguageServer;
@@ -65,7 +63,6 @@ public class LanguageServiceAccessor {
 	}
 
 	private static final Set<LanguageServerWrapper> startedServers = new CopyOnWriteArraySet<>();
-	private static final Map<StreamConnectionProvider, LanguageServerDefinition> providersToLSDefinitions = new HashMap<>();
 
 	/**
 	 * This is meant for test code to clear state that might have leaked from other
@@ -554,10 +551,6 @@ public class LanguageServiceAccessor {
 			}
 		}
 		return servers;
-	}
-
-	protected static @Nullable LanguageServerDefinition getLSDefinition(StreamConnectionProvider provider) {
-		return providersToLSDefinitions.get(provider);
 	}
 
 	/**
