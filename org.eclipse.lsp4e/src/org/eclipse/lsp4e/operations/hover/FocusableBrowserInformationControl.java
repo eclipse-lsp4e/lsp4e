@@ -107,16 +107,19 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		}
 
 		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"nowrap\""); //$NON-NLS-1$
-		Double width = 20 + (safeEvaluate(browser, "return document.body.scrollWidth;") instanceof Double evaluated ? evaluated : 0); //$NON-NLS-1$
+		Double width = 20
+				+ (safeEvaluate(browser, "return document.body.scrollWidth;") instanceof Double evaluated ? evaluated //$NON-NLS-1$
+						: 0);
 		setSize(width.intValue(), hint.y);
 
 		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"normal\""); //$NON-NLS-1$
-		Double height = safeEvaluate(browser, "return document.body.scrollHeight;") instanceof Double evaluated ? evaluated : 0; //$NON-NLS-1$
+		Double height = safeEvaluate(browser, "return document.body.scrollHeight;") instanceof Double evaluated //$NON-NLS-1$
+				? evaluated
+				: 0;
 		Object marginTop = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginTop;"); //$NON-NLS-1$
 		Object marginBottom = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginBottom;"); //$NON-NLS-1$
 		if (Platform.getPreferencesService().getBoolean(EditorsUI.PLUGIN_ID,
-				AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SHOW_TEXT_HOVER_AFFORDANCE, true,
-				null)) {
+				AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SHOW_TEXT_HOVER_AFFORDANCE, true, null)) {
 			FontData[] fontDatas = JFaceResources.getDialogFont().getFontData();
 			height += fontDatas[0].getHeight();
 		}
@@ -208,7 +211,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 
 	private boolean isDarkTheme() {
 		RGB color = getShell().getBackground().getRGB();
-		return (color.red * 0.299 + color.green * 0.587+ color.blue *0.114) < 128; //turn to grey and check the level
+		return (color.red * 0.299 + color.green * 0.587 + color.blue * 0.114) < 128; // turn to grey and check the level
 	}
 
 	private static CharSequence toHTMLrgb(RGB rgb) {
@@ -221,7 +224,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 	}
 
 	private static void appendAsHexString(StringBuilder buffer, int intValue) {
-		String hexValue= Integer.toHexString(intValue);
+		String hexValue = Integer.toHexString(intValue);
 		if (hexValue.length() == 1) {
 			buffer.append('0');
 		}
