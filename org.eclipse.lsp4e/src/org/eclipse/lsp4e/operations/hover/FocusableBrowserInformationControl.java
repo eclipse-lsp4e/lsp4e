@@ -83,17 +83,13 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 	protected void createContent(Composite parent) {
 		super.createContent(parent);
 		final var b = (Browser) (parent.getChildren()[0]);
-		b.addProgressListener(ProgressListener.completedAdapter(event -> {
-			if (getInput() == null)
-				return;
-			final var browser = (Browser) event.getSource();
-			updateBrowserSize(browser);
-		}));
+		b.addProgressListener(
+				ProgressListener.completedAdapter(event -> updateBrowserSize((Browser) event.getSource())));
 		b.setJavascriptEnabled(true);
 	}
 
 	private void updateBrowserSize(final Browser browser) {
-		if (browser.isDisposed())
+		if (browser.isDisposed() || getInput() == null)
 			return;
 
 		@Nullable
