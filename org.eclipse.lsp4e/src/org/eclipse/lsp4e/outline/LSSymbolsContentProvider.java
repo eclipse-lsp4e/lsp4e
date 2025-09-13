@@ -103,7 +103,7 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 				documentURI = uri;
 			} else {
 				documentFile = LSPEclipseUtils.getFile(path);
-				documentURI = LSPEclipseUtils.toUri(path);
+				documentURI = documentFile == null ? LSPEclipseUtils.toUri(path) : LSPEclipseUtils.toUri(documentFile);
 			}
 			this.wrapper = wrapper;
 			this.textEditor = textEditor;
