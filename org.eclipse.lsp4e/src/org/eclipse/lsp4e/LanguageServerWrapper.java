@@ -468,7 +468,8 @@ public class LanguageServerWrapper {
 					throw c;
 				} else {
 					LanguageServerPlugin.logError(e);
-					throw new RuntimeException(e);
+					// Create a RuntimeException with just the root cause message to avoid nested exception display
+					throw new RuntimeException(getRootCauseMessage(e),e);
 				}
 			});
 
@@ -509,7 +510,7 @@ public class LanguageServerWrapper {
 				} catch (CancellationException e) {
 					return Status.CANCEL_STATUS;
 				} catch (Exception e) {
-					return new Status(IStatus.ERROR, LanguageServerPlugin.PLUGIN_ID, e.getMessage(), e);
+					return new Status(IStatus.ERROR, LanguageServerPlugin.PLUGIN_ID, getRootCauseMessage(e), e);
 				} finally {
 					initializeFutureMonitor.done();
 					initializeFutureMonitorRef.compareAndSet(initializeFutureMonitor, null);
@@ -1361,6 +1362,28 @@ public class LanguageServerWrapper {
 			return wsFolder != null && wsFolder.getUri() != null && !wsFolder.getUri().isEmpty();
 		}
 
+	}
+
+	/**
+	 * Extracts the root cause message from a nested exception chain.
+	 * This helps provide cleaner error messages in dialogs by avoiding
+	 * the display of exception class names and nested wrapping.
+	 */
+	private static String getRootCauseMessage(Throwable throwable) {
+		Throwable cause = throwable;
+		while (cause != null && cause.getCause() != null && cause.getCause() != cause) {
+			cause = cause.getCause();
+		}
+		if (cause == null) {
+			return getThrowableMessage(throwable);
+		}
+		String message = cause.getMessage();
+		return message != null ? message : getThrowableMessage(throwable);
+	}
+
+	private static String getThrowableMessage(Throwable throwable) {
+		String message = throwable.getMessage();
+		return message != null ? message : "No exception message available: " + throwable.getClass().getSimpleName(); //$NON-NLS-1$
 	}
 
 }
