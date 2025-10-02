@@ -111,7 +111,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"normal\""); //$NON-NLS-1$
 		Double height = safeEvaluate(browser, "return document.body.scrollHeight;") instanceof Double evaluated //$NON-NLS-1$
 				? evaluated
-				: 0;
+				: 0d;
 		Object marginTop = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginTop;"); //$NON-NLS-1$
 		Object marginBottom = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginBottom;"); //$NON-NLS-1$
 		if (Platform.getPreferencesService().getBoolean(EditorsUI.PLUGIN_ID,
