@@ -506,12 +506,33 @@ public final class LSPEclipseUtils {
 	 * @throws BadLocationException
 	 */
 	public static void applyEdits(@Nullable IDocument document, @Nullable List<? extends TextEdit> edits) throws BadLocationException {
+		applyEdits(document, edits, 0);
+	}
+
+	/**
+	 * Method will apply all edits to document as single modification. Needs to
+	 * be executed in UI thread.
+	 *
+	 * @param document
+	 *            document to modify
+	 * @param edits
+	 *            list of LSP TextEdits
+	 * @param caretOffset
+	 *            current caret offset in the document, or 0 if not known
+	 * @return the new caret offset after applying the edits. If no edits have been applied, returns the given caretOffset.
+	 * @throws BadLocationException
+	 */
+	@SuppressWarnings("null")
+	public static int applyEdits(@Nullable IDocument document, @Nullable List<? extends TextEdit> edits, int caretOffset) throws BadLocationException {
 		if (document == null || edits == null || edits.isEmpty()) {
-			return;
+			return caretOffset;
 		}
 
+		int newCaretOffset = caretOffset;
 		final var edit = new MultiTextEdit();
-		for (final TextEdit textEdit : edits) {
+		var iterator = edits.iterator();
+		while (iterator.hasNext()) {
+			TextEdit textEdit = iterator.next();
 			int offset = toOffset(textEdit.getRange().getStart(), document);
 			int length = toOffset(textEdit.getRange().getEnd(), document) - offset;
 			if (length < 0) {
@@ -520,11 +541,12 @@ public final class LSPEclipseUtils {
 			}
 			// check if that edit would actually change the document
 			var newText = textEdit.getNewText();
-			if (!document.get(offset, length).equals(newText)) {
+			var oldText = document.get(offset, length);
+			if (!oldText.equals(newText)) {
+				var zeroBasedDocumentLines = Math.max(0, document.getNumberOfLines() - 1);
+				var endLine = textEdit.getRange().getEnd().getLine();
+				endLine = endLine > zeroBasedDocumentLines ? zeroBasedDocumentLines : endLine;
 				if (newText.length() > 0) {
-					var zeroBasedDocumentLines = Math.max(0, document.getNumberOfLines() - 1);
-					var endLine = textEdit.getRange().getEnd().getLine();
-					endLine = endLine > zeroBasedDocumentLines ? zeroBasedDocumentLines : endLine;
 					// Do not split "\r\n" line ending:
 					if ("\r\n".equals(document.getLineDelimiter(endLine))) { //$NON-NLS-1$;
 						// if last char in the newText is a carriage return:
@@ -533,14 +555,26 @@ public final class LSPEclipseUtils {
 							newText = newText + '\n';
 							length++;
 						}
+						// if newText contains only \n, prepend each \n with a \r:
+						newText = newText.replaceAll("(?<!\r)\n", "\r\n"); //$NON-NLS-1$ //$NON-NLS-2$
+					}
+				} else if ("\r\n".equals(document.getLineDelimiter(endLine))) { //$NON-NLS-1$
+					if (oldText.equals("\r")) { //$NON-NLS-1$
+						continue; // do not remove \r if followed by \n
+					} else if (oldText.endsWith("\r")) { //$NON-NLS-1$
+						length--; // do not remove \r at end of line while deleting spaces like in: "   \r"
 					}
 				}
 				edit.addChild(new ReplaceEdit(offset, length, newText));
+				if (!iterator.hasNext() && !newText.matches("^[\\r]?\\n[\\s]+")) { //$NON-NLS-1$
+					continue; // do not move caret if last edit inserts only a new line which is NOT followed by spaces like in "\n}"
+				}
+				newCaretOffset += newText.length() - length;
 			}
 		}
 
 		if(!edit.hasChildren())
-			return;
+			return newCaretOffset;
 
 		IDocumentUndoManager manager = DocumentUndoManagerRegistry.getDocumentUndoManager(document);
 		if (manager != null) {
@@ -556,6 +590,7 @@ public final class LSPEclipseUtils {
 		if (manager != null) {
 			manager.endCompoundChange();
 		}
+		return newCaretOffset;
 	}
 
 	@Nullable

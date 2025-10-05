@@ -47,6 +47,7 @@ public final class Messages extends NLS {
 	public static String PreferencesPage_restartWarning_title;
 	public static String PreferencesPage_restartWarning_message;
 	public static String PreferencesPage_restartWarning_restart;
+	public static String PreferencesPage_enableOnTypeFormatting;
 	public static String NewContentTypeLSPLaunchDialog_associateContentType;
 	public static String NewContentTypeLSPLaunchDialog_withLSPLaunch;
 	public static String codeActions_description;

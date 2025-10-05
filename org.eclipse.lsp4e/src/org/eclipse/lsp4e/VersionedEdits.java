@@ -39,10 +39,25 @@ public class VersionedEdits extends Versioned<List<? extends TextEdit>> {
 	 * received the request
 	 */
 	public void apply() throws BadLocationException, ConcurrentModificationException {
+		apply(0);
+	}
+
+
+	/**
+	 * Apply the edits from the server, provided the document is unchanged since the request used
+	 * to compute the edits
+	 *
+	 * @param caretOffset the current caret offset, used to adjust the caret position if necessary
+	 * @return the new caret offset, or current caret offset if no adjustment is necessary
+	 * @throws BadLocationException
+	 * @throws ConcurrentModificationException if the document has changed since the server
+	 * received the request
+	 */
+	public int apply(int caretOffset) throws BadLocationException, ConcurrentModificationException {
 		if (this.sourceDocumentVersion != DocumentUtil.getDocumentModificationStamp(this.document)) {
 			throw new ConcurrentModificationException();
 		} else {
-			LSPEclipseUtils.applyEdits(this.document, data);
+			return LSPEclipseUtils.applyEdits(this.document, data, caretOffset);
 		}
 	}
 }

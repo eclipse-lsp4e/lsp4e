@@ -132,6 +132,12 @@
             class="org.eclipse.lsp4e.ui.FoldingPreferencePage"
             id="org.eclipse.lsp4e.preferences.folding"
             name="%languageservers.preferences.folding.page" />
+      <page
+            category="org.eclipse.lsp4e.preferences"
+            class="org.eclipse.lsp4e.ui.FormatterPreferencePage"
+            id="org.eclipse.lsp4e.preferences.formatter"
+            name="%languageservers.preferences.formatter.page">
+      </page>
    </extension>
 
    <extension point="org.eclipse.core.runtime.preferences">
@@ -452,6 +458,13 @@
          <enabledWhen>
             <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
          </enabledWhen>
+      </reconcilingStrategy>
+      <reconcilingStrategy
+            class="org.eclipse.lsp4e.operations.format.LSPonTypeFormattingReconcilingStrategy"
+            contentType="org.eclipse.core.runtime.text">
+         <enabledWhen>
+            <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+         </enabledWhen>            
       </reconcilingStrategy>
    </extension>
 
@@ -925,13 +938,6 @@
             converter="org.eclipse.lsp4e.command.internal.PathConverter"
             id="org.eclipse.lsp4e.pathParameterType"
             type="org.eclipse.core.runtime.IPath" />
-   </extension>
-   <extension
-         point="org.eclipse.ui.genericeditor.autoEditStrategies">
-      <autoEditStrategy
-            class="org.eclipse.lsp4e.format.DocumentFormatOnTypeAutoEditStrategy"
-            contentType="org.eclipse.core.runtime.text">
-      </autoEditStrategy>
    </extension>
 
 </plugin>
