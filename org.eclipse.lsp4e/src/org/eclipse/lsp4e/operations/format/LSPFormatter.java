@@ -78,7 +78,7 @@ public class LSPFormatter {
 		final var rangeParams = new DocumentRangeFormattingParams();
 		rangeParams.setTextDocument(docId);
 		rangeParams.setOptions(formatOptions);
-		final boolean isFullFormat = textSelection.isEmpty();
+		final boolean isFullFormat = textSelection.isEmpty() || textSelection.getLength() == 0;
 		final int startAt = isFullFormat ? 0 : textSelection.getOffset();
 		final int endAt = isFullFormat ? document.getLength() : startAt + textSelection.getLength();
 		rangeParams.setRange(LSPEclipseUtils.toRange(startAt, endAt, document));
