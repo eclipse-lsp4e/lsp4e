@@ -576,4 +576,28 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		CompletableFuture.runAsync(() -> contentAssistProcessor.computeCompletionProposals(viewer, 1));
 		DisplayHelper.waitAndAssertCondition(viewer.getTextWidget().getDisplay(), () -> assertEquals(1, MockConnectionProvider.cancellations.size()));
 	}
+
+	/**
+	 * Verifies context information position returned by LSCompletionProposal uses
+	 * the start of the edit range when available.
+	 */
+	@Test
+	public void testContextInformationPositionUsesEditRangeStart() throws CoreException {
+		final int editOffset = 2;
+		CompletionItem completionItem = createCompletionItem( //
+				"hello", //
+				CompletionItemKind.Text, //
+				new Range(new Position(0, editOffset), new Position(0, editOffset + 1)));
+		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(true, List.of(completionItem)));
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "ABCDE"));
+
+		// Invoke completion at the start of the TextEdit range (offset 2)
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, editOffset);
+		assertEquals(1, proposals.length);
+
+		int pos = ((LSCompletionProposal) proposals[0]).getContextInformationPosition();
+		// TextEdit starts at (0,2) so offset should be 0
+		assertEquals(editOffset, pos);
+	}
 }

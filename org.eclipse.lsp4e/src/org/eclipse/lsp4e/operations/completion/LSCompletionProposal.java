@@ -83,7 +83,6 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.TextStyle;
@@ -875,6 +874,11 @@ public class LSCompletionProposal
 
 	@Override
 	public int getContextInformationPosition() {
-		return SWT.RIGHT;
+		try {
+			return LSPEclipseUtils.toOffset(getTextEditRange().getStart(), document);
+		} catch (BadLocationException e) {
+			LanguageServerPlugin.logWarning(e.getMessage(), e);
+		}
+		return bestOffset;
 	}
 }
