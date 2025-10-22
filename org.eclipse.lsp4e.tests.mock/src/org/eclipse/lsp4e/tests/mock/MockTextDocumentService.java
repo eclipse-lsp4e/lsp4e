@@ -122,7 +122,7 @@ public class MockTextDocumentService implements TextDocumentService {
 
 	public <U> MockTextDocumentService(Function<U, CompletableFuture<U>> futureFactory) {
 		this._futureFactory = futureFactory;
-		// Some default values for mocks, can be overriden
+		// Some default values for mocks, can be overridden
 		final var item = new CompletionItem();
 		item.setLabel("Mock completion item");
 		mockCompletionList = new CompletionList(false, List.of(item));

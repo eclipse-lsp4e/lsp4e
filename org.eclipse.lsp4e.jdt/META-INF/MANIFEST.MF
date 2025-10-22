@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: JDT Integration for LSP4E
 Bundle-SymbolicName: org.eclipse.lsp4e.jdt;singleton:=true
-Bundle-Version: 0.13.7.qualifier
+Bundle-Version: 0.13.8.qualifier
 Export-Package: org.eclipse.lsp4e.jdt
 Automatic-Module-Name: org.eclipse.lsp4e.jdt
 Bundle-Activator: org.eclipse.lsp4e.jdt.LanguageServerJdtPlugin

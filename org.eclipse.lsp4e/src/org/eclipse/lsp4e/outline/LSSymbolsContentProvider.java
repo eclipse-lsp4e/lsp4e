@@ -327,7 +327,7 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 			return new Object[] { new PendingUpdateAdapter() };
 		}
 		if (lastError != null && symbolsModel.getElements().length == 0) {
-			return new Object[] { "An error occured, see log for details" }; //$NON-NLS-1$
+			return new Object[] { "An error occurred, see log for details" }; //$NON-NLS-1$
 		}
 		return ArrayUtil.filter(symbolsModel.getElements(), element -> !hideElement(element));
 	}

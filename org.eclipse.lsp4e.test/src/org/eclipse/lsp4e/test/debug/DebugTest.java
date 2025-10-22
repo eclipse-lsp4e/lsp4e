@@ -41,7 +41,7 @@ public class DebugTest extends AbstractTestWithProject {
 			assertNotNull("RPC Methods not found on DSPDebugTarget", rpcMethods);
 			assertFalse("Zero RPC Methods found on DSPDebugTarget", rpcMethods.isEmpty());
 		} catch (Throwable ex) {
-			fail("An error occured while getting the RPC Methods of DSPDebugTarget: " + ex.getMessage());
+			fail("An error occurred while getting the RPC Methods of DSPDebugTarget: " + ex.getMessage());
 		}
 	}
 }

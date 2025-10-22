@@ -90,7 +90,7 @@ public final class EnablementTester {
 			context.setAllowPluginActivation(true);
 			return expression.evaluate(context).equals(EvaluationResult.TRUE);
 		} catch (CoreException e) {
-			LanguageServerPlugin.logError("Error occured during evaluation of enablement expression", e); //$NON-NLS-1$
+			LanguageServerPlugin.logError("Error occurred during evaluation of enablement expression", e); //$NON-NLS-1$
 		} finally {
 			if (temporaryLoadDocument && resource != null) {
 				try {
