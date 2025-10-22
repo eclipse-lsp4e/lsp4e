@@ -703,11 +703,11 @@ public class LSCompletionProposal
 				String selectedText = document.get(viewer.getSelectedRange().x, viewer.getSelectedRange().y);
 				int beforeSelection = viewer.getSelectedRange().x - 1;
 				while (beforeSelection >= 0 && Character.isUnicodeIdentifierPart(document.getChar(beforeSelection))) {
-					selectedText = beforeSelection + selectedText;
+					selectedText = document.getChar(beforeSelection) + selectedText;
 					beforeSelection--;
 				}
 				int afterSelection = viewer.getSelectedRange().x + viewer.getSelectedRange().y;
-				while (afterSelection < document.getLength() && Character.isUnicodeIdentifierPart(afterSelection)) {
+				while (afterSelection < document.getLength() && Character.isUnicodeIdentifierPart(document.getChar(afterSelection))) {
 					selectedText = selectedText + document.getChar(afterSelection);
 					afterSelection++;
 				}

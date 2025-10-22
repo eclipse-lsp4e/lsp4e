@@ -19,7 +19,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -393,46 +392,58 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testComplexSnippets() throws CoreException {
-		Map<String, String> tests = Map.ofEntries(
+    public void testComplexSnippets() throws CoreException {
+		record Test(String completion, String expected, String fileContent, int caretPos, int selectionLen) {
+			Test(String completion, String expected) {
+				this(completion, expected, "", 0, 0);
+			}
+		}
+		Test[] tests = {
 				// Variables and escaped dollars
-				Map.entry("$TM_LINE_NUMBER - \\$TM_LINE_NUMBER - ${TM_LINE_NUMBER} - \\${TM_LINE_NUMBER}", "1 - $TM_LINE_NUMBER - 1 - ${TM_LINE_NUMBER}"),
+				new Test("$TM_LINE_NUMBER - \\$TM_LINE_NUMBER - ${TM_LINE_NUMBER} - \\${TM_LINE_NUMBER}",
+						"1 - $TM_LINE_NUMBER - 1 - ${TM_LINE_NUMBER}"),
 				// Default values for variables
-				Map.entry("${TM_SELECTED_TEXT:defaultval}", "defaultval"),
+				new Test("${TM_SELECTED_TEXT:defaultval}", "defaultval"),
 				// Escaped dollars
-				Map.entry("\\$1 and \\$", "$1 and $"),
+				new Test("\\$1 and \\$", "$1 and $"),
 				// Escaped escapes
-				Map.entry("\\\\$1 and ${3:foo}", "\\ and foo"),
+				new Test("\\\\$1 and ${3:foo}", "\\ and foo"),
 				// Escaped values in a choice
-				Map.entry("${2|a\\,b\\},c|}", "a,b}"),
-				// Snippets with syntax errors: Make sure they don't cause endless loops or crashes
-				Map.entry("$", "$"),
-				Map.entry("${", "${"),
-				Map.entry("$$", "$$"),
-				Map.entry("$$TM_LINE_NUMBER", "$1"),
-				Map.entry("${VARIABLE", "${VARIABLE"),
-				Map.entry("${VARIABLE:", "${VARIABLE:"),
-				Map.entry("${VARIABLE:foo", "${VARIABLE:foo"),
-				Map.entry("${1|a", "${1|a"),
-				Map.entry("${1|a,}", "${1|a,}")
-		);
-		for (Map.Entry<String, String> entry : tests.entrySet()) {
-			CompletionItem completionItem = createCompletionItem(
-					entry.getKey(),
-					CompletionItemKind.Class,
-					new Range(new Position(0, 0), new Position(0, 1))
-			);
+				new Test("${2|a\\,b\\},c|}", "a,b}"),
+				// TM_CURRENT_WORD completion (caret after 'foo')
+				new Test("${1:$TM_CURRENT_WORD}", "xx abcabc yy", "xx abc yy", 3, 0),
+				new Test("${1:$TM_CURRENT_WORD}", "xx aabcbc yy", "xx abc yy", 4, 0),
+				new Test("${1:$TM_CURRENT_WORD}", "xx aabc yy", "xx abc yy", 4, 2),
+				// Snippets with syntax errors:
+				// Make sure they don't cause endless loops or crashes
+				new Test("$", "$"), //
+				new Test("${", "${"), //
+				new Test("$$", "$$"), //
+				new Test("$$TM_LINE_NUMBER", "$1"), //
+				new Test("${VARIABLE", "${VARIABLE"), //
+				new Test("${VARIABLE:", "${VARIABLE:"), //
+				new Test("${VARIABLE:foo", "${VARIABLE:foo"), //
+				new Test("${1|a", "${1|a"), //
+				new Test("${1|a,}", "${1|a,}"), //
+		};
+		for (Test test : tests) {
+			CompletionItem completionItem = createCompletionItem( //
+					test.completion, //
+					CompletionItemKind.Class, //
+					new Range(new Position(0, test.caretPos()),
+							new Position(0, test.caretPos() + test.selectionLen())));
 			completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
 			MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
-			ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project,""));
-			int invokeOffset = 0;
-			ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
-			assertEquals(1, proposals.length);
-			((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, invokeOffset);
-			assertEquals(
-					entry.getValue(),
-					viewer.getDocument().get());
 
+			ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, test.fileContent));
+			viewer.setSelectedRange(test.caretPos(), test.selectionLen());
+
+			ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer,
+					test.caretPos());
+			assertEquals("Unexpected proposals length for " + test + " - ", 1, proposals.length);
+
+			((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, test.caretPos());
+			assertEquals("Unexpected result for " + test + " - ", test.expected, viewer.getDocument().get());
 		}
 	}
 
