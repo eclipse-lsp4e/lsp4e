@@ -1,7 +1,7 @@
-# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+# https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 name: Build
 
-on:
+on:  # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
   push:
     branches-ignore:  # build all branches except:
     - 'dependabot/**'  # prevent GHA triggered twice (once for commit to the branch and once for opening/syncing the PR)
@@ -10,6 +10,7 @@ on:
     paths-ignore:
     - '**/*.md'
     - '.github/*.yml'
+    - '.github/workflows/codeql.yml'
     - '.github/workflows/licensecheck.yml'
     - '**/.project'
     - '**/.settings/*.prefs'
@@ -20,6 +21,7 @@ on:
     paths-ignore:
     - '**/*.md'
     - '.github/*.yml'
+    - '.github/workflows/codeql.yml'
     - '.github/workflows/licensecheck.yml'
     - '**/.project'
     - '**/.settings/*.prefs'
@@ -27,7 +29,7 @@ on:
     - '.actrc'
     - 'Jenkinsfile'
   workflow_dispatch:
-    # https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/
+    # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch
     inputs:
       additional_maven_args:
         description: 'Additional Maven Args'
@@ -63,9 +65,9 @@ jobs:
       fail-fast: false
       matrix:
         os:  # https://github.com/actions/runner-images#available-images
-        #- ubuntu-latest # TODO builds are extremely slow for no apparent reason and job currently times out after 15 minutes
-        - macos-13 # Intel
-        - macos-14 # ARM
+        - ubuntu-latest
+        - macos-15-intel # Intel
+        - macos-latest # ARM
         - windows-latest
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
@@ -84,7 +86,7 @@ jobs:
     - name: Git Checkout
       uses: actions/checkout@v5  # https://github.com/actions/checkout
       with:
-        fetch-depth: 0 # required to prevent tycho-p2-extras-plugin:compare-version-with-baseline potentially failing the build
+        fetch-depth: 0  # required to prevent tycho-p2-extras-plugin:compare-version-with-baseline potentially failing the build
 
 
     - name: Configure fast APT repository mirror
@@ -165,7 +167,7 @@ jobs:
         timeout_minutes: 10
         shell: bash
         command: |
-          set -eu
+          set -euo pipefail
 
           MAVEN_OPTS="${MAVEN_OPTS:-}"
           if [[ "${{ runner.os }}" == "Windows" ]]; then
@@ -191,7 +193,7 @@ jobs:
             --update-snapshots \
             --batch-mode \
             --show-version \
-            -Dtycho.disableP2Mirrors=true \
+            -Declipse.p2.mirrors=false \
             -Dsurefire.rerunFailingTestsCount=3 \
             $maven_args \
             ${{ github.event.inputs.additional_maven_args }} \
