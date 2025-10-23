@@ -25,7 +25,7 @@ import org.eclipse.swt.custom.StyleRange;
  * The Class SemanticTokensDataStreamProcessor translates a stream of integers
  * as defined by the LSP SemanticTokenRequests into a list of StyleRanges.
  */
-public class SemanticTokensDataStreamProcessor extends AbstractcSemanticTokensDataStreamProcessor<IToken, StyleRange> {
+public class SemanticTokensDataStreamProcessor extends AbstractSemanticTokensDataStreamProcessor<IToken, StyleRange> {
 
 	/**
 	 * Creates a new instance of {@link SemanticTokensDataStreamProcessor}.

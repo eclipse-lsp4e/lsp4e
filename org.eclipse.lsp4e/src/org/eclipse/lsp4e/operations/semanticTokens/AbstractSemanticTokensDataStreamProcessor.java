@@ -20,12 +20,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.SemanticTokensLegend;
 
-public abstract class AbstractcSemanticTokensDataStreamProcessor<T, V> {
+public abstract class AbstractSemanticTokensDataStreamProcessor<T, V> {
 
 	private final Function<Position, Integer> offsetMapper;
 	private final Function<String, @Nullable T> tokenTypeMapper;
 
-	public AbstractcSemanticTokensDataStreamProcessor(Function<Position, Integer> offsetMapper,
+	protected AbstractSemanticTokensDataStreamProcessor(Function<Position, Integer> offsetMapper,
 			Function<String, @Nullable T> tokenTypeMapper) {
 		this.offsetMapper = offsetMapper;
 		this.tokenTypeMapper = tokenTypeMapper;
@@ -78,7 +78,7 @@ public abstract class AbstractcSemanticTokensDataStreamProcessor<T, V> {
 		return tokens;
 	}
 
-	abstract protected @Nullable V createTokenData(@Nullable T tokenType, int offset, int length, List<String> tokenModifiers);
+	protected abstract @Nullable V createTokenData(@Nullable T tokenType, int offset, int length, List<String> tokenModifiers);
 
 	private @Nullable String tokenType(final Integer data, final List<String> legend) {
 		try {

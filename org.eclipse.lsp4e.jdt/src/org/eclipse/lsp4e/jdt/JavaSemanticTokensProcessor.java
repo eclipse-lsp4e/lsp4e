@@ -15,10 +15,10 @@ import java.util.function.Function;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.ui.text.java.ISemanticTokensProvider;
-import org.eclipse.lsp4e.operations.semanticTokens.AbstractcSemanticTokensDataStreamProcessor;
+import org.eclipse.lsp4e.operations.semanticTokens.AbstractSemanticTokensDataStreamProcessor;
 import org.eclipse.lsp4j.Position;
 
-class JavaSemanticTokensProcessor extends AbstractcSemanticTokensDataStreamProcessor<ISemanticTokensProvider.TokenType, ISemanticTokensProvider.SemanticToken> {
+class JavaSemanticTokensProcessor extends AbstractSemanticTokensDataStreamProcessor<ISemanticTokensProvider.TokenType, ISemanticTokensProvider.SemanticToken> {
 	
 	public JavaSemanticTokensProcessor(final Function<String, ISemanticTokensProvider.@Nullable TokenType> tokenTypeMapper,
 			final Function<Position, Integer> offsetMapper) {
