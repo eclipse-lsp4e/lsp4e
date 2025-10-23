@@ -662,7 +662,13 @@ public class LSCompletionProposal
 		}
 		case TM_LINE_INDEX -> {
 			try {
-				yield Integer.toString(getTextEditRange().getStart().getLine()); // TODO probably wrong, should use viewer state
+				final var v = this.viewer;
+				if (v != null) {
+					int caretOffset = v.getSelectedRange().x;
+					yield Integer.toString(document.getLineOfOffset(caretOffset));
+				}
+				// fallback to text edit range if viewer not available
+				yield Integer.toString(getTextEditRange().getStart().getLine());
 			} catch (BadLocationException e) {
 				LanguageServerPlugin.logWarning(e.getMessage(), e);
 				yield ""; //$NON-NLS-1$
@@ -670,15 +676,28 @@ public class LSCompletionProposal
 		}
 		case TM_LINE_NUMBER -> {
 			try {
-				yield Integer.toString(getTextEditRange().getStart().getLine() + 1); // TODO probably wrong, should use viewer state
+				final var v = this.viewer;
+				if (v != null) {
+					int caretOffset = v.getSelectedRange().x;
+					yield Integer.toString(document.getLineOfOffset(caretOffset) + 1);
+				}
+				// fallback to text edit range if viewer not available
+				yield Integer.toString(getTextEditRange().getStart().getLine() + 1);
 			} catch (BadLocationException e) {
 				LanguageServerPlugin.logWarning(e.getMessage(), e);
 				yield ""; //$NON-NLS-1$
 			}
 		}
-		case TM_CURRENT_LINE -> {  // TODO probably wrong, should use viewer state
+		case TM_CURRENT_LINE -> {
 			try {
-				int currentLineIndex = getTextEditRange().getStart().getLine();
+				int currentLineIndex;
+				final var v = this.viewer;
+				if (v != null) {
+					int caretOffset = v.getSelectedRange().x;
+					currentLineIndex = document.getLineOfOffset(caretOffset);
+				} else {
+					currentLineIndex = getTextEditRange().getStart().getLine();
+				}
 				IRegion lineInformation = document.getLineInformation(currentLineIndex);
 				String line = document.get(lineInformation.getOffset(), lineInformation.getLength());
 				yield line;

@@ -429,7 +429,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		for (Test test : tests) {
 			CompletionItem completionItem = createCompletionItem( //
 					test.completion, //
-					CompletionItemKind.Class, //
+					CompletionItemKind.Snippet, //
 					new Range(new Position(0, test.caretPos()),
 							new Position(0, test.caretPos() + test.selectionLen())));
 			completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
@@ -610,5 +610,34 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		int pos = ((LSCompletionProposal) proposals[0]).getContextInformationPosition();
 		// TextEdit starts at (0,2) so offset should be 0
 		assertEquals(editOffset, pos);
+	}
+
+	/**
+	 * Ensures TM line-context variables are resolved from the viewer caret line,
+	 * even when the TextEdit range is on a different line.
+	 */
+	@Test
+	public void testVariablesUseViewerLineNotEditRange() throws CoreException {
+		final CompletionItem completionItem = createCompletionItem( //
+				"$TM_LINE_INDEX $TM_LINE_NUMBER $TM_CURRENT_LINE", //
+				CompletionItemKind.Snippet, //
+				// Replace the entire 3rd line (line2) to avoid trailing leftovers
+				new Range(new Position(2, 0), new Position(2, 5)));
+		completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
+		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(true, List.of(completionItem)));
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "line0\nline1\nline2"));
+
+		// Place caret on the first line (line 0) to drive variable resolution
+		viewer.setSelectedRange(0, 0);
+
+		// Invoke completion at the edit range line (start of line 2)
+		int editOffset = viewer.getDocument().get().indexOf("line2");
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, editOffset);
+		assertEquals(1, proposals.length);
+
+		((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, editOffset);
+		// Variables should reflect caret line (line 0)
+		assertEquals("0 1 line0", viewer.getDocument().get().split("\n")[2]);
 	}
 }
