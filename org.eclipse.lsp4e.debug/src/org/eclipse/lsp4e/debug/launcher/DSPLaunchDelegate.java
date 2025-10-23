@@ -36,6 +36,7 @@ import org.eclipse.debug.core.ILaunchManager;
 import org.eclipse.debug.core.model.IDebugTarget;
 import org.eclipse.debug.core.model.ILaunchConfigurationDelegate;
 import org.eclipse.debug.core.model.IProcess;
+import org.eclipse.debug.core.model.IStreamsProxy;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.debug.DSPPlugin;
 import org.eclipse.lsp4e.debug.debugmodel.DSPDebugTarget;
@@ -193,8 +194,8 @@ public class DSPLaunchDelegate implements ILaunchConfigurationDelegate {
 		public String toString() {
 			return "DSPLaunchDelegateLaunchBuilder [configuration=" + configuration + ", mode=" + mode + ", launch="
 					+ launch + ", monitor=" + monitor + ", launchNotConnect=" + launchNotConnect + ", debugCmd="
-			      + debugCmd + ", debugCmdArgs=" + debugCmdArgs //
-			      + ", debugCmdEnvVars=" + (debugCmdEnvVars == null ? null : List.of(debugCmdEnvVars))
+					+ debugCmd + ", debugCmdArgs=" + debugCmdArgs //
+					+ ", debugCmdEnvVars=" + (debugCmdEnvVars == null ? null : List.of(debugCmdEnvVars))
 					+ ", monitorDebugAdapter=" + monitorDebugAdapter + ", server=" + server + ", port=" + port
 					+ ", dspParameters=" + dspParameters + "]";
 		}
@@ -303,6 +304,7 @@ public class DSPLaunchDelegate implements ILaunchConfigurationDelegate {
 					builder.launch.setAttribute(DebugPlugin.ATTR_CAPTURE_OUTPUT, Boolean.toString(true));
 					IProcess debugAdapterIProcess = DebugPlugin.newProcess(builder.launch, debugAdapterProcess,
 							"Debug Adapter");
+					final IStreamsProxy debugAdapterStreamsProxy = castNonNull(debugAdapterIProcess.getStreamsProxy());
 					builder.launch.setAttribute(DebugPlugin.ATTR_CAPTURE_OUTPUT, initialCaptureOutput);
 
 					final var bytes = new ConcurrentLinkedQueue<Byte>();
@@ -329,17 +331,20 @@ public class DSPLaunchDelegate implements ILaunchConfigurationDelegate {
 					final var consoleCharset = consoleEncoding == null //
 							? Charset.defaultCharset()
 							: Charset.forName(consoleEncoding);
-					castNonNull(castNonNull(debugAdapterIProcess.getStreamsProxy()).getOutputStreamMonitor())
-							.addListener((text, monitor) -> {
-								for (byte b : text.getBytes(consoleCharset)) {
-									bytes.add(b);
-								}
-							});
+					castNonNull(debugAdapterStreamsProxy.getOutputStreamMonitor()).addListener((text, monitor) -> {
+						for (byte b : text.getBytes(consoleCharset)) {
+							bytes.add(b);
+						}
+					});
 					outputStream = new OutputStream() {
 						@Override
 						public void write(int b) throws IOException {
-							castNonNull(debugAdapterIProcess.getStreamsProxy())
-									.write(new String(new byte[] { (byte) b }));
+							debugAdapterStreamsProxy.write(new String(new byte[] { (byte) b }));
+						}
+
+						@Override
+						public void write(byte[] b, int off, int len) throws IOException {
+							debugAdapterStreamsProxy.write(new String(b, off, len));
 						}
 					};
 					cleanup = () -> {
