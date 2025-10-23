@@ -71,32 +71,37 @@ public class ColorInformationMining extends LineContentCodeMining {
 		public void accept(MouseEvent event) {
 			final var styledText = (StyledText) event.widget;
 			final var shell = new Shell(styledText.getDisplay());
-			Rectangle location = Geometry.toDisplay(styledText, new Rectangle(event.x, event.y, 1, 1));
-			shell.setLocation(location.x, location.y);
-			// Open color dialog
-			final var dialog = new ColorDialog(shell);
-			dialog.setRGB(LSPEclipseUtils.toRGBA(colorInformation.getColor()).rgb);
-			RGB rgb = dialog.open();
-			if (rgb != null) {
-				// get LSP color presentation list for the picked color
-				final var params = new ColorPresentationParams(textDocumentIdentifier,
-						LSPEclipseUtils.toColor(rgb), colorInformation.getRange());
-				this.languageServerWrapper.execute(ls -> ls.getTextDocumentService().colorPresentation(params))
-					.thenAcceptAsync(presentations -> {
-							if (presentations == null || presentations.isEmpty()) {
-								return;
-							}
-							// As ColorDialog cannot be customized (to choose the color presentation (rgb,
-							// hexa, ....) we pick the first color presentation.
-							TextEdit textEdit = presentations.get(0).getTextEdit();
+			try {
+				Rectangle location = Geometry.toDisplay(styledText, new Rectangle(event.x, event.y, 1, 1));
+				shell.setLocation(location.x, location.y);
+				// Open color dialog
+				final var dialog = new ColorDialog(shell);
+				dialog.setRGB(LSPEclipseUtils.toRGBA(colorInformation.getColor()).rgb);
+				RGB rgb = dialog.open();
+				if (rgb != null) {
+					// get LSP color presentation list for the picked color
+					final var params = new ColorPresentationParams(textDocumentIdentifier, LSPEclipseUtils.toColor(rgb),
+							colorInformation.getRange());
+					this.languageServerWrapper.execute(ls -> ls.getTextDocumentService() //
+							.colorPresentation(params)) //
+							.thenAcceptAsync(presentations -> {
+								if (presentations == null || presentations.isEmpty()) {
+									return;
+								}
+								// As ColorDialog cannot be customized (to choose the color presentation (rgb,
+								// hexa, ....) we pick the first color presentation.
+								TextEdit textEdit = presentations.get(0).getTextEdit();
 								try {
-									// TODO: Should consider using optimistic locking for this in case document changes while
-									// request being processed
+									// TODO: Should consider using optimistic locking for this in case document
+									// changes while request being processed
 									LSPEclipseUtils.applyEdit(textEdit, document);
 								} catch (BadLocationException e) {
 									LanguageServerPlugin.logError(e);
 								}
-						}, styledText.getDisplay());
+							}, styledText.getDisplay());
+				}
+			} finally {
+				shell.dispose();
 			}
 		}
 	}
