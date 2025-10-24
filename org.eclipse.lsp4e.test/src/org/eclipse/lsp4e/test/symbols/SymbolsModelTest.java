@@ -13,7 +13,7 @@ package org.eclipse.lsp4e.test.symbols;
 
 import static org.junit.Assert.*;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 
 import org.eclipse.lsp4e.outline.SymbolsModel;
@@ -29,36 +29,29 @@ import org.junit.Test;
 
 public class SymbolsModelTest extends AbstractTest {
 
+	private final SymbolsModel symbolsModel = new SymbolsModel();
+
 	@Test
-	public void test() {
-		final var items = new ArrayList<SymbolInformation>();
-		var range = new Range(new Position(0, 0), new Position(10, 0));
-		items.add(createSymbolInformation("Namespace", SymbolKind.Namespace, range));
-
-		range = new Range(new Position(1, 0), new Position(9, 0));
-		items.add(createSymbolInformation("Class", SymbolKind.Class, range));
-
-		range = new Range(new Position(2, 0), new Position(8, 0));
-		items.add(createSymbolInformation("Method", SymbolKind.Method, range));
-
-		final var symbolsModel = new SymbolsModel();
-		final var eitherItems = new ArrayList<Either<SymbolInformation, DocumentSymbol>>(items.size());
-		items.forEach(item -> eitherItems.add(Either.forLeft(item)));
-		symbolsModel.update(eitherItems);
+	public void testSymbolInformationHierarchy() {
+		final SymbolInformation[] items = {
+				newSymbolInformation("Namespace", SymbolKind.Namespace, newRange(0, 0, 10, 0)),
+				newSymbolInformation("Class", SymbolKind.Class, newRange(1, 0, 9, 0)),
+				newSymbolInformation("Method", SymbolKind.Method, newRange(2, 0, 8, 0)) };
+		symbolsModel_update(items);
 
 		assertEquals(1, symbolsModel.getElements().length);
-		assertEquals(items.get(0), symbolsModel.getElements()[0]);
+		assertEquals(items[0], symbolsModel.getElements()[0]);
 		Object[] children = symbolsModel.getChildren(symbolsModel.getElements()[0]);
 		assertEquals(1, children.length);
-		assertEquals(items.get(1), children[0]);
+		assertEquals(items[1], children[0]);
 		children = symbolsModel.getChildren(children[0]);
 		assertEquals(1, children.length);
-		assertEquals(items.get(2), children[0]);
+		assertEquals(items[2], children[0]);
 
 		Object parent = symbolsModel.getParent(children[0]);
-		assertEquals(items.get(1), parent);
+		assertEquals(items[1], parent);
 		parent = symbolsModel.getParent(parent);
-		assertEquals(items.get(0), parent);
+		assertEquals(items[0], parent);
 	}
 
 	/**
@@ -67,36 +60,27 @@ public class SymbolsModelTest extends AbstractTest {
 	 */
 	@Test
 	public void testSymbolsMatchingStartingPositions() {
-		final var items = new ArrayList<SymbolInformation>();
-		var range = new Range(new Position(0, 0), new Position(10, 0));
-		items.add(createSymbolInformation("Namespace", SymbolKind.Namespace, range));
-
-		range = new Range(new Position(0, 0), new Position(9, 0));
-		items.add(createSymbolInformation("Class", SymbolKind.Class, range));
-
-		range = new Range(new Position(1, 0), new Position(8, 0));
-		items.add(createSymbolInformation("Method", SymbolKind.Method, range));
-
-		final var symbolsModel = new SymbolsModel();
-		final var eitherItems = new ArrayList<Either<SymbolInformation, DocumentSymbol>>(items.size());
-		items.forEach(item -> eitherItems.add(Either.forLeft(item)));
-		symbolsModel.update(eitherItems);
+		final SymbolInformation[] items = {
+				newSymbolInformation("Namespace", SymbolKind.Namespace, newRange(0, 0, 10, 0)),
+				newSymbolInformation("Class", SymbolKind.Class, newRange(0, 0, 9, 0)),
+				newSymbolInformation("Method", SymbolKind.Method, newRange(1, 0, 8, 0)) };
+		symbolsModel_update(items);
 
 		assertEquals(1, symbolsModel.getElements().length);
-		assertEquals(items.get(0), symbolsModel.getElements()[0]);
+		assertEquals(items[0], symbolsModel.getElements()[0]);
 		assertTrue(symbolsModel.hasChildren(symbolsModel.getElements()[0]));
 		Object[] children = symbolsModel.getChildren(symbolsModel.getElements()[0]);
 		assertEquals(1, children.length);
-		assertEquals(items.get(1), children[0]);
+		assertEquals(items[1], children[0]);
 		assertTrue(symbolsModel.hasChildren(children[0]));
 		children = symbolsModel.getChildren(children[0]);
 		assertEquals(1, children.length);
-		assertEquals(items.get(2), children[0]);
+		assertEquals(items[2], children[0]);
 
 		Object parent = symbolsModel.getParent(children[0]);
-		assertEquals(items.get(1), parent);
+		assertEquals(items[1], parent);
 		parent = symbolsModel.getParent(parent);
-		assertEquals(items.get(0), parent);
+		assertEquals(items[0], parent);
 	}
 
 	/**
@@ -104,15 +88,11 @@ public class SymbolsModelTest extends AbstractTest {
 	 */
 	@Test
 	public void testDuplicateSymbols() {
-		final var items = new ArrayList<SymbolInformation>();
-		final var range = new Range(new Position(0, 0), new Position(0, 0));
-		items.add(createSymbolInformation("Duplicate", SymbolKind.Namespace, range));
-		items.add(createSymbolInformation("Duplicate", SymbolKind.Namespace, range));
-
-		final var symbolsModel = new SymbolsModel();
-		final var eitherItems = new ArrayList<Either<SymbolInformation, DocumentSymbol>>(items.size());
-		items.forEach(item -> eitherItems.add(Either.forLeft(item)));
-		symbolsModel.update(eitherItems);
+		final var range = newRange(0, 0, 0, 0);
+		final SymbolInformation[] items = { //
+				newSymbolInformation("Duplicate", SymbolKind.Namespace, range),
+				newSymbolInformation("Duplicate", SymbolKind.Namespace, range) };
+		symbolsModel_update(items);
 
 		assertEquals(2, symbolsModel.getElements().length);
 		assertFalse(symbolsModel.hasChildren(symbolsModel.getElements()[0]));
@@ -123,41 +103,39 @@ public class SymbolsModelTest extends AbstractTest {
 
 	@Test
 	public void testGetElementsEmptyResponse() {
-		final var items = new ArrayList<SymbolInformation>();
-
-		final var symbolsModel = new SymbolsModel();
-		final var eitherItems = new ArrayList<Either<SymbolInformation, DocumentSymbol>>(items.size());
-		items.forEach(item -> eitherItems.add(Either.forLeft(item)));
-		symbolsModel.update(eitherItems);
-
+		symbolsModel.update(Collections.emptyList());
 		assertEquals(0, symbolsModel.getElements().length);
 	}
 
 	@Test
 	public void testGetElementsNullResponse() {
-		final var symbolsModel = new SymbolsModel();
 		symbolsModel.update(null);
-
 		assertEquals(0, symbolsModel.getElements().length);
 	}
 
 	@Test
 	public void testGetParentEmptyResponse() {
-		final var symbolsModel = new SymbolsModel();
 		symbolsModel.update(Collections.emptyList());
-
 		assertEquals(null, symbolsModel.getParent(null));
 	}
 
 	@Test
 	public void testGetParentNullResponse() {
-		final var symbolsModel = new SymbolsModel();
 		symbolsModel.update(null);
-
 		assertEquals(null, symbolsModel.getParent(null));
 	}
 
-	private SymbolInformation createSymbolInformation(String name, SymbolKind kind, Range range) {
+	private boolean symbolsModel_update(SymbolInformation... symbols) {
+		return symbolsModel.update(
+				Arrays.stream(symbols).map(sym -> Either.<SymbolInformation, DocumentSymbol>forLeft(sym)).toList());
+	}
+
+	private Range newRange(int startLine, int startChar, int endLine, int endChar) {
+		return new Range(new Position(startLine, startChar), new Position(endLine, endChar));
+	}
+
+	@SuppressWarnings("deprecation")
+	private SymbolInformation newSymbolInformation(String name, SymbolKind kind, Range range) {
 		final var symbolInformation = new SymbolInformation();
 		symbolInformation.setName(name);
 		symbolInformation.setKind(kind);
