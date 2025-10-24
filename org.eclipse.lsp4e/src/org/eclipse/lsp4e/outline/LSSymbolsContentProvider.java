@@ -11,6 +11,7 @@
  *  Lucas Bullen (Red Hat Inc.)     - Bug 508472 - Outline to provide "Link with Editor"
  *                                  - Bug 517428 - Requests sent before initialization
  *  Dietrich Travkin (Solunar GmbH) - Issue 254  - Add outline view contents filtering
+ *  Sebastian Thomschke (Vegard IT GmbH) - prevent outline refreshes when symbols are unchanged
  *******************************************************************************/
 package org.eclipse.lsp4e.outline;
 
@@ -384,7 +385,10 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 		final var params = new DocumentSymbolParams(LSPEclipseUtils.toTextDocumentIdentifier(documentURI));
 		final var symbols = this.symbols = outlineViewerInput.wrapper.execute(ls -> ls.getTextDocumentService().documentSymbol(params));
 		symbols.thenAcceptAsync(response -> {
-			symbolsModel.update(response);
+			final boolean changed = symbolsModel.update(response);
+			if (!changed) {
+				return; // no structural change; avoid redundant refresh churn
+			}
 			lastError = null;
 
 			final var linkWithEditor = isQuickOutline || InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID)

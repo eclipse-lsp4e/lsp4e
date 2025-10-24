@@ -11,7 +11,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.outline;
 
-import static org.eclipse.lsp4e.internal.ArrayUtil.NO_OBJECTS;
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.net.URI;
@@ -66,50 +65,54 @@ public class SymbolsModel {
 	}
 
 	public synchronized boolean update(@Nullable List<Either<SymbolInformation, DocumentSymbol>> response) {
-		// TODO update model only on real change
 		if (response == null || response.isEmpty()) {
+			final boolean wasEmpty = childrenMap.isEmpty() && rootSymbols.isEmpty();
 			childrenMap = Collections.emptyMap();
 			rootSymbols = Collections.emptyList();
-		} else {
-			final var newChildrenMap = new HashMap<SymbolInformation, List<SymbolInformation>>();
-			final var newRootSymbols = new ArrayList<DocumentSymbol>();
+			return !wasEmpty; // changed only if it wasn't already empty
+		}
 
-			final var parentStack = new ArrayDeque<SymbolInformation>();
-			parentStack.push(ROOT_SYMBOL_INFORMATION);
-			final var previousSymbol = new SymbolInformation[1];
+		final var newChildrenMap = new HashMap<SymbolInformation, List<SymbolInformation>>();
+		final var newRootSymbols = new ArrayList<DocumentSymbol>();
 
-			response.stream() //
-					.sorted(Comparator.comparing(
-							either -> either.isLeft() ? either.getLeft().getLocation().getRange().getStart()
-									: either.getRight().getRange().getStart(),
-							// strange need to cast here, could be a JDT compiler issue
-							Comparator.comparingInt(pos -> ((Position) pos).getLine())
-									.thenComparingInt(pos -> ((Position) pos).getCharacter())))
-					.forEach((Either<SymbolInformation, DocumentSymbol> either) -> {
-						if (either.isLeft()) {
-							SymbolInformation symbol = either.getLeft();
-							if (isIncluded(previousSymbol[0], symbol)) {
-								parentStack.push(castNonNull(previousSymbol[0]));
-								addChild(newChildrenMap, castNonNull(parentStack.peek()), symbol);
-							} else if (isIncluded(parentStack.peek(), symbol)) {
-								addChild(newChildrenMap, castNonNull(parentStack.peek()), symbol);
-							} else {
-								while (!isIncluded(parentStack.peek(), symbol)) {
-									parentStack.pop();
-								}
-								addChild(newChildrenMap, castNonNull(parentStack.peek()), symbol);
-								parentStack.push(symbol);
+		final var parentStack = new ArrayDeque<SymbolInformation>();
+		parentStack.push(ROOT_SYMBOL_INFORMATION);
+		final var previousSymbol = new SymbolInformation[1];
+
+		response.stream() //
+				.sorted(Comparator.comparing(
+						either -> either.isLeft() ? either.getLeft().getLocation().getRange().getStart()
+								: either.getRight().getRange().getStart(),
+						// strange need to cast here, could be a JDT compiler issue
+						Comparator.comparingInt(pos -> ((Position) pos).getLine())
+								.thenComparingInt(pos -> ((Position) pos).getCharacter())))
+				.forEach((Either<SymbolInformation, DocumentSymbol> either) -> {
+					if (either.isLeft()) {
+						SymbolInformation symbol = either.getLeft();
+						if (isIncluded(previousSymbol[0], symbol)) {
+							parentStack.push(castNonNull(previousSymbol[0]));
+							addChild(newChildrenMap, castNonNull(parentStack.peek()), symbol);
+						} else if (isIncluded(parentStack.peek(), symbol)) {
+							addChild(newChildrenMap, castNonNull(parentStack.peek()), symbol);
+						} else {
+							while (!isIncluded(parentStack.peek(), symbol)) {
+								parentStack.pop();
 							}
-							previousSymbol[0] = symbol;
-						} else if (either.isRight()) {
-							newRootSymbols.add(either.getRight());
+							addChild(newChildrenMap, castNonNull(parentStack.peek()), symbol);
+							parentStack.push(symbol);
 						}
-					});
+						previousSymbol[0] = symbol;
+					} else if (either.isRight()) {
+						newRootSymbols.add(either.getRight());
+					}
+				});
 
+		final boolean changed = !newChildrenMap.equals(childrenMap) || !newRootSymbols.equals(rootSymbols);
+		if (changed) {
 			childrenMap = newChildrenMap;
 			rootSymbols = newRootSymbols;
 		}
-		return true;
+		return changed;
 	}
 
 	private boolean isIncluded(@Nullable SymbolInformation parent, @Nullable SymbolInformation symbol) {
@@ -163,7 +166,7 @@ public class SymbolsModel {
 				}
 			}
 		}
-		return NO_OBJECTS;
+		return ArrayUtil.NO_OBJECTS;
 	}
 
 	public boolean hasChildren(@Nullable Object parentElement) {
