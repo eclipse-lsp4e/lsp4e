@@ -75,25 +75,23 @@ public interface StreamConnectionProvider {
 			@Override
 			public int read() throws IOException {
 				int res = super.read();
-				System.err.print((char) res);
+				if (res == -1) {
+					return -1;
+				}
+				output.write(res);
 				return res;
 			}
 
 			@Override
 			public int read(byte[] b, int off, int len) throws IOException {
 				int bytes = super.read(b, off, len);
-				final var payload = new byte[bytes];
-				System.arraycopy(b, off, payload, 0, bytes);
-				output.write(payload, 0, payload.length);
-				return bytes;
-			}
-
-			@Override
-			public int read(byte[] b) throws IOException {
-				int bytes = super.read(b);
-				final var payload = new byte[bytes];
-				System.arraycopy(b, 0, payload, 0, bytes);
-				output.write(payload, 0, payload.length);
+				if (bytes == -1) {
+					return -1;
+				}
+				if (bytes == 0) {
+					return 0;
+				}
+				output.write(b, off, bytes);
 				return bytes;
 			}
 		};
