@@ -1332,7 +1332,15 @@ public final class LSPEclipseUtils {
 	public static URI toUri(File file) {
 		// URI scheme specified by language server protocol and LSP
 		try {
-			return new URI("file", "", file.getAbsoluteFile().toURI().getPath(), null); //$NON-NLS-1$ //$NON-NLS-2$
+			final var path = file.getAbsoluteFile().toURI().getPath();
+			if (path.startsWith("//")) { // UNC path like //localhost/c$/Windows/ //$NON-NLS-1$
+				// split: authority = "localhost", absPath = "/c$/Windows/"
+				final int slash = path.indexOf('/', 2);
+				final String authority = slash > 2 ? path.substring(2, slash) : path.substring(2);
+				final String absPath = slash > 2 ? path.substring(slash) : "/"; //$NON-NLS-1$
+				return new URI(FILE_SCHEME, authority, absPath, null);
+			}
+			return new URI(FILE_SCHEME, "", path, null); //$NON-NLS-1$
 		} catch (URISyntaxException e) {
 			LanguageServerPlugin.logError(e);
 			return file.getAbsoluteFile().toURI();

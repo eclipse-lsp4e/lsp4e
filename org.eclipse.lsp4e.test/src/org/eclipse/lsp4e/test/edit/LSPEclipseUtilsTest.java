@@ -298,6 +298,20 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	public void testToUri_WindowsDriveLetter() {
+		Assume.assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
+		// Use a synthetic drive path (doesn't need to exist)
+		File drivePath = new File("C:\\Temp\\with space");
+		URI uri = LSPEclipseUtils.toUri(drivePath);
+		// Should be file:///C:/... and percent-encode spaces
+		Assert.assertTrue(uri.toString().startsWith("file:///C:/Temp/"));
+		Assert.assertFalse(uri.toString().contains("  "));
+		Assert.assertTrue(uri.toString().contains("with%20space"));
+		// Should not contain quadruple slashes
+		Assert.assertFalse(uri.toString().startsWith("file:////"));
+	}
+
+	@Test
 	public void testUNCwindowsURI() {
 		Assume.assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
 		URI preferredURI = URI.create("file://localhost/c$/Windows");
@@ -306,6 +320,22 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		File file1 = LSPEclipseUtils.fromUri(preferredURI);
 		File file2 = LSPEclipseUtils.fromUri(javaURI);
 		Assert.assertEquals(file1, file2);
+	}
+
+    @Test
+    public void testToUri_WindowsUNC() {
+        Assume.assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
+        File unc = new File("\\\\localhost\\c$\\Windows");
+        URI uri = LSPEclipseUtils.toUri(unc);
+        System.err.println(uri.toString());
+        Assert.assertTrue(uri.toString().startsWith("file://localhost/c$/Windows"));
+
+		File uncWithSpaces = new File("\\\\server-name\\shared folder\\dir with space");
+		URI uriWithSpaces = LSPEclipseUtils.toUri(uncWithSpaces);
+		Assert.assertTrue(uriWithSpaces.toString().startsWith("file://server-name/shared%20folder/dir%20with%20space"));
+
+		// Ensure there is an authority and no malformed quadruple slashes
+		Assert.assertFalse(uriWithSpaces.toString().startsWith("file:////"));
 	}
 
 	@Test
