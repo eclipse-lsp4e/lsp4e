@@ -24,6 +24,7 @@ import org.eclipse.jface.preference.PreferencePage;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.CheckboxTableViewer;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
+import org.eclipse.jface.viewers.ColumnViewerToolTipSupport;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
@@ -181,9 +182,10 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		GridDataFactory.swtDefaults().align(SWT.FILL, SWT.TOP).grab(true, false).span(2, 1).hint(400, SWT.DEFAULT).applyTo(staticServersIntro);
 		staticServersIntro.setText(Messages.PreferencesPage_staticServers);
 		staticServersIntro.addSelectionListener(this.contentTypeLinkListener);
-		checkboxViewer = CheckboxTableViewer.newCheckList(res, SWT.NONE);
+		checkboxViewer = CheckboxTableViewer.newCheckList(res, SWT.FULL_SELECTION);
 		checkboxViewer.getControl().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		checkboxViewer.setContentProvider(new ArrayContentProvider());
+		ColumnViewerToolTipSupport.enableFor(checkboxViewer);
 
 		final var enablementColumn = new TableViewerColumn(checkboxViewer, SWT.NONE);
 		enablementColumn.getColumn().setText(Messages.PreferencesPage_Enabled);
@@ -212,6 +214,11 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 			@Override
 			public String getText(Object element) {
 				return ((ContentTypeToLanguageServerDefinition)element).getValue().label;
+			}
+
+			@Override
+			public String getToolTipText(Object element) {
+				return "ID: " + ((ContentTypeToLanguageServerDefinition) element).getValue().id; //$NON-NLS-1$
 			}
 		});
 

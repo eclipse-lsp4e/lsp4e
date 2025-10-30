@@ -29,12 +29,13 @@ import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.CellEditor;
 import org.eclipse.jface.viewers.CheckboxCellEditor;
 import org.eclipse.jface.viewers.ColumnLabelProvider;
+import org.eclipse.jface.viewers.ColumnViewerToolTipSupport;
 import org.eclipse.jface.viewers.EditingSupport;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
-import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerComparator;
+import org.eclipse.jface.wizard.WizardDialog;
 import org.eclipse.lsp4e.ContentTypeToLSPLaunchConfigEntry;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServerPlugin;
@@ -137,6 +138,7 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 		languageServerViewer = new TableViewer(res, SWT.FULL_SELECTION);
 		languageServerViewer.getControl().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		languageServerViewer.setContentProvider(new ArrayContentProvider());
+		ColumnViewerToolTipSupport.enableFor(languageServerViewer);
 
 		final var launchConfigColumn = new TableViewerColumn(languageServerViewer, SWT.NONE);
 		launchConfigColumn.getColumn().setText(Messages.PreferencesPage_languageServer);
@@ -145,6 +147,11 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 			@Override
 			public String getText(Object element) {
 				return ((ContentTypeToLanguageServerDefinition) element).getValue().label;
+			}
+
+			@Override
+			public String getToolTipText(Object element) {
+				return "ID: " + ((ContentTypeToLanguageServerDefinition) element).getValue().id; //$NON-NLS-1$
 			}
 		});
 		addLoggingColumnsToViewer(languageServerViewer);
