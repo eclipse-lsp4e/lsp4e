@@ -28,6 +28,8 @@ import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.IStructuredSelection;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
+import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.viewers.ViewerComparator;
 import org.eclipse.lsp4e.ContentTypeToLSPLaunchConfigEntry;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServersRegistry;
@@ -252,6 +254,16 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 			});
 		}
 
+		// Sort by content type label
+		checkboxViewer.setComparator(new ViewerComparator() {
+			@Override
+			public int compare(@Nullable Viewer viewer, @Nullable Object e1, @Nullable Object e2) {
+				if(e1 instanceof ContentTypeToLanguageServerDefinition d1 && e1 instanceof ContentTypeToLanguageServerDefinition d2) {
+					return getComparator().compare(d1.getKey().getName(), d2.getKey().getName());
+				}
+				return 0;
+			}
+		});
 		checkboxViewer.setInput(contentTypeToLanguageServerDefinitions);
 		checkboxViewer.getControl().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true, 2, 1));
 		checkboxViewer.getTable().setHeaderVisible(true);

@@ -33,6 +33,8 @@ import org.eclipse.jface.viewers.EditingSupport;
 import org.eclipse.jface.viewers.TableViewer;
 import org.eclipse.jface.viewers.TableViewerColumn;
 import org.eclipse.jface.wizard.WizardDialog;
+import org.eclipse.jface.viewers.Viewer;
+import org.eclipse.jface.viewers.ViewerComparator;
 import org.eclipse.lsp4e.ContentTypeToLSPLaunchConfigEntry;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServerPlugin;
@@ -146,6 +148,18 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 			}
 		});
 		addLoggingColumnsToViewer(languageServerViewer);
+
+		// Sort by language server label
+		languageServerViewer.setComparator(new ViewerComparator() {
+			@Override
+			public int compare(@Nullable Viewer viewer, @Nullable Object e1, @Nullable Object e2) {
+				if(e1 instanceof ContentTypeToLanguageServerDefinition d1 && e1 instanceof ContentTypeToLanguageServerDefinition d2) {
+					return getComparator().compare(d1.getValue().label, d2.getValue().label);
+				}
+				return 0;
+			}
+		});
+
 		languageServerViewer.getControl().setLayoutData(new GridData(SWT.FILL, SWT.FILL, true, true));
 		languageServerViewer.getTable().setHeaderVisible(true);
 		languageServerViewer.getTable().setLinesVisible(true);
