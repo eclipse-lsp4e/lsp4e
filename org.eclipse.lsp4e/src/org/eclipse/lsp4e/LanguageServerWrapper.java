@@ -83,6 +83,7 @@ import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.ClientInfo;
 import org.eclipse.lsp4j.CodeActionOptions;
+import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
 import org.eclipse.lsp4j.DocumentFormattingOptions;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
@@ -1107,6 +1108,18 @@ public class LanguageServerWrapper {
 				serverCapabilities.setCodeActionProvider(Boolean.TRUE);
 				addRegistration(reg, () -> serverCapabilities.setCodeActionProvider(beforeRegistration));
 				break;
+			case "textDocument/completion": { //$NON-NLS-1$
+				CompletionOptions previous = serverCapabilities.getCompletionProvider();
+				try {
+					final var completionOpts = new Gson().fromJson((JsonObject) reg.getRegisterOptions(),
+							CompletionOptions.class);
+					serverCapabilities.setCompletionProvider(completionOpts);
+					addRegistration(reg, () -> serverCapabilities.setCompletionProvider(previous));
+				} catch (final Exception ex) {
+					LanguageServerPlugin.logError(ex);
+				}
+				break;
+			}
 			case "workspace/symbol": //$NON-NLS-1$
 				final Either<Boolean, WorkspaceSymbolOptions> workspaceSymbolBeforeRegistration = serverCapabilities.getWorkspaceSymbolProvider();
 				serverCapabilities.setWorkspaceSymbolProvider(Boolean.TRUE);

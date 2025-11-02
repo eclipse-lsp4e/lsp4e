@@ -96,6 +96,7 @@ public class SupportedFeatures {
 				"detail", //$NON-NLS-1$
 				"additionalTextEdits"))); //$NON-NLS-1$
 		final var completionCapabilities = new CompletionCapabilities(completionItemCapabilities);
+		completionCapabilities.setDynamicRegistration(Boolean.TRUE);
 		completionCapabilities.setContextSupport(true);
 		completionCapabilities.setCompletionList(new CompletionListCapabilities(List.of( //
 				"commitCharacters", //$NON-NLS-1$
