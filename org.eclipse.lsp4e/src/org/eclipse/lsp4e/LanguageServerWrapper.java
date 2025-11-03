@@ -261,6 +261,7 @@ public class LanguageServerWrapper {
 
 	private final ExecutorService dispatcher;
 	private final ExecutorService listener;
+	private final ExecutorService cleaner;
 
 	private LanguageServerContext context = new LanguageServerContext();
 
@@ -288,16 +289,22 @@ public class LanguageServerWrapper {
 		this.serverDefinition = serverDefinition;
 		this.connectedDocuments = new HashMap<>();
 		String projectName = (project != null && !serverDefinition.isSingleton) ? ("@" + project.getName()) : "";  //$NON-NLS-1$//$NON-NLS-2$
-		final var dispatcherThreadNameFormat = "LS-" + serverDefinition.id + projectName + "#dispatcher"; //$NON-NLS-1$ //$NON-NLS-2$
+		final var formatPrefix = "LS-" + serverDefinition.id + projectName; //$NON-NLS-1$
+		final var dispatcherThreadNameFormat = formatPrefix + "#dispatcher"; //$NON-NLS-1$
 		this.dispatcher = Executors
 				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(dispatcherThreadNameFormat).build());
 
 		// Executor service passed through to the LSP4j layer when we attempt to start the LS. It will be used
 		// to create a listener that sits on the input stream and processes inbound messages (responses, or server-initiated
 		// requests).
-		final var listenerThreadNameFormat = "LS-" + serverDefinition.id + projectName + "#listener-%d"; //$NON-NLS-1$ //$NON-NLS-2$
+		final var listenerThreadNameFormat = formatPrefix + "#listener-%d"; //$NON-NLS-1$
 		this.listener = Executors
 				.newCachedThreadPool(new ThreadFactoryBuilder().setNameFormat(listenerThreadNameFormat).build());
+
+		// Executor service to run a thread waiting for the LS launcher to terminate.
+		final var livenessThreadNameFormat = formatPrefix + "#cleaner"; //$NON-NLS-1$
+		this.cleaner = Executors
+				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(livenessThreadNameFormat).build());
 	}
 
 	void stopDispatcher() {
@@ -309,6 +316,9 @@ public class LanguageServerWrapper {
 		// If we don't do this then a full test run will generate a lot of threads because we create new
 		// instances of this class for each test
 		this.listener.shutdownNow();
+
+		// Again only needed for testing as the cleaner should exit when the launcher terminates.
+		this.cleaner.shutdownNow();
 	}
 
 	/**
@@ -435,7 +445,27 @@ public class LanguageServerWrapper {
 				}
 			}).thenCompose(unused -> {
 				markInitializationProgress(workingContext);
-				return initServer(rootURI);
+				final var initFuture = initServer(rootURI);
+				CompletableFuture.runAsync(() -> {
+					Exception launchException = null;
+					try {
+						// wait for the launcher to terminate
+						castNonNull(workingContext.launcherFuture).get();
+					} catch (InterruptedException e) {
+						LanguageServerPlugin.logError(e);
+						Thread.currentThread().interrupt();
+					} catch (ExecutionException | CancellationException e) {
+						launchException = e;
+					}
+					// If the response to the init-request has not been sent by the server, then the init-future will never complete,
+					// so we force it to complete exceptionally here.
+					if (!initFuture.isDone()) {
+						workingContext.languageServer = null;
+						initFuture.completeExceptionally(new ExecutionException(
+								"Unexpected language server termination", launchException)); //$NON-NLS-1$
+					}
+				}, cleaner);
+				return initFuture;
 			}).thenAccept(res -> {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
