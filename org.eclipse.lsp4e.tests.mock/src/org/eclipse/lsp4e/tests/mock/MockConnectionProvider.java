@@ -11,7 +11,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.tests.mock;
 
-import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +18,6 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.Pipe;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.ExecutorService;
@@ -49,7 +47,7 @@ public class MockConnectionProvider implements StreamConnectionProvider {
 	public void start() throws IOException {
 		Pipe serverOutputToClientInput = Pipe.open();
 		Pipe clientOutputToServerInput = Pipe.open();
-		errorStream = new ByteArrayInputStream("Error output on console".getBytes(StandardCharsets.UTF_8));
+		errorStream = InputStream.nullInputStream();
 
 		InputStream serverInputStream = Channels.newInputStream(clientOutputToServerInput.source());
 		OutputStream serverOutputStream = Channels.newOutputStream(serverOutputToClientInput.sink());

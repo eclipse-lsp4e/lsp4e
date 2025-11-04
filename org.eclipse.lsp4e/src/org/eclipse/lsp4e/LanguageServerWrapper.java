@@ -19,8 +19,10 @@ package org.eclipse.lsp4e;
 
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -263,6 +265,7 @@ public class LanguageServerWrapper {
 	private final ExecutorService dispatcher;
 	private final ExecutorService listener;
 	private final ExecutorService cleaner;
+	private final ExecutorService errorProcessor;
 
 	private LanguageServerContext context = new LanguageServerContext();
 
@@ -306,6 +309,11 @@ public class LanguageServerWrapper {
 		final var livenessThreadNameFormat = formatPrefix + "#cleaner"; //$NON-NLS-1$
 		this.cleaner = Executors
 				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(livenessThreadNameFormat).build());
+
+		// Executor service to run a thread processing the LS error stream.
+		final var errorsThreadNameFormat = formatPrefix + "#errorProcessor"; //$NON-NLS-1$
+		this.errorProcessor = Executors
+				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(errorsThreadNameFormat).build());
 	}
 
 	void stopDispatcher() {
@@ -319,7 +327,10 @@ public class LanguageServerWrapper {
 		this.listener.shutdownNow();
 
 		// Again only needed for testing as the cleaner should exit when the launcher terminates.
-		this.cleaner.shutdownNow();
+		this.cleaner.shutdown();
+
+		// Similarly, the error stream should also close when the input/output streams close.
+		this.errorProcessor.shutdownNow();
 	}
 
 	/**
@@ -463,7 +474,7 @@ public class LanguageServerWrapper {
 					if (!initFuture.isDone()) {
 						workingContext.languageServer = null;
 						initFuture.completeExceptionally(new ExecutionException(
-								"Unexpected language server termination", launchException)); //$NON-NLS-1$
+								"Unexpected language server termination: " + getFullErrorStream(), launchException)); //$NON-NLS-1$
 					}
 				}, cleaner);
 				return initFuture;
@@ -491,6 +502,9 @@ public class LanguageServerWrapper {
 						}
 					});
 					FileBuffers.getTextFileBufferManager().addFileBufferListener(fileBufferListener);
+					castNonNull(initializeFuture).thenRunAsync(() -> {
+						processErrorStream(castNonNull(context.lspStreamProvider), l -> LanguageServerPlugin.getDefault().getLog().error(l), e -> {throw new UncheckedIOException(e);});
+					}, errorProcessor);
 				}
 			}).exceptionally(e -> {
 				shutdown(workingContext);
@@ -575,6 +589,30 @@ public class LanguageServerWrapper {
 		// no then...Async future here as we want this chain of operation to be sequential and "atomic"-ish
 		return castNonNull(context.languageServer).initialize(initParams);
 		// FIXME race: this.context may not be what it is expected to be, should be parameter
+	}
+
+	private String getFullErrorStream() {
+		StringBuilder builder = new StringBuilder();
+		processErrorStream(castNonNull(context.lspStreamProvider), l -> builder.append(l + '\n'), e -> builder.append("Exception processing error stream: " + e)); //$NON-NLS-1$
+		if (!builder.isEmpty()) {
+			return builder.toString();
+		}
+		return "No errors recorded."; //$NON-NLS-1$
+	}
+
+	private void processErrorStream(StreamConnectionProvider streamProvider, Consumer<String> lineHandler, Consumer<IOException> exceptionHandler) {
+		var errorStream = streamProvider.getErrorStream();
+		if (errorStream != null) {
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(errorStream))) {
+				for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+					if (!line.isBlank()) {
+						lineHandler.accept(line);
+					}
+				}
+			} catch (IOException e) {
+				exceptionHandler.accept(e);
+			}
+		}
 	}
 
 	@Nullable
