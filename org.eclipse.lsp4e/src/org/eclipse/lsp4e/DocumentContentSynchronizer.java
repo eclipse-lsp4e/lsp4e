@@ -45,6 +45,7 @@ import org.eclipse.jface.text.ITextSelection;
 import org.eclipse.jface.text.MultiTextSelection;
 import org.eclipse.lsp4e.format.IFormatRegionsProvider;
 import org.eclipse.lsp4e.internal.DocumentUtil;
+import org.eclipse.lsp4e.internal.FormatRegionsProviderUtil;
 import org.eclipse.lsp4e.operations.format.LSPFormatter;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
@@ -68,9 +69,6 @@ import org.eclipse.lsp4j.WillSaveTextDocumentParams;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.osgi.util.NLS;
-import org.osgi.framework.FrameworkUtil;
-import org.osgi.framework.InvalidSyntaxException;
-import org.osgi.framework.ServiceReference;
 
 final class DocumentContentSynchronizer implements IDocumentListener {
 
@@ -304,33 +302,11 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 	}
 
 	private synchronized IRegion @Nullable [] getFormatRegions() {
+		if (formatRegionsProvider == null) {
+			formatRegionsProvider = FormatRegionsProviderUtil.lookup(languageServerWrapper.serverDefinition.id);
+		}
 		if (formatRegionsProvider != null) {
 			return formatRegionsProvider.getFormattingRegions(document);
-		}
-		var serverId = "(serverDefinitionId=" + languageServerWrapper.serverDefinition.id + ")";  //$NON-NLS-1$ //$NON-NLS-2$
-		final var bundle = FrameworkUtil.getBundle(this.getClass());
-		if (bundle != null) {
-			var bundleContext = bundle.getBundleContext();
-			if (bundleContext != null) {
-				try {
-					ServiceReference<?> reference = null;
-					var serviceReferences = bundleContext.getAllServiceReferences(IFormatRegionsProvider.class.getName(), serverId);
-					if (serviceReferences != null) {
-						reference = serviceReferences[0];
-					} else {
-						//Use LSP4E default implementation:
-						reference = bundleContext.getServiceReference(IFormatRegionsProvider.class.getName());
-					}
-					if (reference != null) {
-						formatRegionsProvider = (IFormatRegionsProvider) bundleContext.getService(reference);
-						if (formatRegionsProvider != null) {
-							return formatRegionsProvider.getFormattingRegions(document);
-						}
-					}
-				} catch (InvalidSyntaxException e) {
-					LanguageServerPlugin.logError(e);
-				}
-			}
 		}
 		return null;
 	}

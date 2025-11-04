@@ -14,13 +14,17 @@ package org.eclipse.lsp4e.format;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
+import org.osgi.framework.BundleContext;
 import org.osgi.service.component.annotations.Component;
 
 /**
  * Default OSGi service implementation if no bundle provides a OSGi service for {@link IFormatRegionsProvider}.
  *
+ * <p>
+ * This implementation has a 'service.ranking' of 1 so it is chosen as the default when querying
+ * {@link BundleContext#getServiceReference(String)} without specifying a serverDefinitionId.
  */
-@Component
+@Component(property={"service.ranking=1"})
 public class DefaultFormatRegionsProvider implements IFormatRegionsProvider {
 
 	@Override
