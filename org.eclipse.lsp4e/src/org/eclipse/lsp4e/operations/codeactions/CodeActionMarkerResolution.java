@@ -117,6 +117,10 @@ public class CodeActionMarkerResolution extends WorkbenchMarkerResolution implem
 
 	@Override
 	public IMarker[] findOtherMarkers(IMarker[] markers) {
+		if (codeAction.getDiagnostics() == null) {
+			return new IMarker[0];
+		}
+
 		return Arrays.stream(markers).filter(marker -> {
 			try {
 				return codeAction.getDiagnostics()
