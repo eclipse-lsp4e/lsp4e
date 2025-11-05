@@ -522,7 +522,7 @@ public class LSCompletionProposal
 			insertText = textEdit.getNewText();
 			Map<String, List<LinkedPosition>> regions = Collections.emptyMap();
 			int insertionOffset = LSPEclipseUtils.toOffset(textEdit.getRange().getStart(), document);
-			if (item.getInsertTextMode() == InsertTextMode.AdjustIndentation) {
+			if (item.getInsertTextMode() == InsertTextMode.AdjustIndentation || item.getInsertTextMode() == null) {
 				insertText = adjustIndentation(document, insertText, insertionOffset);
 			}
 			insertionOffset = computeNewOffset(item.getAdditionalTextEdits(), insertionOffset, document);

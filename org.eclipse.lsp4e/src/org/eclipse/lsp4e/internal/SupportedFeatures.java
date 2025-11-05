@@ -103,6 +103,7 @@ public class SupportedFeatures {
 				"editRange", //$NON-NLS-1$
 				"insertTextFormat", //$NON-NLS-1$
 				"insertTextMode"))); //$NON-NLS-1$
+		completionCapabilities.setInsertTextMode(InsertTextMode.AdjustIndentation);
 		textDocumentClientCapabilities.setCompletion(completionCapabilities);
 		final var definitionCapabilities = new DefinitionCapabilities();
 		definitionCapabilities.setLinkSupport(true);
