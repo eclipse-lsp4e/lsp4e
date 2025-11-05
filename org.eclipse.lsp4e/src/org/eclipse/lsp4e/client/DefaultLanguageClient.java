@@ -96,12 +96,12 @@ public class DefaultLanguageClient implements LanguageClient {
 	}
 
 	@Override
-	public final CompletableFuture<MessageActionItem> showMessageRequest(ShowMessageRequestParams requestParams) {
+	public CompletableFuture<MessageActionItem> showMessageRequest(ShowMessageRequestParams requestParams) {
 		return ServerMessageHandler.showMessageRequest(wrapper, requestParams);
 	}
 
 	@Override
-	public final void showMessage(MessageParams messageParams) {
+	public void showMessage(MessageParams messageParams) {
 		ServerMessageHandler.showMessage(wrapper.serverDefinition.label, messageParams);
 	}
 
@@ -111,7 +111,7 @@ public class DefaultLanguageClient implements LanguageClient {
 	}
 
 	@Override
-	public final void logMessage(MessageParams message) {
+	public void logMessage(MessageParams message) {
 		CompletableFuture.runAsync(() -> ServerMessageHandler.logMessage(wrapper, message));
 	}
 
