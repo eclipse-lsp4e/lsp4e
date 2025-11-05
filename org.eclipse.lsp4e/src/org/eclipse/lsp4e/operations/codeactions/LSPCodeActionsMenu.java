@@ -12,7 +12,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.codeactions;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
 import java.util.Collections;
 import java.util.List;
@@ -39,6 +39,7 @@ import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
@@ -79,15 +80,20 @@ public class LSPCodeActionsMenu extends ContributionItem implements IWorkbenchCo
 
 	@Override
 	public void fill(final Menu menu, int index) {
+		final IDocument document = this.document;
+		TextDocumentIdentifier textDocumentIdentifier = LSPEclipseUtils.toTextDocumentIdentifier(document);
+		if (textDocumentIdentifier == null) {
+			return;
+		}
+
 		final var item = new MenuItem(menu, SWT.NONE, index);
 		item.setEnabled(false);
 
 		item.setText(Messages.computing);
-		final IDocument document = this.document;
 
 		final var context = new CodeActionContext(Collections.emptyList());
 		final var params = new CodeActionParams();
-		params.setTextDocument(castNonNull(LSPEclipseUtils.toTextDocumentIdentifier(document)));
+		params.setTextDocument(textDocumentIdentifier);
 		params.setRange(this.range);
 		params.setContext(context);
 
