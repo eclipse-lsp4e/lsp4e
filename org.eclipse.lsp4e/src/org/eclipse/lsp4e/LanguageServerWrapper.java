@@ -1100,13 +1100,16 @@ public class LanguageServerWrapper {
 				}
 				break;
 			case "workspace/executeCommand": //$NON-NLS-1$
-				final var gson = new Gson(); // TODO? retrieve the GSon used by LS
-				ExecuteCommandOptions executeCommandOptions = castNonNull(gson.fromJson((JsonObject) reg.getRegisterOptions(),
-						ExecuteCommandOptions.class));
-				List<String> newCommands = executeCommandOptions.getCommands();
-				if (!newCommands.isEmpty()) {
-					addRegistration(reg, () -> unregisterCommands(newCommands));
-					registerCommands(newCommands);
+				try {
+					ExecuteCommandOptions executeCommandOptions = castNonNull(new Gson().fromJson((JsonObject) reg.getRegisterOptions(),
+							ExecuteCommandOptions.class));
+					List<String> newCommands = executeCommandOptions.getCommands();
+					if (!newCommands.isEmpty()) {
+						addRegistration(reg, () -> unregisterCommands(newCommands));
+						registerCommands(newCommands);
+					}
+				} catch (final Exception ex) {
+					LanguageServerPlugin.logError(ex);
 				}
 				break;
 			case "textDocument/formatting": //$NON-NLS-1$
@@ -1114,24 +1117,20 @@ public class LanguageServerWrapper {
 						.getDocumentFormattingProvider();
 				if (documentFormattingProvider == null || documentFormattingProvider.isLeft()) {
 					serverCapabilities.setDocumentFormattingProvider(Boolean.TRUE);
-					addRegistration(reg, () -> serverCapabilities.setDocumentFormattingProvider(documentFormattingProvider));
 				} else {
 					serverCapabilities.setDocumentFormattingProvider(documentFormattingProvider.getRight());
-					addRegistration(reg, () -> serverCapabilities.setDocumentFormattingProvider(documentFormattingProvider));
 				}
+				addRegistration(reg, () -> serverCapabilities.setDocumentFormattingProvider(documentFormattingProvider));
 				break;
 			case "textDocument/rangeFormatting": //$NON-NLS-1$
 				Either<Boolean, DocumentRangeFormattingOptions> documentRangeFormattingProvider = serverCapabilities
 						.getDocumentRangeFormattingProvider();
 				if (documentRangeFormattingProvider == null || documentRangeFormattingProvider.isLeft()) {
 					serverCapabilities.setDocumentRangeFormattingProvider(Boolean.TRUE);
-					addRegistration(reg, () -> serverCapabilities
-							.setDocumentRangeFormattingProvider(documentRangeFormattingProvider));
 				} else {
 					serverCapabilities.setDocumentRangeFormattingProvider(documentRangeFormattingProvider.getRight());
-					addRegistration(reg, () -> serverCapabilities
-							.setDocumentRangeFormattingProvider(documentRangeFormattingProvider));
 				}
+				addRegistration(reg, () -> serverCapabilities.setDocumentRangeFormattingProvider(documentRangeFormattingProvider));
 				break;
 			case "textDocument/codeAction": //$NON-NLS-1$
 				final Either<Boolean, CodeActionOptions> beforeRegistration = serverCapabilities.getCodeActionProvider();
@@ -1160,11 +1159,10 @@ public class LanguageServerWrapper {
 						.getSelectionRangeProvider();
 				if (selectionRangeProvider == null || selectionRangeProvider.isLeft()) {
 					serverCapabilities.setSelectionRangeProvider(Boolean.TRUE);
-					addRegistration(reg, () -> serverCapabilities.setSelectionRangeProvider(selectionRangeProvider));
 				} else {
 					serverCapabilities.setSelectionRangeProvider(selectionRangeProvider.getRight());
-					addRegistration(reg, () -> serverCapabilities.setSelectionRangeProvider(selectionRangeProvider));
 				}
+				addRegistration(reg, () -> serverCapabilities.setSelectionRangeProvider(selectionRangeProvider));
 				break;
 			case "textDocument/typeHierarchy": //$NON-NLS-1$
 				final Either<Boolean, TypeHierarchyRegistrationOptions> typeHierarchyBeforeRegistration = serverCapabilities.getTypeHierarchyProvider();
