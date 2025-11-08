@@ -309,11 +309,11 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 	 */
 	public static class LanguageServerProjectExecutor extends LanguageServers<LanguageServerProjectExecutor> {
 
-		private final IProject project;
+		private final @Nullable IProject project;
 
 		private boolean restartStopped = true;
 
-		LanguageServerProjectExecutor(final IProject project) {
+		LanguageServerProjectExecutor(final @Nullable IProject project) {
 			this.project = project;
 		}
 
@@ -476,7 +476,7 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 	 * @param project
 	 * @return Executor that will run requests on servers appropriate to the supplied project
 	 */
-	public static LanguageServerProjectExecutor forProject(final IProject project) {
+	public static LanguageServerProjectExecutor forProject(final @Nullable IProject project) {
 		return new LanguageServerProjectExecutor(project);
 	}
 
