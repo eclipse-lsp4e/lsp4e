@@ -192,6 +192,15 @@ public class MockLanguageServer implements LanguageServer {
 
 	@Override
 	public CompletableFuture<InitializeResult> initialize(InitializeParams params) {
+	   
+		// Gate callHierarchyProvider on client capability (like real servers do)
+		var caps = params != null ? params.getCapabilities() : null;
+		var textDocCaps = caps != null ? caps.getTextDocument() : null;
+		boolean clientSupportsCallHierarchy = textDocCaps != null && textDocCaps.getCallHierarchy() != null;
+		if (!clientSupportsCallHierarchy) {
+			initializeResult.getCapabilities().setCallHierarchyProvider(Either.forLeft(false));
+		}
+
 		return buildMaybeDelayedFuture(initializeResult);
 	}
 

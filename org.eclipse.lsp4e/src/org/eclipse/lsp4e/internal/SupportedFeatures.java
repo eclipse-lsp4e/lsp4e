@@ -14,6 +14,7 @@ package org.eclipse.lsp4e.internal;
 
 import java.util.List;
 
+import org.eclipse.lsp4j.CallHierarchyCapabilities;
 import org.eclipse.lsp4j.CodeActionCapabilities;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionKindCapabilities;
@@ -67,6 +68,7 @@ public class SupportedFeatures {
 
 	public static TextDocumentClientCapabilities getTextDocumentClientCapabilities() {
 		final var textDocumentClientCapabilities = new TextDocumentClientCapabilities();
+		textDocumentClientCapabilities.setCallHierarchy(new CallHierarchyCapabilities());
 		final var codeAction = new CodeActionCapabilities(
 				new CodeActionLiteralSupportCapabilities(new CodeActionKindCapabilities(List.of( //
 						CodeActionKind.QuickFix, //

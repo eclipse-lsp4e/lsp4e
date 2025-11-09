@@ -29,6 +29,12 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.eclipse.lsp4j.CodeAction;
+import org.eclipse.lsp4j.CallHierarchyIncomingCall;
+import org.eclipse.lsp4j.CallHierarchyIncomingCallsParams;
+import org.eclipse.lsp4j.CallHierarchyItem;
+import org.eclipse.lsp4j.CallHierarchyOutgoingCall;
+import org.eclipse.lsp4j.CallHierarchyOutgoingCallsParams;
+import org.eclipse.lsp4j.CallHierarchyPrepareParams;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
@@ -461,6 +467,43 @@ public class MockTextDocumentService implements TextDocumentService {
 	}
 
 	private static final Range DUMMY_RANGE = new Range(new Position(0, 0), new Position(0, 0));
+
+	// --------------------------------------
+	// Call Hierarchy (minimal mock support)
+	// --------------------------------------
+	@Override
+	public CompletableFuture<List<CallHierarchyItem>> prepareCallHierarchy(CallHierarchyPrepareParams params) {
+		final String uri = params.getTextDocument().getUri();
+		CallHierarchyItem callee = new CallHierarchyItem();
+		callee.setName("callee");
+		callee.setKind(SymbolKind.Function);
+		callee.setUri(uri);
+		callee.setRange(DUMMY_RANGE);
+		callee.setSelectionRange(DUMMY_RANGE);
+		return CompletableFuture.completedFuture(List.of(callee));
+	}
+
+	@Override
+	public CompletableFuture<List<CallHierarchyIncomingCall>> callHierarchyIncomingCalls(
+			CallHierarchyIncomingCallsParams params) {
+		CallHierarchyItem caller = new CallHierarchyItem();
+		caller.setName("caller");
+		caller.setKind(SymbolKind.Function);
+		caller.setUri(params.getItem().getUri());
+		caller.setRange(DUMMY_RANGE);
+		caller.setSelectionRange(DUMMY_RANGE);
+		CallHierarchyIncomingCall incoming = new CallHierarchyIncomingCall();
+		incoming.setFrom(caller);
+		incoming.setFromRanges(List.of(DUMMY_RANGE));
+		return CompletableFuture.completedFuture(List.of(incoming));
+	}
+
+	@Override
+	public CompletableFuture<List<CallHierarchyOutgoingCall>> callHierarchyOutgoingCalls(
+			CallHierarchyOutgoingCallsParams params) {
+		// No outgoing calls in the minimal mock
+		return CompletableFuture.completedFuture(List.of());
+	}
 
 	@Override
 	public CompletableFuture<List<TypeHierarchyItem>> prepareTypeHierarchy(TypeHierarchyPrepareParams params) {
