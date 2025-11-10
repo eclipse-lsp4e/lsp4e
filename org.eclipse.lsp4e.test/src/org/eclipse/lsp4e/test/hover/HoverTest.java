@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -65,7 +66,8 @@ public class HoverTest extends AbstractTestWithProject {
 
 	@Test
 	public void testHoverRegion() throws CoreException {
-		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")), new Range(new Position(0,  0), new Position(0, 10)));
+		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")),
+				new Range(new Position(0, 0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
@@ -81,24 +83,30 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		assertEquals(new Region(15, 0), hover.getHoverRegion(viewer, 15));
+		var region = hover.getHoverRegion(viewer, 15);
+		assertNotNull(region);
+		assertTrue("region should include the hover offset",
+				region.getOffset() <= 15 && (region.getOffset() + region.getLength()) >= 15);
 	}
 
 	@Test
-	public void testHoverInfo() throws CoreException {
-		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")), new Range(new Position(0,  0), new Position(0, 10)));
+	public void testHoverInfo() throws Exception {
+		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")),
+				new Range(new Position(0, 0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		// TODO update test when MARKDOWN to HTML will be finished
-		assertTrue(hover.getHoverInfo(viewer, new Region(0, 10)).contains("HoverContent"));
+		String html = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
+		assertNotNull(html);
+		assertTrue(html.contains("HoverContent"));
 	}
 
 	@Test
 	public void testHoverInfoEmptyContentList() throws CoreException {
-		final var hoverResponse = new Hover(Collections.emptyList(), new Range(new Position(0,  0), new Position(0, 10)));
+		final var hoverResponse = new Hover(Collections.emptyList(),
+				new Range(new Position(0, 0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
@@ -119,7 +127,8 @@ public class HoverTest extends AbstractTestWithProject {
 
 	@Test
 	public void testHoverEmptyContentItem() throws CoreException {
-		final var hoverResponse = new Hover(List.of(Either.forLeft("")), new Range(new Position(0,  0), new Position(0, 10)));
+		final var hoverResponse = new Hover(List.of(Either.forLeft("")),
+				new Range(new Position(0, 0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
@@ -129,27 +138,28 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverOnExternalFile() throws CoreException, IOException {
+	public void testHoverOnExternalFile() throws Exception {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("blah")),
 				new Range(new Position(0, 0), new Position(0, 0)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
 		File file = TestUtils.createTempFile("testHoverOnExternalfile", ".lspt");
-		ITextViewer viewer = LSPEclipseUtils.getTextViewer(IDE.openInternalEditorOnFileStore(
-				UI.getActivePage(), EFS.getStore(file.toURI())));
-		Assert.assertTrue(hover.getHoverInfo(viewer, new Region(0, 0)).contains("blah"));
+		ITextViewer viewer = LSPEclipseUtils
+				.getTextViewer(IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI())));
+		String html = hover.getHoverInfoFuture(viewer, new Region(0, 0)).get(2, TimeUnit.SECONDS);
+		Assert.assertTrue(html != null && html.contains("blah"));
 	}
 
 	@Test
 	public void testMultipleHovers() throws Exception {
-		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")), new Range(new Position(0,  0), new Position(0, 10)));
+		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")),
+				new Range(new Position(0, 0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
 		IFile file = TestUtils.createUniqueTestFileMultiLS(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		// TODO update test when MARKDOWN to HTML will be finished
-		String hoverInfo = hover.getHoverInfo(viewer, new Region(0, 10));
+		String hoverInfo = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
 		int index = hoverInfo.indexOf("HoverContent");
 		assertNotEquals("Hover content not found", -1, index);
 		index += "HoverContent".length();
@@ -167,12 +177,12 @@ public class HoverTest extends AbstractTestWithProject {
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		IEditorPart editorPart = TestUtils.openEditor(file);
-		
+
 		waitForAndAssertCondition(5_000, () -> LSPEclipseUtils.getTextViewer(editorPart) != null);
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editorPart);
 		assertEquals(UI.getActivePart(), editorPart);
 
-		String hoverContent = hover.getHoverInfo(viewer, new Region(0, 10));
+		String hoverContent = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
 
 		final var hoverManager = new LSPTextHover();
 
@@ -188,8 +198,8 @@ public class HoverTest extends AbstractTestWithProject {
 
 			wrapperControl = (BrowserInformationControl) hoverManager.getHoverControlCreator()
 					.createInformationControl(shell);
-			control = (BrowserInformationControl) wrapperControl
-					.getInformationPresenterControlCreator().createInformationControl(shell);
+			control = (BrowserInformationControl) wrapperControl.getInformationPresenterControlCreator()
+					.createInformationControl(shell);
 			Field f = BrowserInformationControl.class.getDeclaredField("fBrowser"); //
 			f.setAccessible(true);
 
@@ -209,7 +219,7 @@ public class HoverTest extends AbstractTestWithProject {
 			});
 
 			assertNotNull("Editor should be opened", viewer.getTextWidget());
-			
+
 			UI.getActivePage().activate(editorPart);
 			browser.setText(hoverContent);
 

@@ -8,10 +8,12 @@
  *
  * Contributors:
  *  Mickael Istria (Red Hat Inc.) - initial implementation
+ *  Sebastian Thomschke (Vegard IT GmbH) - Prevent UI freezes through non-blocking hover rendering
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.hover;
 
 import java.net.URL;
+import java.util.UUID;
 
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.Platform;
@@ -61,6 +63,8 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 			// comment requested by sonar
 		}
 	};
+
+	private @Nullable UUID currentAsyncToken;
 
 	public FocusableBrowserInformationControl(Shell parent, String symbolicFontName, boolean resizable) {
 		super(parent, JFaceResources.DEFAULT_FONT, resizable);
@@ -155,6 +159,31 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 
 	@Override
 	public void setInput(@Nullable Object input) {
+		if (input instanceof AsyncHtmlHoverInput async) {
+			this.currentAsyncToken = async.token;
+			super.setInput(styleHtml(async.placeholderHtml));
+			async.future.whenComplete((html, ex) -> UI.getDisplay().asyncExec(() -> {
+				if (getShell() == null || getShell().isDisposed()) {
+					return;
+				}
+				final var currentAsyncToken = this.currentAsyncToken;
+				if (currentAsyncToken != null && !currentAsyncToken.equals(async.token)) {
+					return; // input changed; ignore stale update
+				}
+				if (ex != null) {
+					LanguageServerPlugin.logError(ex);
+					dispose();
+					return;
+				}
+				if (html != null && !html.isBlank()) {
+					super.setInput(styleHtml(html));
+				} else {
+					// No content from LS; hide placeholder
+					dispose();
+				}
+			}));
+			return;
+		}
 		if (input instanceof String html) {
 			input = styleHtml(html);
 		}
@@ -239,5 +268,4 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 			}
 		};
 	}
-
 }

@@ -12,6 +12,7 @@
  *  Angelo Zerr <angelo.zerr@gmail.com> - Bug 525602 - LSBasedHover must check if LS have codelens capability
  *  Lucas Bullen (Red Hat Inc.) - [Bug 517428] Requests sent before initialization
  *  Alex Boyko (VMware) - [Bug 566164] fix for NPE in LSPTextHover
+ *  Sebastian Thomschke (Vegard IT GmbH) - Prevent UI freezes through non-blocking hover rendering
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.hover;
 
@@ -40,12 +41,12 @@ import org.eclipse.jface.text.IInformationControlCreator;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextHover;
 import org.eclipse.jface.text.ITextHoverExtension;
+import org.eclipse.jface.text.ITextHoverExtension2;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.Region;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
-import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.MarkedString;
@@ -57,12 +58,11 @@ import org.eclipse.ui.editors.text.EditorsUI;
 
 /**
  * LSP implementation of {@link org.eclipse.jface.text.ITextHover}
- *
  */
 @SuppressWarnings("restriction")
-public class LSPTextHover implements ITextHover, ITextHoverExtension {
+public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHoverExtension2 {
 
-	private static final int GET_TIMEOUT_MS = 1000;
+	private static final int GET_HOVER_REGION_TIMEOUT_MS = 100;
 
 	private @Nullable IRegion lastRegion;
 	private @Nullable ITextViewer lastViewer;
@@ -71,19 +71,23 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 
 	@Override
 	public @Nullable String getHoverInfo(ITextViewer textViewer, IRegion hoverRegion) {
-		hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
-		try {
-			return hoverInfoFuture.get(GET_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-		} catch (ExecutionException e) {
-			if (!CancellationUtil.isRequestCancelledException(e)) {
+		// Non-blocking: only return immediately available content.
+		final var hoverInfoRequest_ = this.hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
+		if (hoverInfoRequest_.isDone()) {
+			try {
+				return hoverInfoRequest_.getNow(null);
+			} catch (Exception e) {
 				LanguageServerPlugin.logError(e);
 			}
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not get hover information due to timeout after " + GET_TIMEOUT_MS + " milliseconds"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 		return null;
+	}
+
+	@Override
+	public @Nullable Object getHoverInfo2(ITextViewer textViewer, IRegion hoverRegion) {
+		final var hoverInfoRequest_ = this.hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
+		final String placeholder = "<html><body>Loading…</body></html>"; //$NON-NLS-1$
+		return new AsyncHtmlHoverInput(hoverInfoRequest_, placeholder);
 	}
 
 	public CompletableFuture<@Nullable String> getHoverInfoFuture(ITextViewer textViewer, IRegion hoverRegion) {
@@ -91,12 +95,12 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 			initiateHoverRequest(textViewer, hoverRegion.getOffset());
 		}
 		return castNonNull(request).thenApply(hoversList -> {
-			String result = hoversList.stream()
-				.filter(Objects::nonNull)
-				.map(LSPTextHover::getHoverString)
-				.filter(Objects::nonNull)
-				.collect(Collectors.joining("\n\n")) //$NON-NLS-1$
-				.trim();
+			String result = hoversList.stream() //
+					.filter(Objects::nonNull) //
+					.map(LSPTextHover::getHoverString) //
+					.filter(Objects::nonNull) //
+					.collect(Collectors.joining("\n\n")) //$NON-NLS-1$
+					.trim();
 			if (!result.isEmpty()) {
 				Parser parser = Parser.builder().build();
 				Node document = parser.parse(result);
@@ -145,29 +149,32 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 				|| offset < lastRegion.getOffset() || offset > lastRegion.getOffset() + lastRegion.getLength()) {
 			initiateHoverRequest(textViewer, offset);
 		}
+
+		final IDocument document = textViewer.getDocument();
+		if (document == null) {
+			return null;
+		}
+
 		try {
-			final IDocument document = textViewer.getDocument();
-			if (document == null) {
-				return null;
-			}
 			final var oneHoverAtLeast = new boolean[] { false };
 			final var regionStartOffset = new int[] { 0 };
 			final var regionEndOffset = new int[] { document.getLength() };
-			castNonNull(this.request).get(GET_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream()
-				.filter(Objects::nonNull)
-				.map(Hover::getRange)
-				.filter(Objects::nonNull)
-				.forEach(range -> {
-					try {
+			// Wait shortly for hover region result, fallback to heuristics if LS is laggy
+			castNonNull(this.request).get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream() //
+					.filter(Objects::nonNull) //
+					.map(Hover::getRange) //
+					.filter(Objects::nonNull) //
+					.forEach(range -> {
+						try {
 							regionStartOffset[0] = Math.max(regionStartOffset[0],
 									LSPEclipseUtils.toOffset(range.getStart(), document));
 							regionEndOffset[0] = Math.min(regionEndOffset[0],
 									LSPEclipseUtils.toOffset(range.getEnd(), document));
-						oneHoverAtLeast[0] = true;
-					} catch (BadLocationException e) {
-						LanguageServerPlugin.logError(e);
-					}
-				});
+							oneHoverAtLeast[0] = true;
+						} catch (BadLocationException e) {
+							LanguageServerPlugin.logError(e);
+						}
+					});
 			if (oneHoverAtLeast[0]) {
 				this.lastRegion = new Region(regionStartOffset[0], regionEndOffset[0] - regionStartOffset[0]);
 				return this.lastRegion;
@@ -177,10 +184,38 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not get hover region due to timeout after " + GET_TIMEOUT_MS + " milliseconds"); //$NON-NLS-1$ //$NON-NLS-2$
+			LanguageServerPlugin.logWarning(
+					"Could not get hover region due to timeout after " + GET_HOVER_REGION_TIMEOUT_MS + " milliseconds"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
-		this.lastRegion = new Region(offset, 0);
-		return this.lastRegion;
+
+		// Fallback to heuristic region without blocking.
+		final Region heuristic = computeHeuristicRegion(document, offset);
+		this.lastRegion = heuristic;
+		return heuristic;
+	}
+
+	private static Region computeHeuristicRegion(final IDocument document, final int offset) {
+		try {
+			final int length = document.getLength();
+			if (offset < 0 || offset > length) {
+				return new Region(Math.max(0, Math.min(offset, length)), 0);
+			}
+			int start = offset;
+			int end = offset;
+			while (start > 0 && isWordPart(document.getChar(start - 1))) {
+				start--;
+			}
+			while (end < length && isWordPart(document.getChar(end))) {
+				end++;
+			}
+			return new Region(start, Math.max(0, end - start));
+		} catch (final BadLocationException ex) {
+			return new Region(offset, 0);
+		}
+	}
+
+	private static boolean isWordPart(char c) {
+		return Character.isLetterOrDigit(c) || c == '_' || c == '$';
 	}
 
 	/**
@@ -215,9 +250,9 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 		try {
 			HoverParams params = LSPEclipseUtils.toHoverParams(offset, document);
 
-			this.request = LanguageServers.forDocument(document)
-				.withCapability(ServerCapabilities::getHoverProvider)
-				.collectAll(server -> server.getTextDocumentService().hover(params));
+			this.request = LanguageServers.forDocument(document) //
+					.withCapability(ServerCapabilities::getHoverProvider) //
+					.collectAll(server -> server.getTextDocumentService().hover(params));
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 		}
@@ -236,5 +271,4 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension {
 			}
 		};
 	}
-
 }
