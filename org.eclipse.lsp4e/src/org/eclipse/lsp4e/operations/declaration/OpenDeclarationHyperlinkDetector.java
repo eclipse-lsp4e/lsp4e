@@ -10,14 +10,15 @@
  *  Mickael Istria (Red Hat Inc.) - initial implementation
  *  Michał Niewrzał (Rogue Wave Software Inc.) - hyperlink range detection
  *  Lucas Bullen (Red Hat Inc.) - [Bug 517428] Requests sent before initialization
+ *  Sebastian Thomschke (Vegard IT GmbH) - avoid UI freeze when working with slow language servers
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.declaration;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -34,7 +35,7 @@ import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
-import org.eclipse.lsp4e.internal.Pair;
+import org.eclipse.lsp4e.internal.DocumentOffsetAsyncCache;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
@@ -45,8 +46,19 @@ import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector {
 
+	private static final long UI_BLOCKING_BUDGET_MS = 200;
+
+	@NonNullByDefault({})
+	private static record LabeledLocations(String label,
+			@Nullable Either<List<? extends Location>, List<? extends LocationLink>> locations) {
+	}
+
+	private static final DocumentOffsetAsyncCache<List<LSBasedHyperlink>> CACHE = new DocumentOffsetAsyncCache<>(
+			Duration.ofSeconds(10));
+
 	@Override
-	public IHyperlink @Nullable [] detectHyperlinks(ITextViewer textViewer, IRegion region, boolean canShowMultipleHyperlinks) {
+	public IHyperlink @Nullable [] detectHyperlinks(ITextViewer textViewer, IRegion region,
+			boolean canShowMultipleHyperlinks) {
 		final IDocument document = textViewer.getDocument();
 		if (document == null) {
 			return null;
@@ -58,32 +70,57 @@ public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector 
 			LanguageServerPlugin.logError(e);
 			return null;
 		}
-		final var allLinks = new LinkedHashMap<Either<Location, LocationLink>,LSBasedHyperlink>();
+
+		final int offset = region.getOffset();
+
+		final CompletableFuture<List<LSBasedHyperlink>> request = CACHE.computeIfAbsent(document, offset, () -> {
+			var definitions = LanguageServers.forDocument(document)
+					.withCapability(ServerCapabilities::getDefinitionProvider)
+					.collectAll(ls -> ls.getTextDocumentService().definition(LSPEclipseUtils.toDefinitionParams(params))
+							.thenApply(l -> new LabeledLocations(Messages.definitionHyperlinkLabel, l)));
+			final var declarations = LanguageServers.forDocument(document)
+					.withCapability(ServerCapabilities::getDeclarationProvider).collectAll(
+							ls -> ls.getTextDocumentService().declaration(LSPEclipseUtils.toDeclarationParams(params))
+									.thenApply(l -> new LabeledLocations(Messages.declarationHyperlinkLabel, l)));
+			final var typeDefinitions = LanguageServers.forDocument(document)
+					.withCapability(ServerCapabilities::getTypeDefinitionProvider)
+					.collectAll(ls -> ls.getTextDocumentService()
+							.typeDefinition(LSPEclipseUtils.toTypeDefinitionParams(params))
+							.thenApply(l -> new LabeledLocations(Messages.typeDefinitionHyperlinkLabel, l)));
+			final var implementations = LanguageServers.forDocument(document)
+					.withCapability(ServerCapabilities::getImplementationProvider)
+					.collectAll(ls -> ls.getTextDocumentService()
+							.implementation(LSPEclipseUtils.toImplementationParams(params))
+							.thenApply(l -> new LabeledLocations(Messages.implementationHyperlinkLabel, l)));
+
+			CompletableFuture<List<LabeledLocations>> combined = LanguageServers.addAll(
+					LanguageServers.addAll(LanguageServers.addAll(definitions, declarations), typeDefinitions),
+					implementations);
+			return combined.thenApply(locations -> toHyperlinks(document, region, locations));
+		});
+
 		try {
-			var definitions = LanguageServers.forDocument(document).withCapability(ServerCapabilities::getDefinitionProvider)
-				.collectAll(ls -> ls.getTextDocumentService().definition(LSPEclipseUtils.toDefinitionParams(params)).thenApply(l -> Pair.of(Messages.definitionHyperlinkLabel, l)));
-			var declarations = LanguageServers.forDocument(document).withCapability(ServerCapabilities::getDeclarationProvider)
-				.collectAll(ls -> ls.getTextDocumentService().declaration(LSPEclipseUtils.toDeclarationParams(params)).thenApply(l -> Pair.of(Messages.declarationHyperlinkLabel, l)));
-			var typeDefinitions = LanguageServers.forDocument(document).withCapability(ServerCapabilities::getTypeDefinitionProvider)
-				.collectAll(ls -> ls.getTextDocumentService().typeDefinition(LSPEclipseUtils.toTypeDefinitionParams(params)).thenApply(l -> Pair.of(Messages.typeDefinitionHyperlinkLabel, l)));
-			var implementations = LanguageServers.forDocument(document).withCapability(ServerCapabilities::getImplementationProvider)
-				.collectAll(ls -> ls.getTextDocumentService().implementation(LSPEclipseUtils.toImplementationParams(params)).thenApply(l -> Pair.of(Messages.implementationHyperlinkLabel, l)));
-			LanguageServers.addAll(LanguageServers.addAll(LanguageServers.addAll(definitions, declarations), typeDefinitions), implementations)
-				.get(800, TimeUnit.MILLISECONDS)
-				.stream().flatMap(locations -> toHyperlinks(document, region, locations.first(), locations.second()).stream())
-				.forEach(link -> allLinks.putIfAbsent(link.getLocation(), link));
-		} catch (ExecutionException e) {
-			LanguageServerPlugin.logError(e);
-		} catch (InterruptedException e) {
-			LanguageServerPlugin.logError(e);
+			// Try to get a quick result within the UI budget; keep UI responsive.
+			final List<LSBasedHyperlink> links = request.get(UI_BLOCKING_BUDGET_MS, TimeUnit.MILLISECONDS);
+			return links.isEmpty() ? null : links.toArray(IHyperlink[]::new);
+		} catch (final ExecutionException ex) {
+			LanguageServerPlugin.logError(ex);
+		} catch (final InterruptedException ex) {
+			LanguageServerPlugin.logError(ex);
 			Thread.currentThread().interrupt();
-		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not detect hyperlinks due to timeout after 800 milliseconds");  //$NON-NLS-1$
+		} catch (final TimeoutException ex) {
+			if (canShowMultipleHyperlinks) {
+				return new IHyperlink[] { new DeferredOpenMultiDeclarationHyperlink(textViewer, document,
+						findWord(document, region), request) };
+			} else {
+				final CompletableFuture<@Nullable IHyperlink> firstLink = request
+						.thenApply(links -> !links.isEmpty() ? links.get(0) : null);
+				return new IHyperlink[] { new DeferredOpenDeclarationHyperlink(textViewer, document,
+						findWord(document, region), firstLink) };
+			}
 		}
-		if (allLinks.isEmpty()) {
-			return null;
-		}
-		return allLinks.values().toArray(IHyperlink[]::new);
+
+		return null;
 	}
 
 	/**
@@ -93,22 +130,27 @@ public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector 
 	 *            the document
 	 * @param linkRegion
 	 *            the region
-	 * @param locationType
-	 *            the location type
 	 * @param locations
 	 *            the LSP locations
 	 */
-	private static Collection<LSBasedHyperlink> toHyperlinks(IDocument document, IRegion region,
-			String locationType, @NonNullByDefault({}) Either<List<? extends Location>, List<? extends LocationLink>> locations) {
-		if (locations == null) {
-			return Collections.emptyList();
+	private static List<LSBasedHyperlink> toHyperlinks(final IDocument doc, final IRegion region,
+			final List<LabeledLocations> locations) {
+		final var allLinks = new LinkedHashMap<Either<Location, LocationLink>, LSBasedHyperlink>();
+		for (final LabeledLocations locs : locations) {
+			final var either = locs.locations();
+			if (either == null)
+				continue;
+			if (either.isLeft()) {
+				either.getLeft().stream().filter(Objects::nonNull)
+						.map(loc -> new LSBasedHyperlink(loc, findWord(doc, region), locs.label()))
+						.forEach(h -> allLinks.putIfAbsent(h.getLocation(), h));
+			} else {
+				either.getRight().stream().filter(Objects::nonNull).map(
+						locLink -> new LSBasedHyperlink(locLink, getSelectedRegion(doc, region, locLink), locs.label()))
+						.forEach(h -> allLinks.putIfAbsent(h.getLocation(), h));
+			}
 		}
-		return locations.map(//
-				l -> l.stream().filter(Objects::nonNull)
-						.map(location -> new LSBasedHyperlink(location, findWord(document, region), locationType))
-						.toList(),
-				r -> r.stream().filter(Objects::nonNull).map(locationLink -> new LSBasedHyperlink(locationLink,
-						getSelectedRegion(document, region, locationLink), locationType)).toList());
+		return allLinks.values().stream().toList();
 	}
 
 	/**
