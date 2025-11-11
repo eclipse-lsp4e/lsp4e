@@ -150,7 +150,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		final var lsCompletionProposal = (LSCompletionProposal) proposals[0];
 		lsCompletionProposal.apply(viewer, '\n', 0, 0);
 
-		// Assert command was invoked on langauge server
+		// Assert command was invoked on language server
 		ExecuteCommandParams executedCommand = MockLanguageServer.INSTANCE.getWorkspaceService().getExecutedCommand().get(2, TimeUnit.SECONDS);
 
 		assertEquals(MockLanguageServer.SUPPORTED_COMMAND_ID, executedCommand.getCommand());
@@ -173,6 +173,40 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		final var lsCompletionProposal = (LSCompletionProposal) proposals[0];
 		lsCompletionProposal.apply(viewer, '\n', 0, 0);
 		assertEquals(new Point("FirstClass".length(), 0), lsCompletionProposal.getSelection(viewer.getDocument()));
+	}
+	
+	@Test
+	public void testPrefixCaseSensitivityWithoutTextEdit() throws CoreException {
+		final var items = new ArrayList<CompletionItem>();
+		items.add(createCompletionItemWithoutTextEdit("FirstClass", CompletionItemKind.Class));
+		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+
+		final var content = "FIRST";
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
+
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, content.length());
+		assertEquals(1, proposals.length);
+		final var lsCompletionProposal = (LSCompletionProposal) proposals[0];
+		lsCompletionProposal.apply(viewer, '\n', 0, 0);
+		assertEquals(new Point("FirstClass".length(), 0), lsCompletionProposal.getSelection(viewer.getDocument()));
+		assertEquals("FirstClass", viewer.getDocument().get());
+	}
+	
+	@Test
+	public void testPrefixCaseSensitivityWithoutTextEditAtOffset() throws CoreException {
+		final var items = new ArrayList<CompletionItem>();
+		items.add(createCompletionItemWithoutTextEdit("FirstClass", CompletionItemKind.Class));
+		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+
+		final var content = "FIRST";
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
+
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, content.length());
+		assertEquals(1, proposals.length);
+		final var lsCompletionProposal = (LSCompletionProposal) proposals[0];
+		lsCompletionProposal.apply(viewer, '\n', 0, 4);
+		assertEquals(new Point("FirstClass".length(), 0), lsCompletionProposal.getSelection(viewer.getDocument()));
+		assertEquals("FirstClass", viewer.getDocument().get());
 	}
 
 	@Test

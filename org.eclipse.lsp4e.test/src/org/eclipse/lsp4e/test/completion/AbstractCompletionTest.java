@@ -46,6 +46,13 @@ public abstract class AbstractCompletionTest extends AbstractTestWithProject {
 		return createCompletionItem(label, kind, new Range(new Position(0, 0), new Position(0, label.length())));
 	}
 
+	protected CompletionItem createCompletionItemWithoutTextEdit(String label, CompletionItemKind kind) {
+		final var item = new CompletionItem();
+		item.setLabel(label);
+		item.setKind(kind);
+		return item;
+	}
+	
 	protected CompletionItem createCompletionItem(String label, CompletionItemKind kind, Range range) {
 		final var item = new CompletionItem();
 		item.setLabel(label);

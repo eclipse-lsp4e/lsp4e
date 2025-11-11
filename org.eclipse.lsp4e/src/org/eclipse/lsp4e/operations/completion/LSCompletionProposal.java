@@ -457,9 +457,8 @@ public class LSCompletionProposal
 					Math.max(0, completionOffset - insertTextLength),
 					Math.min(insertTextLength, completionOffset));
 			for (int i = 0; i < insertTextLength && i < completionOffset; i++) {
-				String tentativeCommonString = subDoc.substring(i);
-				if (insertText.startsWith(tentativeCommonString)) {
-					return completionOffset - tentativeCommonString.length();
+				if (insertText.regionMatches(true, 0, subDoc, i, subDoc.length() - i)) {
+					return completionOffset - subDoc.substring(i).length();
 				}
 			}
 		} catch (BadLocationException e) {
@@ -514,7 +513,7 @@ public class LSCompletionProposal
 				final int insertTextLength = insertText.length();
 				while (commonSize < insertTextLength - shift
 					&& document.getLength() > offset + commonSize
-					&& document.getChar(bestOffset + shift + commonSize) == insertText.charAt(commonSize + shift)) {
+					&& Character.toLowerCase(document.getChar(bestOffset + shift + commonSize)) == Character.toLowerCase(insertText.charAt(commonSize + shift))) {
 					commonSize++;
 				}
 				textEdit.getRange().getEnd().setCharacter(textEdit.getRange().getEnd().getCharacter() + commonSize);
