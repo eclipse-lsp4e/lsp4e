@@ -74,24 +74,29 @@ public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector 
 		final int offset = region.getOffset();
 
 		final CompletableFuture<List<LSBasedHyperlink>> request = CACHE.computeIfAbsent(document, offset, () -> {
-			var definitions = LanguageServers.forDocument(document)
+			final var definitions = LanguageServers.forDocument(document)
 					.withCapability(ServerCapabilities::getDefinitionProvider)
 					.collectAll(ls -> ls.getTextDocumentService().definition(LSPEclipseUtils.toDefinitionParams(params))
-							.thenApply(l -> new LabeledLocations(Messages.definitionHyperlinkLabel, l)));
+							.thenApply(l -> new LabeledLocations(Messages.definitionHyperlinkLabel, l))
+							.exceptionally(err -> new LabeledLocations(Messages.definitionHyperlinkLabel, null)));
 			final var declarations = LanguageServers.forDocument(document)
-					.withCapability(ServerCapabilities::getDeclarationProvider).collectAll(
-							ls -> ls.getTextDocumentService().declaration(LSPEclipseUtils.toDeclarationParams(params))
-									.thenApply(l -> new LabeledLocations(Messages.declarationHyperlinkLabel, l)));
+					.withCapability(ServerCapabilities::getDeclarationProvider)
+					.collectAll(ls -> ls.getTextDocumentService()
+							.declaration(LSPEclipseUtils.toDeclarationParams(params))
+							.thenApply(l -> new LabeledLocations(Messages.declarationHyperlinkLabel, l))
+							.exceptionally(err -> new LabeledLocations(Messages.declarationHyperlinkLabel, null)));
 			final var typeDefinitions = LanguageServers.forDocument(document)
 					.withCapability(ServerCapabilities::getTypeDefinitionProvider)
 					.collectAll(ls -> ls.getTextDocumentService()
 							.typeDefinition(LSPEclipseUtils.toTypeDefinitionParams(params))
-							.thenApply(l -> new LabeledLocations(Messages.typeDefinitionHyperlinkLabel, l)));
+							.thenApply(l -> new LabeledLocations(Messages.typeDefinitionHyperlinkLabel, l))
+							.exceptionally(err -> new LabeledLocations(Messages.typeDefinitionHyperlinkLabel, null)));
 			final var implementations = LanguageServers.forDocument(document)
 					.withCapability(ServerCapabilities::getImplementationProvider)
 					.collectAll(ls -> ls.getTextDocumentService()
 							.implementation(LSPEclipseUtils.toImplementationParams(params))
-							.thenApply(l -> new LabeledLocations(Messages.implementationHyperlinkLabel, l)));
+							.thenApply(l -> new LabeledLocations(Messages.implementationHyperlinkLabel, l))
+							.exceptionally(err -> new LabeledLocations(Messages.implementationHyperlinkLabel, null)));
 
 			CompletableFuture<List<LabeledLocations>> combined = LanguageServers.addAll(
 					LanguageServers.addAll(LanguageServers.addAll(definitions, declarations), typeDefinitions),
