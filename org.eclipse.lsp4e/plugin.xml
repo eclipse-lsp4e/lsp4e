@@ -154,6 +154,106 @@
       </foldingReconcilingStrategy>
    </extension>
 
+   <!-- folding: define commands -->
+   <extension point="org.eclipse.ui.commands">
+      <command
+            categoryId="org.eclipse.lsp4e.category"
+            id="org.eclipse.lsp4e.folding.collapseAll"
+            name="%command.folding.foldAll.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.category"
+            id="org.eclipse.lsp4e.folding.expandAll"
+            name="%command.folding.unfoldAll.name" />
+   </extension>
+
+   <!-- folding: register command handlers -->
+   <extension point="org.eclipse.ui.handlers">
+      <handler
+            class="org.eclipse.lsp4e.operations.folding.FoldAllHandler"
+            commandId="org.eclipse.lsp4e.folding.collapseAll">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.folding.UnfoldAllHandler"
+            commandId="org.eclipse.lsp4e.folding.expandAll">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+   </extension>
+
+   <!-- folding: register menu entries -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution
+            allPopups="true"
+            locationURI="popup:org.eclipse.ui.genericeditor.source.menu?after=additions">
+         <separator name="org.eclipse.lsp4e.folding.group.start" visible="true"/>
+         <command commandId="org.eclipse.lsp4e.folding.collapseAll" label="%command.folding.foldAll.name">
+            <visibleWhen>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+            </visibleWhen>
+         </command>
+         <command commandId="org.eclipse.lsp4e.folding.expandAll" label="%command.folding.unfoldAll.name">
+            <visibleWhen>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+            </visibleWhen>
+         </command>
+         <separator name="org.eclipse.lsp4e.folding.group.end" visible="true"/>
+      </menuContribution>
+   </extension>
+
+   <!-- folding: add commands to main Window > Source menu contributed by TM4E -->
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="menu:org.eclipse.tm4e.source.menu?after=additions">
+         <separator name="org.eclipse.lsp4e.folding.main.group.start" visible="true"/>
+         <command commandId="org.eclipse.lsp4e.folding.collapseAll" label="%command.folding.foldAll.name">
+            <visibleWhen>
+               <or>
+                  <with variable="activeEditorInput">
+                     <test property="org.eclipse.lsp4e.hasLanguageServer" />
+                  </with>
+                  <with variable="activeEditor">
+                     <test property="org.eclipse.lsp4e.hasLanguageServer" />
+                  </with>
+               </or>
+            </visibleWhen>
+         </command>
+         <command commandId="org.eclipse.lsp4e.folding.expandAll" label="%command.folding.unfoldAll.name">
+            <visibleWhen>
+               <or>
+                  <with variable="activeEditorInput">
+                     <test property="org.eclipse.lsp4e.hasLanguageServer" />
+                  </with>
+                  <with variable="activeEditor">
+                     <test property="org.eclipse.lsp4e.hasLanguageServer" />
+                  </with>
+               </or>
+            </visibleWhen>
+         </command>
+         <separator name="org.eclipse.lsp4e.folding.main.group.end" visible="true"/>
+      </menuContribution>
+   </extension>
+
+   <!-- folding: key bindings -->
+   <extension point="org.eclipse.ui.bindings">
+      <key sequence="M1+M2+NUMPAD_DIVIDE"
+            commandId="org.eclipse.lsp4e.folding.collapseAll"
+            contextId="org.eclipse.ui.genericeditor.genericEditorContext"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M1+M2+NUMPAD_MULTIPLY"
+            commandId="org.eclipse.lsp4e.folding.expandAll"
+            contextId="org.eclipse.ui.genericeditor.genericEditorContext"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+   </extension>
+
 
    <!-- ===================================== -->
    <!-- Find References Support               -->
@@ -464,7 +564,7 @@
             contentType="org.eclipse.core.runtime.text">
          <enabledWhen>
             <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
-         </enabledWhen>            
+         </enabledWhen>
       </reconcilingStrategy>
    </extension>
 
