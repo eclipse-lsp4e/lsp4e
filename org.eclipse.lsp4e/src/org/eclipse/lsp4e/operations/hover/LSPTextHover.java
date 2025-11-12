@@ -19,6 +19,7 @@ package org.eclipse.lsp4e.operations.hover;
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -51,6 +52,7 @@ import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.MarkedString;
 import org.eclipse.lsp4j.MarkupContent;
+import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.swt.widgets.Shell;
@@ -156,42 +158,27 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 		}
 
 		try {
-			final var oneHoverAtLeast = new boolean[] { false };
-			final var regionStartOffset = new int[] { 0 };
-			final var regionEndOffset = new int[] { document.getLength() };
 			// Wait shortly for hover region result, fallback to heuristics if LS is laggy
-			castNonNull(this.request).get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream() //
+			Range range = castNonNull(this.request).get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream() //
 					.filter(Objects::nonNull) //
 					.map(Hover::getRange) //
 					.filter(Objects::nonNull) //
-					.forEach(range -> {
-						try {
-							regionStartOffset[0] = Math.max(regionStartOffset[0],
-									LSPEclipseUtils.toOffset(range.getStart(), document));
-							regionEndOffset[0] = Math.min(regionEndOffset[0],
-									LSPEclipseUtils.toOffset(range.getEnd(), document));
-							oneHoverAtLeast[0] = true;
-						} catch (BadLocationException e) {
-							LanguageServerPlugin.logError(e);
-						}
-					});
-			if (oneHoverAtLeast[0]) {
-				this.lastRegion = new Region(regionStartOffset[0], regionEndOffset[0] - regionStartOffset[0]);
-				return this.lastRegion;
-			}
-		} catch (ExecutionException e) {
-			LanguageServerPlugin.logError(e);
+					.reduce((first, second) -> second) //
+					.get();
+			int regionStartOffset = Math.max(0,
+					LSPEclipseUtils.toOffset(range.getStart(), document));
+			int regionEndOffset = Math.min(document.getLength(),
+					LSPEclipseUtils.toOffset(range.getEnd(), document));
+			return this.lastRegion = new Region(regionStartOffset, regionEndOffset - regionStartOffset);
+		} catch (ExecutionException | NoSuchElementException | BadLocationException e) {
+			LanguageServerPlugin.logError("Cannot get hover region for offset " + offset, e); //$NON-NLS-1$
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning(
-					"Could not get hover region due to timeout after " + GET_HOVER_REGION_TIMEOUT_MS + " milliseconds"); //$NON-NLS-1$ //$NON-NLS-2$
+			// Fallback to heuristic region without blocking.
 		}
 
-		// Fallback to heuristic region without blocking.
-		final Region heuristic = computeHeuristicRegion(document, offset);
-		this.lastRegion = heuristic;
-		return heuristic;
+		return this.lastRegion = computeHeuristicRegion(document, offset);
 	}
 
 	private static Region computeHeuristicRegion(final IDocument document, final int offset) {
