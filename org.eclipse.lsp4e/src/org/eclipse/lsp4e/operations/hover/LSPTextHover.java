@@ -170,11 +170,11 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 			int regionEndOffset = Math.min(document.getLength(),
 					LSPEclipseUtils.toOffset(range.getEnd(), document));
 			return this.lastRegion = new Region(regionStartOffset, regionEndOffset - regionStartOffset);
-		} catch (ExecutionException | NoSuchElementException | BadLocationException e) {
+		} catch (ExecutionException | BadLocationException e) {
 			LanguageServerPlugin.logError("Cannot get hover region for offset " + offset, e); //$NON-NLS-1$
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-		} catch (TimeoutException e) {
+		} catch (NoSuchElementException | TimeoutException e) {
 			// Fallback to heuristic region without blocking.
 		}
 
