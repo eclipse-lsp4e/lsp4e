@@ -323,6 +323,7 @@ public class HighlightReconcilingStrategy
 			}
 			return Math.min(docLen, pos + 1);
 		} catch (final BadLocationException ex) {
+			LanguageServerPlugin.logError(ex.getMessage(), ex);
 			return offset;
 		}
 	}
