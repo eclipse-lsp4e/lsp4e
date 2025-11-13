@@ -16,6 +16,8 @@ package org.eclipse.lsp4e.operations.highlight;
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
 import java.net.URI;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -51,6 +53,7 @@ import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.DocumentOffsetAsyncCache;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightKind;
 import org.eclipse.lsp4j.DocumentHighlightParams;
@@ -76,6 +79,16 @@ public class HighlightReconcilingStrategy
 	private @Nullable ISourceViewer sourceViewer;
 	private @Nullable IDocument document;
 	private @Nullable Job highlightJob;
+
+	// Debounce to avoid flooding requests while the user moves the caret/mouse.
+	private static final int HIGHLIGHT_DEBOUNCE_MS = 75;
+
+	// Short-lived cache for highlights per document+normalized offset.
+	private static final DocumentOffsetAsyncCache<List<DocumentHighlight>> HIGHLIGHT_CACHE =
+			new DocumentOffsetAsyncCache<>(Duration.ofSeconds(10));
+
+	// Track the last normalized cache key to avoid canceling identical in-flight work.
+	private int lastCacheKeyOffset = -1;
 
 	/**
 	 * Holds the current occurrence annotations.
@@ -119,7 +132,8 @@ public class HighlightReconcilingStrategy
 			}
 			highlightJob = Job.createSystem("LSP4E Highlight", //$NON-NLS-1$
 					(ICoreRunnable)(monitor -> collectHighlights(textSelection.getOffset(), monitor)));
-			highlightJob.schedule();
+			// Debounce scheduling slightly to coalesce rapid selection changes
+			highlightJob.schedule(HIGHLIGHT_DEBOUNCE_MS);
 		}
 	}
 
@@ -188,9 +202,20 @@ public class HighlightReconcilingStrategy
 		if (sourceViewer == null || document == null || !enabled || monitor != null && monitor.isCanceled()) {
 			return;
 		}
-		cancel();
+
+		// Normalize the cache key to the start of the word/symbol.
+		final int cacheKeyOffset = normalizedOffset(document, caretOffset);
+
+		// Only cancel previous requests if the target symbol actually changed.
+		if (cacheKeyOffset != lastCacheKeyOffset) {
+			cancel();
+			lastCacheKeyOffset = cacheKeyOffset;
+		}
+
 		Position position;
 		try {
+			// Send the original caret offset to the LS to preserve behavior
+			// expected by tests and servers that distinguish positions within a word.
 			position = LSPEclipseUtils.toPosition(caretOffset, document);
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
@@ -202,14 +227,36 @@ public class HighlightReconcilingStrategy
 		}
 		final var identifier = LSPEclipseUtils.toTextDocumentIdentifier(uri);
 		final var params = new DocumentHighlightParams(identifier, position);
-		requests = LanguageServers.forDocument(document)
-				.withCapability(ServerCapabilities::getDocumentHighlightProvider)
-				.computeAll(languageServer -> languageServer.getTextDocumentService().documentHighlight(params));
-		requests.forEach(request -> request.thenAcceptAsync(highlights -> {
+
+		// Use cache to deduplicate requests to the same symbol for a short period.
+		final CompletableFuture<List<DocumentHighlight>> request = HIGHLIGHT_CACHE.computeIfAbsent(document,
+				cacheKeyOffset, () -> {
+				final var reqs = requests = LanguageServers.forDocument(document)
+						.withCapability(ServerCapabilities::getDocumentHighlightProvider)
+						.computeAll(ls -> ls.getTextDocumentService().documentHighlight(params));
+				final CompletableFuture<?> all = CompletableFuture
+						.allOf(reqs.stream().map(f -> (CompletableFuture<?>) f).toArray(CompletableFuture[]::new));
+				return all.thenApply(unused -> {
+					final var allHighlights = new ArrayList<DocumentHighlight>();
+					for (final var req : reqs) {
+						try {
+							final List<? extends DocumentHighlight> highlight = req.join();
+							if (highlight != null) {
+								allHighlights.addAll(highlight);
+							}
+						} catch (Exception ex) {
+							// ignore single-server failures
+						}
+					}
+					return allHighlights;
+				});
+			});
+
+		request.thenAcceptAsync(highlights -> {
 			if (monitor == null || !monitor.isCanceled()) {
 				updateAnnotations(highlights, sourceViewer.getAnnotationModel());
 			}
-		}));
+		});
 	}
 
 	/**
@@ -271,6 +318,27 @@ public class HighlightReconcilingStrategy
 				return lock;
 		}
 		return annotationModel;
+	}
+
+	/**
+	 * Compute a stable cache key for the symbol at the given caret offset by
+	 * normalizing to the start of the Unicode identifier under the caret.
+	 */
+	private static int normalizedOffset(final IDocument document, final int offset) {
+		try {
+			// Walk left to the first non-identifier part, then move right one.
+		   int pos = Math.max(0, offset - 1);
+		   final int docLen = document.getLength();
+			while (pos >= 0 && pos < docLen) {
+				if (!Character.isUnicodeIdentifierPart(document.getChar(pos))) {
+					break;
+				}
+				pos--;
+			}
+			return Math.min(docLen, pos + 1);
+		} catch (final BadLocationException ex) {
+			return offset;
+		}
 	}
 
 	void removeOccurrenceAnnotations() {

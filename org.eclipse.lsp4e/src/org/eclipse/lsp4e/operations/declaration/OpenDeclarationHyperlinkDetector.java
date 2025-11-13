@@ -71,9 +71,11 @@ public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector 
 			return null;
 		}
 
-		final int offset = region.getOffset();
+		// Normalize cache key to the start of the word to avoid cache misses when the
+		// mouse moves within the same symbol.
+		final int cacheKeyOffset = findWord(document, region).getOffset();
 
-		final CompletableFuture<List<LSBasedHyperlink>> request = CACHE.computeIfAbsent(document, offset, () -> {
+		final CompletableFuture<List<LSBasedHyperlink>> request = CACHE.computeIfAbsent(document, cacheKeyOffset, () -> {
 			final var definitions = LanguageServers.forDocument(document)
 					.withCapability(ServerCapabilities::getDefinitionProvider)
 					.collectAll(ls -> ls.getTextDocumentService().definition(LSPEclipseUtils.toDefinitionParams(params))
@@ -98,7 +100,7 @@ public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector 
 							.thenApply(l -> new LabeledLocations(Messages.implementationHyperlinkLabel, l))
 							.exceptionally(err -> new LabeledLocations(Messages.implementationHyperlinkLabel, null)));
 
-			CompletableFuture<List<LabeledLocations>> combined = LanguageServers.addAll(
+			final CompletableFuture<List<LabeledLocations>> combined = LanguageServers.addAll(
 					LanguageServers.addAll(LanguageServers.addAll(definitions, declarations), typeDefinitions),
 					implementations);
 			return combined.thenApply(locations -> toHyperlinks(document, region, locations));
