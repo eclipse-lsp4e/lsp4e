@@ -93,7 +93,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 	}
 
 	private void updateBrowserSize(final Browser browser) {
-		if (browser.isDisposed() || getInput() == null)
+		if (getShell().isDisposed() || browser.isDisposed() || getInput() == null)
 			return;
 
 		@Nullable
