@@ -1,0 +1,267 @@
+/*******************************************************************************
+ * Copyright (c) 2025 Vegard IT GmbH and others.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *  Sebastian Thomschke (Vegard IT GmbH) - initial implementation.
+ *******************************************************************************/
+package org.eclipse.lsp4e.test.debug;
+
+import static org.junit.Assert.*;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.function.UnaryOperator;
+
+import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.debug.core.DebugPlugin;
+import org.eclipse.debug.core.ILaunch;
+import org.eclipse.debug.core.ILaunchConfigurationType;
+import org.eclipse.debug.core.ILaunchConfigurationWorkingCopy;
+import org.eclipse.debug.core.ILaunchManager;
+import org.eclipse.debug.core.Launch;
+import org.eclipse.debug.core.model.IStackFrame;
+import org.eclipse.debug.core.model.IVariable;
+import org.eclipse.lsp4e.debug.debugmodel.DSPDebugTarget;
+import org.eclipse.lsp4e.debug.debugmodel.DSPStackFrame;
+import org.eclipse.lsp4e.debug.debugmodel.TransportStreams;
+import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
+import org.eclipse.lsp4e.test.utils.TestUtils;
+import org.eclipse.lsp4j.debug.Capabilities;
+import org.eclipse.lsp4j.debug.EvaluateResponse;
+import org.eclipse.lsp4j.debug.InitializeRequestArguments;
+import org.eclipse.lsp4j.debug.Scope;
+import org.eclipse.lsp4j.debug.ScopesArguments;
+import org.eclipse.lsp4j.debug.ScopesResponse;
+import org.eclipse.lsp4j.debug.StackFrame;
+import org.eclipse.lsp4j.debug.StackTraceArguments;
+import org.eclipse.lsp4j.debug.StackTraceResponse;
+import org.eclipse.lsp4j.debug.StoppedEventArguments;
+import org.eclipse.lsp4j.debug.Thread;
+import org.eclipse.lsp4j.debug.ThreadsResponse;
+import org.eclipse.lsp4j.debug.Variable;
+import org.eclipse.lsp4j.debug.VariablesArguments;
+import org.eclipse.lsp4j.debug.VariablesResponse;
+import org.eclipse.lsp4j.debug.services.IDebugProtocolClient;
+import org.eclipse.lsp4j.debug.services.IDebugProtocolServer;
+import org.eclipse.lsp4j.jsonrpc.Launcher;
+import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
+import org.eclipse.lsp4j.jsonrpc.RemoteEndpoint;
+import org.junit.Test;
+
+/**
+ * End-to-end style test around DSPStackFrame.getVariables() to verify that
+ * scopes and variables are retrieved when the adapter reports a stop.
+ *
+ * Scenario:
+ * <ol>
+ * <li>create a mock DAP server that supports
+ * initialize/launch/threads/stackTrace/scopes/variables
+ * <li>wire it into a DSPDebugTarget via a Launcher stub (no real IO)
+ * <li>server sends initialized + stopped; client refreshes threads and frames
+ * <li>assert frame.getVariables() returns scopes; assert expanding returns
+ * variables
+ * </ol>
+ */
+public class DebugScopesAndVariablesTest extends AbstractTestWithProject {
+
+	/**
+	 * Minimal in-memory mock of a DAP server sufficient for this test
+	 */
+	private static final class MockDebugServer implements IDebugProtocolServer {
+		// Fixed ids for this test
+		private static final int THREAD_ID = 1;
+
+		private static final int FRAME_ID = 101;
+		private static final int LOCALS_REF = 201;
+		// Wired by TestDebugTarget#createLauncher
+		IDebugProtocolClient client;
+
+		// Unused in this test but required by interface since LSP4E may call evaluate
+		@Override
+		public CompletableFuture<EvaluateResponse> evaluate(org.eclipse.lsp4j.debug.EvaluateArguments args) {
+			var r = new EvaluateResponse();
+			r.setResult("n/a");
+			r.setVariablesReference(0);
+			return CompletableFuture.completedFuture(r);
+		}
+
+		@Override
+		public CompletableFuture<Capabilities> initialize(InitializeRequestArguments args) {
+			var caps = new Capabilities();
+			// Keep configurationDone optional for simplicity
+			caps.setSupportsConfigurationDoneRequest(false);
+			// Notify client that we are initialized as LSP4E waits for this signal.
+			if (client != null) {
+				client.initialized();
+			}
+			return CompletableFuture.completedFuture(caps);
+		}
+
+		@Override
+		public CompletableFuture<Void> launch(Map<String, Object> args) {
+			// Immediately report a stopped event so client populates threads/frames.
+			if (client != null) {
+				var stopped = new StoppedEventArguments();
+				stopped.setReason("breakpoint");
+				stopped.setThreadId(THREAD_ID);
+				client.stopped(stopped);
+			}
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public CompletableFuture<ScopesResponse> scopes(ScopesArguments args) {
+			var scope = new Scope();
+			scope.setName("locals");
+			scope.setVariablesReference(LOCALS_REF);
+			var resp = new ScopesResponse();
+			resp.setScopes(new Scope[] { scope });
+			return CompletableFuture.completedFuture(resp);
+		}
+
+		@Override
+		public CompletableFuture<StackTraceResponse> stackTrace(StackTraceArguments args) {
+			var sf = new StackFrame();
+			sf.setId(FRAME_ID);
+			sf.setName("func");
+			sf.setLine(1);
+			var resp = new StackTraceResponse();
+			resp.setTotalFrames(1);
+			resp.setStackFrames(new StackFrame[] { sf });
+			return CompletableFuture.completedFuture(resp);
+		}
+
+		@Override
+		public CompletableFuture<ThreadsResponse> threads() {
+			var r = new ThreadsResponse();
+			var t = new Thread();
+			t.setId(THREAD_ID);
+			t.setName("Main");
+			r.setThreads(new Thread[] { t });
+			return CompletableFuture.completedFuture(r);
+		}
+
+		@Override
+		public CompletableFuture<VariablesResponse> variables(VariablesArguments args) {
+			var v = new Variable();
+			v.setName("x");
+			v.setValue("42");
+			v.setVariablesReference(0);
+			var resp = new VariablesResponse();
+			resp.setVariables(new Variable[] { v });
+			return CompletableFuture.completedFuture(resp);
+		}
+	}
+
+	/**
+	 * DSPDebugTarget variant that injects a mock server without real JSON-RPC IO
+	 */
+	private static final class TestDebugTarget extends DSPDebugTarget {
+		private final IDebugProtocolServer server;
+
+		TestDebugTarget(ILaunch launch, Map<String, Object> dspParameters, IDebugProtocolServer server) {
+			super(launch, () -> new TransportStreams.DefaultTransportStreams(InputStream.nullInputStream(),
+					OutputStream.nullOutputStream()), dspParameters);
+			this.server = server;
+		}
+
+		@Override
+		protected Launcher<? extends IDebugProtocolServer> createLauncher(UnaryOperator<MessageConsumer> wrapper,
+				InputStream in, OutputStream out, ExecutorService threadPool) {
+			// Give the server a handle to the client so it can send notifications.
+			if (server instanceof MockDebugServer m) {
+				m.client = this;
+			}
+			return new Launcher<>() {
+				@Override
+				public RemoteEndpoint getRemoteEndpoint() {
+					return null;
+				}
+
+				@Override
+				public IDebugProtocolServer getRemoteProxy() {
+					return server;
+				}
+
+				@Override
+				public CompletableFuture<Void> startListening() {
+					return CompletableFuture.completedFuture(null);
+				}
+
+			};
+		}
+	}
+
+	private static final String LAUNCH_TYPE_ID = "org.eclipse.lsp4e.debug.launchType";
+
+	private static ILaunch newLaunch(String mode) throws Exception {
+		ILaunchConfigurationType type = DebugPlugin.getDefault().getLaunchManager()
+				.getLaunchConfigurationType(LAUNCH_TYPE_ID);
+		ILaunchConfigurationWorkingCopy wc = type.newInstance(null,
+				"ScopesAndVariablesTest-" + System.currentTimeMillis());
+		return new Launch(wc, mode, null);
+	}
+
+	@Test
+	public void testScopesAndVariablesAreReturned() throws Exception {
+		ILaunch launch = newLaunch(ILaunchManager.RUN_MODE);
+
+		var params = new HashMap<String, Object>();
+		params.put("type", "mock");
+		params.put("request", "launch");
+		params.put("program", "dummy");
+
+		var server = new MockDebugServer();
+		var target = new TestDebugTarget(launch, params, server);
+
+		target.initialize(new NullProgressMonitor());
+
+		// Wait until server has sent 'stopped' and client marked itself suspended
+		TestUtils.waitForAndAssertCondition(5000, target::isSuspended);
+
+		var threads = target.getThreads();
+		assertTrue("No threads reported by debug target", threads.length > 0);
+		assertEquals("Expected exactly one thread", 1, threads.length);
+		assertEquals("Thread name mismatch", "Main", threads[0].getName());
+		assertEquals("Thread id mismatch", Integer.valueOf(1), threads[0].getId());
+
+		var frames = threads[0].getStackFrames();
+		assertTrue("No stack frames available on stopped thread", frames.length > 0);
+		assertEquals("Expected exactly one frame", 1, frames.length);
+
+		IStackFrame frame = frames[0];
+		assertEquals("Frame name mismatch", "func", frame.getName());
+		assertEquals("Frame line mismatch", 1, frame.getLineNumber());
+		assertEquals("Frame id mismatch", 101, ((DSPStackFrame) frame).getFrameId().intValue());
+		IVariable[] scopes = frame.getVariables();
+		assertTrue("Expected at least one scope", scopes.length > 0);
+		assertEquals("Expected exactly one scope", 1, scopes.length);
+		// Expect exactly one scope named "locals"
+		assertArrayEquals(new String[] { "locals" }, new String[] { scopes[0].getName() });
+		assertTrue("Scope should advertise child variables", scopes[0].getValue().hasVariables());
+
+		// Expand the scope to fetch actual variables via 'variables' request
+		var value = scopes[0].getValue();
+		var vars = value.getVariables();
+		assertNotNull("Scope value should not be null", value);
+		assertTrue("Expected at least one variable under 'locals'", vars != null && vars.length > 0);
+		assertEquals("Expected exactly one local variable", 1, vars.length);
+		assertArrayEquals(new String[] { "x" }, new String[] { vars[0].getName() });
+		assertEquals("Variable value mismatch", "42", vars[0].getValue().getValueString());
+		assertFalse("Leaf variable should not have children", vars[0].getValue().hasVariables());
+
+		// Capabilities returned by mock initialize
+		assertNotNull("Capabilities should be available after initialize", target.getCapabilities());
+		assertFalse("supportsConfigurationDoneRequest should be false",
+				target.getCapabilities().getSupportsConfigurationDoneRequest());
+	}
+}
