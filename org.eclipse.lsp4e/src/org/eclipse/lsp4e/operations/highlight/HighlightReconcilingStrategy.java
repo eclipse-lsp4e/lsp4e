@@ -17,10 +17,10 @@ import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
 import java.net.URI;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.core.runtime.ICoreRunnable;
@@ -84,7 +84,7 @@ public class HighlightReconcilingStrategy
 	private static final int HIGHLIGHT_DEBOUNCE_MS = 75;
 
 	// Short-lived cache for highlights per document+normalized offset.
-	private static final DocumentOffsetAsyncCache<List<DocumentHighlight>> HIGHLIGHT_CACHE =
+	private static final DocumentOffsetAsyncCache<List<? extends DocumentHighlight>> HIGHLIGHT_CACHE =
 			new DocumentOffsetAsyncCache<>(Duration.ofSeconds(10));
 
 	// Track the last normalized cache key to avoid canceling identical in-flight work.
@@ -229,28 +229,14 @@ public class HighlightReconcilingStrategy
 		final var params = new DocumentHighlightParams(identifier, position);
 
 		// Use cache to deduplicate requests to the same symbol for a short period.
-		final CompletableFuture<List<DocumentHighlight>> request = HIGHLIGHT_CACHE.computeIfAbsent(document,
+		final CompletableFuture<List<? extends DocumentHighlight>> request = HIGHLIGHT_CACHE.computeIfAbsent(document,
 				cacheKeyOffset, () -> {
-				final var reqs = requests = LanguageServers.forDocument(document)
-						.withCapability(ServerCapabilities::getDocumentHighlightProvider)
-						.computeAll(ls -> ls.getTextDocumentService().documentHighlight(params));
-				final CompletableFuture<?> all = CompletableFuture
-						.allOf(reqs.stream().map(f -> (CompletableFuture<?>) f).toArray(CompletableFuture[]::new));
-				return all.thenApply(unused -> {
-					final var allHighlights = new ArrayList<DocumentHighlight>();
-					for (final var req : reqs) {
-						try {
-							final List<? extends DocumentHighlight> highlight = req.join();
-							if (highlight != null) {
-								allHighlights.addAll(highlight);
-							}
-						} catch (Exception ex) {
-							// ignore single-server failures
-						}
-					}
-					return allHighlights;
+					final var reqs = requests = LanguageServers.forDocument(document)
+							.withCapability(ServerCapabilities::getDocumentHighlightProvider)
+							.computeAll(ls -> ls.getTextDocumentService().documentHighlight(params));
+					return CompletableFuture.supplyAsync(() -> reqs.stream().map(CompletableFuture::join) //
+							.filter(Objects::nonNull).flatMap(List::stream).toList());
 				});
-			});
 
 		request.thenAcceptAsync(highlights -> {
 			if (monitor == null || !monitor.isCanceled()) {
