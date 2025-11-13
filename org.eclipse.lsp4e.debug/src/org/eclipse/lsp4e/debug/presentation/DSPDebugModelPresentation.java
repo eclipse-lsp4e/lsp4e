@@ -33,6 +33,7 @@ import org.eclipse.jface.viewers.IFontProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.lsp4e.debug.DSPPlugin;
 import org.eclipse.lsp4e.debug.debugmodel.DSPDebugElement;
+import org.eclipse.lsp4e.debug.debugmodel.DSPStackFrame;
 import org.eclipse.lsp4e.debug.debugmodel.DSPThread;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
@@ -58,7 +59,6 @@ public class DSPDebugModelPresentation extends LabelProvider implements IDebugMo
 		final var label = new StringBuilder();
 		if (element instanceof DSPThread thread) {
 			label.append(NLS.bind("Thread #{0} [{1}]", thread.getId(), thread.getName()));
-
 		}
 
 		if (label.length() != 0) {
@@ -72,6 +72,28 @@ public class DSPDebugModelPresentation extends LabelProvider implements IDebugMo
 		} else {
 			// Use default TODO should the entire default be copied here?
 			label.append(DebugUIPlugin.getDefaultLabelProvider().getText(element));
+
+			if (element instanceof DSPStackFrame frame) {
+				try {
+					final int line = frame.getLineNumber();
+					if (line > 0) {
+						final String source = frame.getSourceName();
+						if (source != null) {
+							String file = new Path(source).lastSegment();
+							if (file == null) {
+								file = source;
+							}
+							final String suffix = '(' + file + ":" + line + ')'; //$NON-NLS-1$
+							if (!endsWith(label, suffix)) {
+								label.append(' ');
+								label.append(suffix);
+							}
+						}
+					}
+				} catch (final Exception ex) {
+					DSPPlugin.logWarning("Failed to determine stack frame line number", ex);
+				}
+			}
 		}
 		if (element instanceof DSPDebugElement debugElement) {
 			if (debugElement.getErrorMessage() != null) {
@@ -195,6 +217,20 @@ public class DSPDebugModelPresentation extends LabelProvider implements IDebugMo
 			// Should not happen, because DSPValue does not throw this exception
 			DSPPlugin.logError("Failed to compute detail value", e);
 		}
+	}
+
+	private static boolean endsWith(final StringBuilder sb, final String suffix) {
+		final int sbLen = sb.length();
+		final int suffixLen = suffix.length();
+		if (suffixLen > sbLen) {
+			return false;
+		}
+		for (int i = 1; i <= suffixLen; i++) {
+			if (sb.charAt(sbLen - i) != suffix.charAt(suffixLen - i)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	public static Display getDisplay() {

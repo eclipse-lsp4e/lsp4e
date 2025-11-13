@@ -183,8 +183,9 @@ public class DSPStackFrame extends DSPDebugElement implements IStackFrame {
 		return -1;
 	}
 
-	public String getSourceName() {
-		return stackFrame.getSource().getPath();
+	public @Nullable String getSourceName() {
+		final var source = stackFrame.getSource();
+		return source == null ? null : source.getPath();
 	}
 
 	public Integer getFrameId() {
