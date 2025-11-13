@@ -59,9 +59,6 @@ public class DSPDebugModelPresentation extends LabelProvider implements IDebugMo
 		final var label = new StringBuilder();
 		if (element instanceof DSPThread thread) {
 			label.append(NLS.bind("Thread #{0} [{1}]", thread.getId(), thread.getName()));
-		}
-
-		if (label.length() != 0) {
 			if (element instanceof ITerminate terminate) {
 				if (terminate.isTerminated()) {
 					label.insert(0, "<terminated>");
@@ -74,24 +71,20 @@ public class DSPDebugModelPresentation extends LabelProvider implements IDebugMo
 			label.append(DebugUIPlugin.getDefaultLabelProvider().getText(element));
 
 			if (element instanceof DSPStackFrame frame) {
-				try {
-					final int line = frame.getLineNumber();
-					if (line > 0) {
-						final String source = frame.getSourceName();
-						if (source != null) {
-							String file = new Path(source).lastSegment();
-							if (file == null) {
-								file = source;
-							}
-							final String suffix = '(' + file + ":" + line + ')'; //$NON-NLS-1$
-							if (!endsWith(label, suffix)) {
-								label.append(' ');
-								label.append(suffix);
-							}
+				int line = getLine(frame);
+				if (line > 0) {
+					final String source = frame.getSourceName();
+					if (source != null) {
+						String file = new Path(source).lastSegment();
+						if (file == null) {
+							file = source;
+						}
+						final String suffix = '(' + file + ":" + line + ')'; //$NON-NLS-1$
+						if (!endsWith(label, suffix)) {
+							label.append(' ');
+							label.append(suffix);
 						}
 					}
-				} catch (final Exception ex) {
-					DSPPlugin.logWarning("Failed to determine stack frame line number", ex);
 				}
 			}
 		}
@@ -103,6 +96,15 @@ public class DSPDebugModelPresentation extends LabelProvider implements IDebugMo
 			}
 		}
 		return label.toString();
+	}
+
+	private int getLine(DSPStackFrame frame) {
+		try {
+			return frame.getLineNumber();
+		} catch (DebugException ex) {
+			DSPPlugin.logWarning("Failed to determine stack frame line number", ex);
+			return 0;
+		}
 	}
 
 	@Override
