@@ -3,7 +3,7 @@ Bundle-ManifestVersion: 2
 Bundle-Name: Debug Adapter client for Eclipse IDE (Incubation)
 Bundle-SymbolicName: org.eclipse.lsp4e.debug;singleton:=true
 Bundle-Vendor: Eclipse LSP4E
-Bundle-Version: 0.15.17.qualifier
+Bundle-Version: 0.16.0.qualifier
 Bundle-Activator: org.eclipse.lsp4e.debug.DSPPlugin
 Require-Bundle: org.eclipse.ui,
  org.eclipse.core.runtime,
@@ -20,7 +20,7 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.ui.genericeditor,
  org.eclipse.core.variables,
  org.eclipse.lsp4e;bundle-version="0.18.13"
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-21
 Bundle-ActivationPolicy: lazy
 Import-Package: com.google.gson,
  com.google.gson.reflect;version="2.7.0"
