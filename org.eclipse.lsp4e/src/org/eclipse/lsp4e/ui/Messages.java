@@ -62,6 +62,10 @@ public final class Messages extends NLS {
 	public static String LSPFormatFilesHandler_FormattingSelectedFiles;
 	public static String LSPFormatHandler_DiscardedFormat;
 	public static String LSPFormatHandler_DiscardedFormatResponse;
+	public static String LSPFormatHandler_ReadOnlyEditor_title;
+	public static String LSPFormatHandler_ReadOnlyEditor_inputReadonly;
+	public static String LSPFormatHandler_ReadOnlyEditor_fileReadonly;
+	public static String LSPFormatHandler_ReadOnlyEditor_makingWritableFailed;
 	public static String LSPSymbolInWorkspaceDialog_DialogLabel;
 	public static String LSPSymbolInWorkspaceDialog_DialogTitle;
 	public static String updateCodelensMenu_job;

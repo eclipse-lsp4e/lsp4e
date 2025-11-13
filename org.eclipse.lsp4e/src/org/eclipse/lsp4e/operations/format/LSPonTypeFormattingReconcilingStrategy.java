@@ -20,10 +20,12 @@ import java.util.regex.Pattern;
 import org.eclipse.core.commands.operations.IOperationHistory;
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
 import org.eclipse.core.commands.operations.OperationHistoryEvent;
+import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.DocumentEvent;
@@ -43,10 +45,13 @@ import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.VersionedEdits;
 import org.eclipse.lsp4e.internal.DocumentUtil;
 import org.eclipse.lsp4e.ui.FormatterPreferencePage;
+import org.eclipse.lsp4e.ui.Messages;
+import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingParams;
 import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.progress.UIJob;
@@ -57,7 +62,7 @@ public class LSPonTypeFormattingReconcilingStrategy implements IReconcilingStrat
 	private final IPropertyChangeListener formattingPrefsListener = (final PropertyChangeEvent event) -> {
 		final var newValue = event.getNewValue();
 		if (newValue != null) {
-			if (event.getProperty() == FormatterPreferencePage.PREF_ON_TYPE_FORMATTING_ENABLED) {
+			if (FormatterPreferencePage.PREF_ON_TYPE_FORMATTING_ENABLED.equals(event.getProperty())) {
 				isOnTypeFormattingEnabled = Boolean.parseBoolean(newValue.toString());
 			}
 		}
@@ -158,6 +163,21 @@ public class LSPonTypeFormattingReconcilingStrategy implements IReconcilingStrat
 		if (document == null || event == null || event.fText.isEmpty() || viewer == null) {
 			return;
 		}
+
+		// If the backing resource is read-only, prompt to make it writable
+		if (LSPEclipseUtils.isReadOnly(document)) {
+			IFile file = LSPEclipseUtils.getFile(document);
+			if (file == null) {
+				final var label = LSPEclipseUtils.toUri(document);
+				MessageDialog.openInformation(UI.getActiveShell(), Messages.LSPFormatHandler_ReadOnlyEditor_title,
+						NLS.bind(Messages.LSPFormatHandler_ReadOnlyEditor_inputReadonly, String.valueOf(label)));
+				return;
+			}
+
+			if(!LSPFormatHandler.setWritable(file))
+				return;
+		}
+
 		final String[] triggerCharArr = new String[] { "" }; //$NON-NLS-1$
 		var executor = LanguageServers.forDocument(document)
 			.withCapability(capabilities -> {
