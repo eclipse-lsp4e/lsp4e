@@ -7,7 +7,13 @@ on:  # https://docs.github.com/en/actions/reference/workflows-and-actions/events
     - 'dependabot/**'  # prevent GHA triggered twice (once for commit to the branch and once for opening/syncing the PR)
     tags-ignore:  # don't build tags
     - '**'
+    paths:
+    - '**/pom.xml'
+    - '**/*.target'
   pull_request:
+    paths:
+    - '**/pom.xml'
+    - '**/*.target'
   workflow_dispatch:
     # https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch
     inputs:
