@@ -242,6 +242,61 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	public void testDiagnosticsOnContainerResourceWithoutDocument() throws Exception {
+		// Use the project itself as the target resource (container, not file) so no
+		// IDocument is created
+		var projectUri = project.getLocationURI().toString();
+
+		var range = new Range(new Position(0, 1), new Position(0, 5));
+		var diagnostic = createDiagnostic("code", "message", range, DiagnosticSeverity.Warning, "source");
+
+		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(projectUri, List.of(diagnostic)));
+
+		waitForAndAssertCondition(10_000, () -> {
+			IMarker[] markers = project.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
+					IResource.DEPTH_ZERO);
+			return markers.length == 1;
+		});
+
+		IMarker[] initialMarkers = project.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
+				IResource.DEPTH_ZERO);
+		assertEquals(1, initialMarkers.length);
+		IMarker initialMarker = initialMarkers[0];
+
+		// Line and LSP range attributes should come from the LSP range, not from a
+		// document
+		assertEquals(1, MarkerUtilities.getLineNumber(initialMarker));
+		assertEquals(Integer.valueOf(range.getStart().getLine()),
+				initialMarker.getAttribute(LSPDiagnosticsToMarkers.LSP_START_LINE));
+		assertEquals(Integer.valueOf(range.getStart().getCharacter()),
+				initialMarker.getAttribute(LSPDiagnosticsToMarkers.LSP_START_CHAR));
+		assertEquals(Integer.valueOf(range.getEnd().getLine()),
+				initialMarker.getAttribute(LSPDiagnosticsToMarkers.LSP_END_LINE));
+		assertEquals(Integer.valueOf(range.getEnd().getCharacter()),
+				initialMarker.getAttribute(LSPDiagnosticsToMarkers.LSP_END_CHAR));
+
+		// No document means no precise char-start/char-end offsets
+		assertEquals(-1, MarkerUtilities.getCharStart(initialMarker));
+		assertEquals(-1, MarkerUtilities.getCharEnd(initialMarker));
+
+		// Send the same diagnostics again and ensure the existing marker is reused
+		// (dedup by LSP_* attributes)
+		long initialId = initialMarker.getId();
+		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(projectUri, List.of(diagnostic)));
+
+		waitForAndAssertCondition(10_000, () -> {
+			IMarker[] markers = project.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
+					IResource.DEPTH_ZERO);
+			return markers.length == 1;
+		});
+
+		IMarker[] markersAfterUpdate = project.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
+				IResource.DEPTH_ZERO);
+		assertEquals(1, markersAfterUpdate.length);
+		assertEquals(initialId, markersAfterUpdate[0].getId());
+	}
+
+	@Test
 	public void testDiagnosticsFromVariousLS() throws Exception {
 		final var content = "Diagnostic Other Text";
 		IFile file = TestUtils.createUniqueTestFileMultiLS(project, content);
