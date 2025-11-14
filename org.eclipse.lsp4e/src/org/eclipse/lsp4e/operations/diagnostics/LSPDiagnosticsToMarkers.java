@@ -12,6 +12,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.diagnostics;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,7 +47,6 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
-import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.ui.IEditorReference;
 import org.eclipse.ui.texteditor.MarkerUtilities;
@@ -56,6 +56,13 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 	public static final String LSP_DIAGNOSTIC = "lspDiagnostic"; //$NON-NLS-1$
 	public static final String LANGUAGE_SERVER_ID = "languageServerId"; //$NON-NLS-1$
 	public static final String LS_DIAGNOSTIC_MARKER_TYPE = "org.eclipse.lsp4e.diagnostic"; //$NON-NLS-1$
+
+	// LSP range attributes stored on markers to allow matching without computing
+	// document offsets
+	public static final String LSP_START_LINE = "lspStartLine"; //$NON-NLS-1$
+	public static final String LSP_START_CHAR = "lspStartChar"; //$NON-NLS-1$
+	public static final String LSP_END_LINE = "lspEndLine"; //$NON-NLS-1$
+	public static final String LSP_END_CHAR = "lspEndChar"; //$NON-NLS-1$
 
 	private static final IMarkerAttributeComputer DEFAULT_MARKER_ATTRIBUTE_COMPUTER = new IMarkerAttributeComputer() {
 
@@ -165,8 +172,15 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 				// when we're done
 				IDocument existingDocument = LSPEclipseUtils.getExistingDocument(resource);
 				final boolean hasDiagnostics = !diagnostics.getDiagnostics().isEmpty();
-				final boolean temporaryLoadDocument = existingDocument == null;
-				IDocument document = (hasDiagnostics && temporaryLoadDocument) ? LSPEclipseUtils.getDocument(resource): existingDocument;
+				boolean temporaryLoadDocument = false;
+				IDocument document = existingDocument;
+				if (hasDiagnostics && document == null) {
+					final @Nullable URI resourceUri = LSPEclipseUtils.toUri(resource);
+					if (resourceUri != null && "file".equals(resourceUri.getScheme())) { //$NON-NLS-1$
+						temporaryLoadDocument = true;
+						document = LSPEclipseUtils.getDocument(resource);
+					}
+				}
 				for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
 					IMarker associatedMarker = getExistingMarkerFor(document, diagnostic, toDeleteMarkers);
 					if (associatedMarker == null) {
@@ -222,21 +236,43 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 	}
 
 	private @Nullable IMarker getExistingMarkerFor(@Nullable IDocument document, Diagnostic diagnostic, Set<IMarker> remainingMarkers) {
-		if (document == null) {
-			return null;
-		}
-
 		final var markerMessage = markerAttributeComputer.computeMarkerMessage(diagnostic);
+		final var rangeStart = diagnostic.getRange().getStart();
+		final var rangeEnd = diagnostic.getRange().getEnd();
 		for (IMarker marker : remainingMarkers) {
 			if (!marker.exists()) {
 				continue;
 			}
 			try {
-				if (LSPEclipseUtils.toOffset(diagnostic.getRange().getStart(), document) == MarkerUtilities.getCharStart(marker)
-						&& (LSPEclipseUtils.toOffset(diagnostic.getRange().getEnd(), document) == MarkerUtilities.getCharEnd(marker) || Objects.equals(diagnostic.getRange().getStart(), diagnostic.getRange().getEnd()))
-						&& Objects.equals(marker.getAttribute(IMarker.MESSAGE), markerMessage)
-						&& Objects.equals(marker.getAttribute(LANGUAGE_SERVER_ID), this.languageServerId)) {
-					return marker;
+				// Always require same server and same user-visible message
+				if (!languageServerId.equals(marker.getAttribute(LANGUAGE_SERVER_ID))
+						|| !markerMessage.equals(marker.getAttribute(IMarker.MESSAGE))) {
+					continue;
+				}
+				if (document != null) {
+					// Document available: match by precise character offsets
+					final int startOff = LSPEclipseUtils.toOffset(rangeStart, document);
+					final int endOff = LSPEclipseUtils.toOffset(rangeEnd, document);
+					if (startOff == MarkerUtilities.getCharStart(marker)
+							&& (endOff == MarkerUtilities.getCharEnd(marker) || rangeStart.equals(rangeEnd))) {
+						return marker;
+					}
+				} else {
+					// No document: match by raw LSP range attributes stored on the marker
+					final int markerStartLine = marker.getAttribute(LSP_START_LINE, Integer.MIN_VALUE);
+					final int markerStartChar = marker.getAttribute(LSP_START_CHAR, Integer.MIN_VALUE);
+					final int markerEndLine = marker.getAttribute(LSP_END_LINE, Integer.MIN_VALUE);
+					final int markerEndChar = marker.getAttribute(LSP_END_CHAR, Integer.MIN_VALUE);
+					if (markerStartLine == Integer.MIN_VALUE || markerEndLine == Integer.MIN_VALUE) {
+						continue;
+					}
+					final boolean sameStart = markerStartLine == rangeStart.getLine()
+							&& markerStartChar == rangeStart.getCharacter();
+					final boolean sameEnd = markerEndLine == rangeEnd.getLine()
+							&& markerEndChar == rangeEnd.getCharacter();
+					if (sameStart && (sameEnd || rangeStart.equals(rangeEnd))) {
+						return marker;
+					}
 				}
 			} catch (CoreException | BadLocationException e) {
 				LanguageServerPlugin.logError(e);
@@ -255,24 +291,31 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 		if (source != null) {
 			diagnostic.setSource(source.intern());
 		}
-		final var attributes = new HashMap<String, Object>(8);
+		final var attributes = new HashMap<String, Object>(12);
 		attributes.put(LSP_DIAGNOSTIC, diagnostic);
 		attributes.put(LANGUAGE_SERVER_ID, languageServerId);
 		attributes.put(IMarker.MESSAGE, markerAttributeComputer.computeMarkerMessage(diagnostic));
 		attributes.put(IMarker.SEVERITY, LSPEclipseUtils.toEclipseMarkerSeverity(diagnostic.getSeverity()));
 
+		final var rangeStart = diagnostic.getRange().getStart();
+		final var rangeEnd = diagnostic.getRange().getEnd();
+		attributes.put(IMarker.LINE_NUMBER, rangeStart.getLine() + 1);
+		attributes.put(LSP_START_LINE, rangeStart.getLine());
+		attributes.put(LSP_START_CHAR, rangeStart.getCharacter());
+		attributes.put(LSP_END_LINE, rangeEnd.getLine());
+		attributes.put(LSP_END_CHAR, rangeEnd.getCharacter());
+
 		if (document != null) {
-			Range range = diagnostic.getRange();
 			int documentLength = document.getLength();
 			int start;
 			try {
-				start = Math.min(LSPEclipseUtils.toOffset(range.getStart(), document), documentLength);
+				start = Math.min(LSPEclipseUtils.toOffset(rangeStart, document), documentLength);
 			} catch (BadLocationException ex) {
 				start = documentLength;
 			}
 			int end;
 			try {
-				end = Math.min(LSPEclipseUtils.toOffset(range.getEnd(), document), documentLength);
+				end = Math.min(LSPEclipseUtils.toOffset(rangeEnd, document), documentLength);
 			} catch (BadLocationException ex) {
 				end = documentLength;
 			}
