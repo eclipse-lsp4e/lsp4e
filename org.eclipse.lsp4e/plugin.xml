@@ -138,6 +138,12 @@
             id="org.eclipse.lsp4e.preferences.formatter"
             name="%languageservers.preferences.formatter.page">
       </page>
+      <page
+            category="org.eclipse.lsp4e.preferences"
+            class="org.eclipse.lsp4e.ui.ContentAssistPreferencePage"
+            id="org.eclipse.lsp4e.preferences.contentassist"
+            name="%languageservers.preferences.contentassist.page">
+      </page>
    </extension>
 
    <extension point="org.eclipse.core.runtime.preferences">
