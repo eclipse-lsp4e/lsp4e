@@ -65,14 +65,24 @@ public class DSPProcess implements IProcess {
 		return handle.map(h -> !h.isAlive()).orElse(terminated);
 	}
 
-	@Override
-	public void terminate() throws DebugException {
+	/**
+	 * Terminates the OS process and notifies the debug framework without issuing
+	 * any additional protocol requests to the debug adapter. This is used when the
+	 * adapter has already signalled that the debuggee has ended (for example via
+	 * 'terminated'/'exited' events).
+	 */
+	public void terminateWithoutProtocolRequest() {
 		terminated = true;
 		handle.ifPresent(h -> {
 			h.destroy(); // normal termination
 			CompletableFuture.runAsync(h::destroyForcibly, CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS)); // forced termination if normal is not sufficient
 		});
 		DebugPlugin.getDefault().fireDebugEventSet(new DebugEvent[] { new DebugEvent(this, DebugEvent.TERMINATE) });
+	}
+
+	@Override
+	public void terminate() throws DebugException {
+		terminateWithoutProtocolRequest();
 		target.terminate();
 	}
 
