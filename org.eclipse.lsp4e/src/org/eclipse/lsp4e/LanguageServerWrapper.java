@@ -876,10 +876,9 @@ public class LanguageServerWrapper {
 	 */
 	public @Nullable CompletableFuture<@Nullable Void> disconnect(URI uri) {
 		DocumentContentSynchronizer documentListener = this.connectedDocuments.remove(uri);
-		CompletableFuture<@Nullable Void> documentClosedFuture = null;
 		if (documentListener != null) {
 			documentListener.getDocument().removePrenotifiedDocumentListener(documentListener);
-			documentClosedFuture = documentListener.documentClosed();
+			documentListener.documentClosed();
 			disconnectTextFileBuffer(uri);
 		}
 		if (this.connectedDocuments.isEmpty()) {
@@ -889,7 +888,7 @@ public class LanguageServerWrapper {
 				stop();
 			}
 		}
-		return documentClosedFuture;
+		return CompletableFuture.completedFuture(null);
 	}
 
 	private static void disconnectTextFileBuffer(URI uri) {
