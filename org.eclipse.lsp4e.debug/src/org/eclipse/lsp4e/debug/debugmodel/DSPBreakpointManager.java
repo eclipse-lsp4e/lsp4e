@@ -30,6 +30,7 @@ import org.eclipse.debug.core.model.IBreakpoint;
 import org.eclipse.debug.core.model.ILineBreakpoint;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.debug.DSPPlugin;
+import org.eclipse.lsp4e.debug.breakpoints.DSPLineBreakpoint;
 import org.eclipse.lsp4j.debug.BreakpointEventArguments;
 import org.eclipse.lsp4j.debug.Capabilities;
 import org.eclipse.lsp4j.debug.SetBreakpointsArguments;
@@ -179,6 +180,25 @@ public class DSPBreakpointManager implements IBreakpointManagerListener, IBreakp
 					s -> new ArrayList<>());
 			final var sourceBreakpoint = new SourceBreakpoint();
 			sourceBreakpoint.setLine(lineNumber);
+
+			// inline (column) breakpoint support
+			final int column = marker.getAttribute(DSPLineBreakpoint.ATTR_COLUMN, -1);
+			if (column > 0) {
+				sourceBreakpoint.setColumn(column);
+			}
+
+			// conditional breakpoint support
+			final String condition = marker.getAttribute(DSPLineBreakpoint.ATTR_CONDITION, (String) null);
+			if (condition != null && !condition.isBlank()) {
+				sourceBreakpoint.setCondition(condition);
+			}
+
+			// hit condition support
+			final String hitCondition = marker.getAttribute(DSPLineBreakpoint.ATTR_HIT_CONDITION, (String) null);
+			if (hitCondition != null && !hitCondition.isBlank()) {
+				sourceBreakpoint.setHitCondition(hitCondition);
+			}
+
 			sourceBreakpoints.add(sourceBreakpoint);
 		}
 	}
@@ -202,7 +222,16 @@ public class DSPBreakpointManager implements IBreakpointManagerListener, IBreakp
 					List<SourceBreakpoint> bps = entry.getValue();
 					for (Iterator<SourceBreakpoint> iterator = bps.iterator(); iterator.hasNext();) {
 						SourceBreakpoint sourceBreakpoint = iterator.next();
-						if (Objects.equals(lineNumber, sourceBreakpoint.getLine())) {
+
+						// Match by line and (if present) column
+						Integer bpColumn = sourceBreakpoint.getColumn();
+						int markerColumn = lineBreakpoint.getMarker().getAttribute(DSPLineBreakpoint.ATTR_COLUMN, -1);
+						final boolean lineMatches = Objects.equals(lineNumber, sourceBreakpoint.getLine());
+						final boolean columnMatches = (markerColumn <= 0
+								&& (bpColumn == null || bpColumn.intValue() <= 0))
+								|| (markerColumn > 0 && bpColumn != null && bpColumn.intValue() == markerColumn);
+
+						if (lineMatches && columnMatches) {
 							iterator.remove();
 						}
 					}

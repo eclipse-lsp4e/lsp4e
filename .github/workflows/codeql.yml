@@ -133,7 +133,7 @@ jobs:
         # https://github.com/github/codeql-action#build-modes
         build-mode: ${{ matrix.build-mode }}
         # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/customizing-your-advanced-setup-for-code-scanning#using-queries-in-ql-packs
-        queries: +security-and-quality
+        config-file: ./.github/codeql/codeql-config.yml
 
 
     - name: "Build with Maven 🔨"

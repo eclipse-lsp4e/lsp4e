@@ -113,4 +113,20 @@
             delegateClass="org.eclipse.lsp4e.debug.presentation.DAPWatchExpression">
       </watchExpressionDelegate>
    </extension>
+   <extension point="org.eclipse.debug.ui.detailPaneFactories">
+      <detailFactories
+            id="org.eclipse.lsp4e.debug.detailPaneFactory"
+            class="org.eclipse.lsp4e.debug.presentation.DSPBreakpointDetailPaneFactory">
+         <enablement>
+            <with variable="selection">
+               <count value="1"/>
+               <iterate>
+                  <adapt type="org.eclipse.debug.core.model.IBreakpoint">
+                     <instanceof value="org.eclipse.lsp4e.debug.breakpoints.DSPLineBreakpoint"/>
+                  </adapt>
+               </iterate>
+            </with>
+         </enablement>
+      </detailFactories>
+   </extension>
 </plugin>
