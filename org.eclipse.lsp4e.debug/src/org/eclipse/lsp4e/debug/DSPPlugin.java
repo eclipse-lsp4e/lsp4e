@@ -22,7 +22,7 @@ import org.osgi.framework.BundleContext;
  * The activator class controls the plug-in life cycle
  */
 public class DSPPlugin extends AbstractUIPlugin {
-	public static final boolean DEBUG = Boolean.parseBoolean(Platform.getDebugOption("org.eclipse.lsp4e.debug/debug")); //$NON-NLS-1$
+	public static final boolean DEBUG = Platform.getDebugBoolean("org.eclipse.lsp4e.debug/debug"); //$NON-NLS-1$
 
 	// The plug-in ID
 	public static final String PLUGIN_ID = "org.eclipse.lsp4e.debug"; //$NON-NLS-1$

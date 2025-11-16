@@ -47,7 +47,7 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	public static final String PLUGIN_ID = "org.eclipse.lsp4e"; //$NON-NLS-1$
 	private static final String TRACE_ID = PLUGIN_ID + "/trace"; //$NON-NLS-1$
 
-	public static final boolean DEBUG = Boolean.parseBoolean(Platform.getDebugOption("org.eclipse.lsp4e/debug")); //$NON-NLS-1$
+	public static final boolean DEBUG = Platform.getDebugBoolean("org.eclipse.lsp4e/debug"); //$NON-NLS-1$
 
 	// The shared instance
 	private static volatile @Nullable LanguageServerPlugin plugin;
@@ -155,7 +155,7 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	 * @return true if the trace debug option is enabled, false otherwise
 	 */
 	public static boolean isLogTraceEnabled() {
-		return Boolean.parseBoolean(Platform.getDebugOption(TRACE_ID));
+		return Platform.getDebugBoolean(TRACE_ID);
 	}
 
 }

@@ -92,10 +92,8 @@ import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
 import org.eclipse.lsp4j.jsonrpc.validation.ReflectiveMessageValidator;
 
 public class DSPDebugTarget extends DSPDebugElement implements IDebugTarget, IDebugProtocolClient {
-	private static final boolean TRACE_IO = Boolean
-			.parseBoolean(Platform.getDebugOption("org.eclipse.lsp4e.debug/trace/io")); //$NON-NLS-1$
-	private static final boolean TRACE_MESSAGES = Boolean
-			.parseBoolean(Platform.getDebugOption("org.eclipse.lsp4e.debug/trace/messages")); //$NON-NLS-1$
+	private static final boolean TRACE_IO = Platform.getDebugBoolean("org.eclipse.lsp4e.debug/trace/io"); //$NON-NLS-1$
+	private static final boolean TRACE_MESSAGES = Platform.getDebugBoolean("org.eclipse.lsp4e.debug/trace/messages"); //$NON-NLS-1$
 
 	/**
 	 * Any events we receive from the adapter that require further contact with the
