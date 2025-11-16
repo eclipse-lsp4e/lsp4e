@@ -19,13 +19,16 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.jface.text,
  org.eclipse.ui.genericeditor,
  org.eclipse.core.variables,
- org.eclipse.lsp4e;bundle-version="0.18.13"
+ org.eclipse.lsp4e;bundle-version="0.19.0",
+ org.eclipse.tm4e.core;resolution:=optional,
+ org.eclipse.tm4e.registry;resolution:=optional,
+ org.eclipse.tm4e.ui;resolution:=optional
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Bundle-ActivationPolicy: lazy
 Import-Package: com.google.gson,
  com.google.gson.reflect;version="2.7.0"
 Export-Package: org.eclipse.lsp4e.debug;x-internal:=true,
- org.eclipse.lsp4e.debug.breakpoints;x-internal:=true,
+ org.eclipse.lsp4e.debug.breakpoints;x-friends:="org.eclipse.lsp4e.test",
  org.eclipse.lsp4e.debug.console;x-internal:=true,
  org.eclipse.lsp4e.debug.debugmodel;x-friends:="org.eclipse.lsp4e.test",
  org.eclipse.lsp4e.debug.launcher,
