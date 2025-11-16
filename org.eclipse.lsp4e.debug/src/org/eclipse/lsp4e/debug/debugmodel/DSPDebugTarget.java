@@ -35,6 +35,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -133,8 +134,9 @@ public class DSPDebugTarget extends DSPDebugElement implements IDebugTarget, IDe
 	 */
 	private final Map<Integer, DSPThread> threads = Collections.synchronizedMap(new TreeMap<>());
 
-	private boolean fTerminated = false;
-	private boolean fSentTerminateRequest = false;
+	private volatile boolean exitedReceived = false;
+	private volatile boolean fTerminated = false;
+	private volatile boolean fSentTerminateRequest = false;
 	private String targetName = lateNonNull();
 
 	private @Nullable DSPBreakpointManager breakpointManager;
@@ -319,11 +321,7 @@ public class DSPDebugTarget extends DSPDebugElement implements IDebugTarget, IDe
 		}
 		final var process = this.process;
 		if (process != null && process.canTerminate()) {
-			try {
-				process.terminate();
-			} catch (DebugException e) {
-				DSPPlugin.logError(e);
-			}
+			process.terminateWithoutProtocolRequest();
 		}
 		fireTerminateEvent();
 		debuggees.forEach(DSPDebugTarget::terminated);
@@ -404,7 +402,19 @@ public class DSPDebugTarget extends DSPDebugElement implements IDebugTarget, IDe
 
 	@Override
 	public void terminated(TerminatedEventArguments body) {
-		terminated();
+		/*
+		 * According to the Debug Adapter Protocol, the 'terminated' event signals that
+		 * the debuggee has finished, but the debug adapter may continue to run in
+		 * order to shut down cleanly and emit a corresponding 'exited' event. Do not
+		 * tear down the adapter connection immediately here so that a subsequent
+		 * 'exited' event can still be delivered. If no 'exited' event is received
+		 * within a grace period, fall back to terminating the session.
+		 */
+		CompletableFuture.runAsync(() -> {
+			if (!exitedReceived && !isTerminated()) {
+				terminated();
+			}
+		}, CompletableFuture.delayedExecutor(2, TimeUnit.SECONDS, threadPool));
 	}
 
 	/**
@@ -589,7 +599,13 @@ public class DSPDebugTarget extends DSPDebugElement implements IDebugTarget, IDe
 
 	@Override
 	public void exited(ExitedEventArguments args) {
-		// TODO
+		/*
+		 * The debug adapter reports that the debuggee has exited. At this point it is
+		 * safe to terminate the debug session and dispose the connection to the
+		 * adapter.
+		 */
+		exitedReceived = true;
+		terminated();
 	}
 
 	@Override
