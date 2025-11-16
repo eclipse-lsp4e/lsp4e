@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -63,6 +64,9 @@ import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.FieldSource;
 
 import com.google.gson.JsonPrimitive;
 
@@ -429,60 +433,55 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		assertEquals("a and a", viewer.getDocument().get());
 	}
 
-	@Test
-    public void testComplexSnippets() throws CoreException {
-		record Test(String completion, String expected, String fileContent, int caretPos, int selectionLen) {
-			Test(String completion, String expected) {
-				this(completion, expected, "", 0, 0);
-			}
-		}
-		Test[] tests = {
-				// Variables and escaped dollars
-				new Test("$TM_LINE_NUMBER - \\$TM_LINE_NUMBER - ${TM_LINE_NUMBER} - \\${TM_LINE_NUMBER}",
-						"1 - $TM_LINE_NUMBER - 1 - ${TM_LINE_NUMBER}"),
-				// Default values for variables
-				new Test("${TM_SELECTED_TEXT:defaultval}", "defaultval"),
-				// Escaped dollars
-				new Test("\\$1 and \\$", "$1 and $"),
-				// Escaped escapes
-				new Test("\\\\$1 and ${3:foo}", "\\ and foo"),
-				// Escaped values in a choice
-				new Test("${2|a\\,b\\},c|}", "a,b}"),
-				// TM_CURRENT_WORD completion (caret after 'foo')
-				new Test("${1:$TM_CURRENT_WORD}", "xx abcabc yy", "xx abc yy", 3, 0),
-				new Test("${1:$TM_CURRENT_WORD}", "xx aabcbc yy", "xx abc yy", 4, 0),
-				new Test("${1:$TM_CURRENT_WORD}", "xx aabc yy", "xx abc yy", 4, 2),
-				// Snippets with syntax errors:
-				// Make sure they don't cause endless loops or crashes
-				new Test("$", "$"), //
-				new Test("${", "${"), //
-				new Test("$$", "$$"), //
-				new Test("$$TM_LINE_NUMBER", "$1"), //
-				new Test("${VARIABLE", "${VARIABLE"), //
-				new Test("${VARIABLE:", "${VARIABLE:"), //
-				new Test("${VARIABLE:foo", "${VARIABLE:foo"), //
-				new Test("${1|a", "${1|a"), //
-				new Test("${1|a,}", "${1|a,}"), //
-		};
-		for (Test test : tests) {
+	public static List<Arguments> testComplexSnippets = List.of(
+			// Variables and escaped dollars
+			arguments("$TM_LINE_NUMBER - \\$TM_LINE_NUMBER - ${TM_LINE_NUMBER} - \\${TM_LINE_NUMBER}",
+					"1 - $TM_LINE_NUMBER - 1 - ${TM_LINE_NUMBER}", "", 0, 0),
+			// Default values for variables
+			arguments("${TM_SELECTED_TEXT:defaultval}", "defaultval", "", 0, 0),
+			// Escaped dollars
+			arguments("\\$1 and \\$", "$1 and $", "", 0, 0),
+			// Escaped escapes
+			arguments("\\\\$1 and ${3:foo}", "\\ and foo", "", 0, 0),
+			// Escaped values in a choice
+			arguments("${2|a\\,b\\},c|}", "a,b}", "", 0, 0),
+			// TM_CURRENT_WORD completion (caret after 'foo')
+			arguments("${1:$TM_CURRENT_WORD}", "xx abcabc yy", "xx abc yy", 3, 0),
+			arguments("${1:$TM_CURRENT_WORD}", "xx aabcbc yy", "xx abc yy", 4, 0),
+			arguments("${1:$TM_CURRENT_WORD}", "xx aabc yy", "xx abc yy", 4, 2),
+			// Snippets with syntax errors:
+			// Make sure they don't cause endless loops or crashes
+			arguments("$", "$", "", 0, 0), //
+			arguments("${", "${", "", 0, 0), //
+			arguments("$$", "$$", "", 0, 0), //
+			arguments("$$TM_LINE_NUMBER", "$1", "", 0, 0), //
+			arguments("${VARIABLE", "${VARIABLE", "", 0, 0), //
+			arguments("${VARIABLE:", "${VARIABLE:", "", 0, 0), //
+			arguments("${VARIABLE:foo", "${VARIABLE:foo", "", 0, 0), //
+			arguments("${1|a", "${1|a", "", 0, 0), //
+			arguments("${1|a,}", "${1|a,}", "", 0, 0) //
+	);
+	
+	@ParameterizedTest
+	@FieldSource
+    public void testComplexSnippets(String completion, String expected, String fileContent, int caretPos, int selectionLen) throws CoreException {
 			CompletionItem completionItem = createCompletionItem( //
-					test.completion, //
+					completion, //
 					CompletionItemKind.Snippet, //
-					new Range(new Position(0, test.caretPos()),
-							new Position(0, test.caretPos() + test.selectionLen())));
+					new Range(new Position(0, caretPos),
+							new Position(0, caretPos + selectionLen)));
 			completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
 			MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
 
-			ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, test.fileContent));
-			viewer.setSelectedRange(test.caretPos(), test.selectionLen());
+			ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, fileContent));
+			viewer.setSelectedRange(caretPos, selectionLen);
 
 			ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer,
-					test.caretPos());
-			assertEquals(1, proposals.length, "Unexpected proposals length for " + test + " - ");
+					caretPos);
+			assertEquals(1, proposals.length, "Unexpected proposals length");
 
-			((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, test.caretPos());
-			assertEquals(test.expected, viewer.getDocument().get(), "Unexpected result for " + test + " - ");
-		}
+			((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, caretPos);
+			assertEquals(expected, viewer.getDocument().get(), "Unexpected result");
 	}
 
 	@Test
