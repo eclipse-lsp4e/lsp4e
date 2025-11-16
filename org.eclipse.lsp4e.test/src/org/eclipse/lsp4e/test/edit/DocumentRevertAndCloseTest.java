@@ -12,7 +12,7 @@
 package org.eclipse.lsp4e.test.edit;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.text.IDocument;
@@ -24,7 +24,7 @@ import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DocumentRevertAndCloseTest extends AbstractTestWithProject {
 

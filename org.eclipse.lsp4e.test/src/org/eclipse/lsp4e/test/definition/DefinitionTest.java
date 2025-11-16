@@ -11,7 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.definition;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -39,8 +40,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DefinitionTest extends AbstractTestWithProject {
 
@@ -143,6 +143,6 @@ public class DefinitionTest extends AbstractTestWithProject {
 		long duration = System.currentTimeMillis();
 		hyperlinkDetector.detectHyperlinks(viewer, new Region(1, 0), true);
 		duration = System.currentTimeMillis() - duration;
-		Assert.assertTrue(duration < 500);
+		assertTrue(duration < 500);
 	}
 }

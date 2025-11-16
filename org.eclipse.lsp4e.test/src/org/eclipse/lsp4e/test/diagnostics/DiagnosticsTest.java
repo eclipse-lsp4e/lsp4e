@@ -16,7 +16,9 @@ package org.eclipse.lsp4e.test.diagnostics;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -59,7 +61,7 @@ import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.MarkerUtilities;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DiagnosticsTest extends AbstractTestWithProject {
 
@@ -99,7 +101,7 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 					throw new RuntimeException(ex);
 				}}).findFirst();
 
-			assertTrue("No marker found for " + diagnostic, marker.isPresent());
+			assertTrue(marker.isPresent(), "No marker found for " + diagnostic);
 
 			assertEquals(markerCharStart, MarkerUtilities.getCharStart(marker.get()));
 			assertEquals(markerCharEnd, MarkerUtilities.getCharEnd(marker.get()));
@@ -247,12 +249,12 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
 				createDiagnostic("1", "message1", range, DiagnosticSeverity.Error, "source1")));
 		IMarker[] markers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true, IResource.DEPTH_ZERO);
-		assertEquals("no marker should be shown at file initialization", 0, markers.length);
+		assertEquals(0, markers.length, "no marker should be shown at file initialization");
 		TestUtils.openEditor(file);
 
 		waitForAndAssertCondition(10_000, () -> {
-			assertEquals("there should be 1 marker for each language server", 2, file
-					.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true, IResource.DEPTH_ZERO).length);
+			assertEquals(2, file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true, IResource.DEPTH_ZERO).length, 
+					"there should be 1 marker for each language server");
 			return true;
 		});
 	}

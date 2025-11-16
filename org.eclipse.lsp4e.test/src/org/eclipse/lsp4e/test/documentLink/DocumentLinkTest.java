@@ -11,7 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.documentLink;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -32,7 +33,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DocumentLinkTest extends AbstractTestWithProject {
 

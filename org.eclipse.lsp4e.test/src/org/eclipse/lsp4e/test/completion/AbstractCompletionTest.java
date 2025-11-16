@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.completion;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,13 +31,13 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 public abstract class AbstractCompletionTest extends AbstractTestWithProject {
 
 	protected LSContentAssistProcessor contentAssistProcessor;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		contentAssistProcessor = new LSContentAssistProcessor(true, false);
 	}

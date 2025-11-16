@@ -14,7 +14,10 @@
 package org.eclipse.lsp4e.test.rename;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.lang.reflect.Method;
@@ -60,7 +63,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.handlers.IHandlerService;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class RenameTest extends AbstractTestWithProject {
 

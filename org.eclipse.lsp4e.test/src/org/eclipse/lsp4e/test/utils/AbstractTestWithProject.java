@@ -11,10 +11,13 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.utils;
 
+import java.lang.reflect.Method;
+
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 
 /**
  * Test base class that provides a new unique temporary test project for each @org.junit.Test run
@@ -22,13 +25,15 @@ import org.junit.Before;
 public abstract class AbstractTestWithProject extends AbstractTest {
 	protected IProject project;
 
-	@Before
-	public void setUpProject() throws Exception {
-		project = TestUtils.createProject(
-				testInfo.getSimpleClassName() + "_" + testInfo.getMethodName() + "_" + System.currentTimeMillis());
+	@BeforeEach
+	public void setUpProject(TestInfo testInfo) throws Exception {
+		String testClass = testInfo.getTestClass().map(Class::getSimpleName).orElse("UnknownTestClass");
+		String testMethod = testInfo.getTestMethod().map(Method::getName).orElse("UnknownTestMethod");
+		String projectName = testClass + "_" + testMethod + "_" + System.currentTimeMillis();
+		project = TestUtils.createProject(projectName);
 	}
 
-	@After
+	@AfterEach
 	public void tearDownProject() throws Exception {
 		if (project != null) {
 			project.delete(IResource.FORCE, null);

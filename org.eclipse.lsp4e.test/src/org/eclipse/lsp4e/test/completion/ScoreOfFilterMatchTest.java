@@ -11,7 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.completion;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Random;
 import java.util.concurrent.Executors;
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.eclipse.lsp4e.operations.completion.CompletionProposalTools;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Test cases for {@link CompletionProposalTools#getScoreOfFilterMatch(String, String)}
@@ -46,7 +47,7 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "eXaMpLe";
 		final int expectedScore = 0;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should be 0 for case-insensitive matches.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should be 0 for case-insensitive matches.");
 	}
 
 	@Test
@@ -55,7 +56,7 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "";
 		final int expectedScore = -1;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should be -1 for an empty completionFilter.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should be -1 for an empty completionFilter.");
 	}
 
 	@Test
@@ -64,7 +65,7 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "example";
 		final int expectedScore = 0;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should be 0 for an empty documentFilter.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should be 0 for an empty documentFilter.");
 	}
 
 	/**
@@ -105,7 +106,7 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "example";
 		final int expectedScore = 0;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should be 0 for exact matches.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should be 0 for exact matches.");
 	}
 
 	@Test
@@ -114,7 +115,7 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "example";
 		final int expectedScore = -1;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should be -1 when there's no match.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should be -1 when there's no match.");
 	}
 
 	@Test
@@ -123,7 +124,7 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "example";
 		final int expectedScore = 0;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should be 0 when documentFilter is a prefix.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should be 0 when documentFilter is a prefix.");
 	}
 
 	@Test
@@ -132,6 +133,6 @@ public class ScoreOfFilterMatchTest {
 		final var completionFilter = "example";
 		final int expectedScore = 6;
 		final int actualScore = CompletionProposalTools.getScoreOfFilterMatch(documentFilter, completionFilter);
-		assertEquals("The score should account for scattered characters.", expectedScore, actualScore);
+		assertEquals(expectedScore, actualScore, "The score should account for scattered characters.");
 	}
 }

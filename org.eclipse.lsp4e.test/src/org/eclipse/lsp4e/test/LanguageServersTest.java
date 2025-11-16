@@ -13,8 +13,16 @@
 package org.eclipse.lsp4e.test;
 
 import static org.eclipse.lsp4e.LanguageServiceAccessor.hasActiveLanguageServers;
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.*;
+import static org.eclipse.lsp4e.test.utils.TestUtils.createUniqueTestFile;
+import static org.eclipse.lsp4e.test.utils.TestUtils.openEditor;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.Collections;
 import java.util.List;
@@ -55,8 +63,7 @@ import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class LanguageServersTest extends AbstractTestWithProject {
 
@@ -172,11 +179,11 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				.withCapability(ServerCapabilities::getHoverProvider)
 				.computeAll(ls -> ls.getTextDocumentService().hover(params).thenApply(h -> h.getContents().getLeft().get(0).getLeft()));
 
-		assertEquals("Should have had two responses", 2, result.size());
+		assertEquals(2, result.size(), "Should have had two responses");
 
 		final Object first = CompletableFuture.anyOf(result.get(0), result.get(1)).join();
 
-		assertEquals("HoverContent1 should have returned first, independently", "HoverContent1", first);
+		assertEquals("HoverContent1", first, "HoverContent1 should have returned first, independently");
 
 		List<String> hovers = result.stream().map(CompletableFuture::join).toList();
 
@@ -195,7 +202,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 	@Test
 	public void testCollectAllUserCannotBlockListener() throws Exception {
 		// This test will only work if a minimum of two tasks can be run in the common pool without blocking!
-		Assume.assumeTrue("Test skipped as common thread pool does not have multiple executors", ForkJoinPool.commonPool().getParallelism() >= 2);
+		assumeTrue(ForkJoinPool.commonPool().getParallelism() >= 2, "Test skipped as common thread pool does not have multiple executors");
 		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")), new Range(new Position(0,  0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
@@ -235,8 +242,8 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 		final String resultThread = resultThreadFuture.join();
 
-		assertTrue("Second hover response should not have been blocked by the first but took " + secondResponseTime + " ms", secondResponseTime < 1000);
-		assertTrue("Result should not have run on an LS listener thread but ran on " + resultThread, !resultThread.startsWith("LS"));
+		assertTrue(secondResponseTime < 1000, "Second hover response should not have been blocked by the first but took " + secondResponseTime + " ms");
+		assertTrue(!resultThread.startsWith("LS"), "Result should not have run on an LS listener thread but ran on " + resultThread);
 	}
 
 	@Test
@@ -283,7 +290,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		Optional<String> result = response.join();
 		assertTrue(result.isPresent());
 
-		assertEquals("HoverContent1 should have arrived first", "HoverContent1", result.get());
+		assertEquals("HoverContent1", result.get(), "HoverContent1 should have arrived first");
 
 		// It won't *normally) matter in production but because the tests run quickly, make sure the test teardown doesn't
 		// occur before the slower, ignored result has completed, otherwise will get a load of console noise
@@ -331,9 +338,9 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				.computeFirst(ls -> ls.getTextDocumentService().hover(params).thenApply(h -> h == null ? null : h.getContents().getLeft().get(0).getLeft()));
 
 		Optional<String> result = response.join();
-		assertTrue("Should have returned a result", result.isPresent());
+		assertTrue(result.isPresent(), "Should have returned a result");
 
-		assertEquals("HoverContent2 should have been the result", "HoverContent2", result.get());
+		assertEquals("HoverContent2", result.get(), "HoverContent2 should have been the result");
 
 	}
 
@@ -366,7 +373,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				.computeFirst(ls -> ls.getTextDocumentService().hover(params).thenApply(h -> h == null ? null : h.getContents().getLeft().get(0).getLeft()));
 
 		Optional<String> result = response.join();
-		assertTrue("Should not have returned a result", result.isEmpty());
+		assertTrue(result.isEmpty(), "Should not have returned a result");
 	}
 
 	@Test
@@ -410,9 +417,9 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				.computeFirst(ls -> ls.getTextDocumentService().hover(params).thenApply(h -> h == null ? Collections.emptyList() : List.of(h.getContents().getLeft().get(0).getLeft())));
 
 		Optional<List<String>> result = response.join();
-		assertTrue("Should have returned a result", result.isPresent());
+		assertTrue(result.isPresent(), "Should have returned a result");
 
-		assertEquals("HoverContent2 should have been the result", "HoverContent2", result.get().get(0));
+		assertEquals("HoverContent2", result.get().get(0), "HoverContent2 should have been the result");
 	}
 
 	/**
@@ -492,7 +499,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 			message.append("  Too Late " );message.append(i);
 			message.append(System.lineSeparator());
 		});
-		assertTrue(message.toString(), tooEarlyHover.isEmpty() && tooLateHover.isEmpty());
+		assertTrue(tooEarlyHover.isEmpty() && tooLateHover.isEmpty(), message.toString());
 	}
 
 	/**
@@ -580,8 +587,8 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 		final long finishTime = System.currentTimeMillis() - startTime;
 
-		assertTrue(String.format("Dispatch should not have blocked but took %d ms vs overall test time of %d ms", dispatchTime, finishTime), dispatchTime < 1000);
-		assertEquals("Should not have been any messages dispatched on UI thread", 0, uiDispatchCount.get());
+		assertTrue(dispatchTime < 1000, String.format("Dispatch should not have blocked but took %d ms vs overall test time of %d ms", dispatchTime, finishTime));
+		assertEquals(0, uiDispatchCount.get(), "Should not have been any messages dispatched on UI thread");
 	}
 
 	@Test
@@ -590,7 +597,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		long start = System.currentTimeMillis();
 		assertFalse(LanguageServers.forProject(project).anyMatching());
 		long duration = System.currentTimeMillis() - start;
-		assertTrue("LanguageServers.anyMatching() took too long: " + duration + "ms", duration < 100);
+		assertTrue(duration < 100, "LanguageServers.anyMatching() took too long: " + duration + "ms");
 
 		// test with one slow LS available
 		MockLanguageServer.INSTANCE.setTimeToProceedQueries(5_000);
@@ -600,7 +607,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		try {
 			assertTrue(LanguageServers.forProject(project).anyMatching());
 			duration = System.currentTimeMillis() - start;
-			assertTrue("LanguageServers.anyMatching() took too long: " + duration + "ms", duration < 100);
+			assertTrue(duration < 100, "LanguageServers.anyMatching() took too long: " + duration + "ms");
 		} finally {
 			editor1.getSite().getPage().closeEditor(editor1, false);
 		}
@@ -617,7 +624,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 		LanguageServerDocumentExecutor executor = LanguageServers.forDocument(document).withFilter(sc -> false);
 
-		assertFalse("Should not have been any valid LS", executor.anyMatching());
+		assertFalse(executor.anyMatching(), "Should not have been any valid LS");
 
 		final var params = new HoverParams();
 		final var position = new Position();
@@ -626,10 +633,10 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		params.setPosition(position);
 
 		Optional<?> result = executor.computeFirst(ls -> ls.getTextDocumentService().hover(params)).get(10, TimeUnit.SECONDS);
-		assertFalse("Should not have had a result", result.isPresent());
+		assertFalse(result.isPresent(), "Should not have had a result");
 
 		List<?> collectedResult = executor.collectAll(ls -> ls.getTextDocumentService().hover(params)).get(10, TimeUnit.SECONDS);
-		assertTrue("Should not have had a result", collectedResult.isEmpty());
+		assertTrue(collectedResult.isEmpty(), "Should not have had a result");
 
 		List<CompletableFuture<Hover>> allResults = executor.computeAll(ls -> ls.getTextDocumentService().hover(params));
 		for (CompletableFuture<Hover> f : allResults) {
@@ -638,7 +645,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		}
 	}
 
-	@Test(expected=CompletionException.class)
+	@Test
 	public void testComputeFirstBubblesException() throws Exception {
 		MockLanguageServer.INSTANCE.setTextDocumentService(new MockTextDocumentService(MockLanguageServer.INSTANCE::buildMaybeDelayedFuture) {
 			@Override
@@ -664,11 +671,14 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		position.setLine(0);
 		params.setPosition(position);
 
-		CompletableFuture<Optional<String>> response =  LanguageServers.forDocument(document)
-				.withCapability(ServerCapabilities::getHoverProvider)
-				.computeFirst(ls -> ls.getTextDocumentService().hover(params).thenApply(h -> h == null ? null : h.getContents().getLeft().get(0).getLeft()));
+		assertThrows(CompletionException.class, () -> {
+			CompletableFuture<Optional<String>> response = LanguageServers.forDocument(document)
+					.withCapability(ServerCapabilities::getHoverProvider)
+					.computeFirst(ls -> ls.getTextDocumentService().hover(params)
+							.thenApply(h -> h == null ? null : h.getContents().getLeft().get(0).getLeft()));
 
-		response.join();
+			response.join();
+		});
 	}
 
 	/**
@@ -700,8 +710,8 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 		final var matching = new AtomicInteger();
 
-		assertEquals("Should have had two responses", 2, result.size());
-		assertNotEquals("LS should have been different proxies", result.get(0).second(), result.get(1).second());
+		assertEquals(2, result.size(), "Should have had two responses");
+		assertNotEquals(result.get(0).second(), result.get(1).second(), "LS should have been different proxies");
 		result.forEach(p -> {
 			p.first().execute(ls -> {
 				if (ls == p.second()) {
@@ -711,7 +721,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 			}).join();
 		});
 
-		assertEquals("Wrapper should have used same LS", 2, matching.get());
+		assertEquals(2, matching.get(), "Wrapper should have used same LS");
 	}
 
 	/**

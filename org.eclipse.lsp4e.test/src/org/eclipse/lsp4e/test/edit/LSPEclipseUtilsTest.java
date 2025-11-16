@@ -13,7 +13,14 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.edit;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -66,14 +73,12 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
-	public final @Rule NoErrorLoggedRule noErrorLoggedRule = new NoErrorLoggedRule();
+	public final @RegisterExtension NoErrorLoggedRule noErrorLoggedRule = new NoErrorLoggedRule();
 
 	@Test
 	public void testOpenInEditorExternalFile() throws Exception {
@@ -86,16 +91,16 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	public void testWorkspaceEdit_insertText() throws Exception {
 		final var textEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "insert");
 		AbstractTextEditor editor = applyWorkspaceTextEdit(textEdit);
-		Assert.assertEquals("insertHere", ((StyledText)editor.getAdapter(Control.class)).getText());
-		Assert.assertEquals("insertHere", editor.getDocumentProvider().getDocument(editor.getEditorInput()).get());
+		assertEquals("insertHere", ((StyledText)editor.getAdapter(Control.class)).getText());
+		assertEquals("insertHere", editor.getDocumentProvider().getDocument(editor.getEditorInput()).get());
 	}
 
 	@Test
 	public void testWorkspaceEdit_WithExaggeratedRange() throws Exception {
 		final var textEdit = new TextEdit(new Range(new Position(0, 0), new Position(Integer.MAX_VALUE, Integer.MAX_VALUE)), "insert");
 		AbstractTextEditor editor = applyWorkspaceTextEdit(textEdit);
-		Assert.assertEquals("insert", ((StyledText)editor.getAdapter(Control.class)).getText());
-		Assert.assertEquals("insert", editor.getDocumentProvider().getDocument(editor.getEditorInput()).get());
+		assertEquals("insert", ((StyledText)editor.getAdapter(Control.class)).getText());
+		assertEquals("insert", editor.getDocumentProvider().getDocument(editor.getEditorInput()).get());
 	}
 
 	private AbstractTextEditor applyWorkspaceTextEdit(TextEdit textEdit) throws CoreException {
@@ -120,8 +125,8 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 			LSPEclipseUtils.toUri(f).toString(), edits));
 		// they should be applied from bottom to top
 		LSPEclipseUtils.applyWorkspaceEdit(workspaceEdit);
-		Assert.assertEquals("abcHere\nabcHere2", ((StyledText) editor.getAdapter(Control.class)).getText());
-		Assert.assertEquals("abcHere\nabcHere2",
+		assertEquals("abcHere\nabcHere2", ((StyledText) editor.getAdapter(Control.class)).getText());
+		assertEquals("abcHere\nabcHere2",
 				editor.getDocumentProvider().getDocument(editor.getEditorInput()).get());
 	}
 
@@ -146,11 +151,11 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	public void testURIToResourceMapping() throws CoreException { // bug 508841
 		IFile file = project.getFile("res");
 		file.create(new ByteArrayInputStream(new byte[0]), true, new NullProgressMonitor());
-		Assert.assertEquals(file, LSPEclipseUtils.findResourceFor(file.getLocationURI().toString()));
+		assertEquals(file, LSPEclipseUtils.findResourceFor(file.getLocationURI().toString()));
 
 		project.getFile("suffix").create(new ByteArrayInputStream(new byte[0]), true, new NullProgressMonitor());
 		IProject project2 = TestUtils.createProject(project.getName() + "suffix");
-		Assert.assertEquals(project2, LSPEclipseUtils.findResourceFor(project2.getLocationURI().toString()));
+		assertEquals(project2, LSPEclipseUtils.findResourceFor(project2.getLocationURI().toString()));
 	}
 
 	@Test
@@ -164,8 +169,8 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		IFile someFile = project.getFile("folder/res");
 		someFile.create(new ByteArrayInputStream(new byte[0]), true, new NullProgressMonitor());
 
-		Assert.assertEquals(mostNestedFile, LSPEclipseUtils.findMostNested(new IFile[] {mostNestedFile, someFile}));
-		Assert.assertEquals(mostNestedFile, LSPEclipseUtils.findMostNested(new IFile[] {someFile, mostNestedFile}));
+		assertEquals(mostNestedFile, LSPEclipseUtils.findMostNested(new IFile[] {mostNestedFile, someFile}));
+		assertEquals(mostNestedFile, LSPEclipseUtils.findMostNested(new IFile[] {someFile, mostNestedFile}));
 	}
 
 	@Test
@@ -175,18 +180,18 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 		IFile linkedFile = project.getFile("linked_file");
 		linkedFile.createLink(externalFile.toUri(), 0, new NullProgressMonitor());
-		Assert.assertTrue(linkedFile.isLinked());
-		Assert.assertEquals(linkedFile, LSPEclipseUtils.findResourceFor(linkedFile.getLocationURI().toString()));
+		assertTrue(linkedFile.isLinked());
+		assertEquals(linkedFile, LSPEclipseUtils.findResourceFor(linkedFile.getLocationURI().toString()));
 
 		IFolder linkedFolder = project.getFolder("linked_folder");
 		linkedFolder.createLink(externalFolder.toUri(), 0, new NullProgressMonitor());
-		Assert.assertTrue(linkedFolder.isLinked());
-		Assert.assertEquals(linkedFolder,
+		assertTrue(linkedFolder.isLinked());
+		assertEquals(linkedFolder,
 				LSPEclipseUtils.findResourceFor(linkedFolder.getLocationURI().toString()));
 
 		Files.createFile(externalFolder.resolve("child"));
 		IFile linkedFolderFile = linkedFolder.getFile("child");
-		Assert.assertEquals(linkedFolderFile,
+		assertEquals(linkedFolderFile,
 				LSPEclipseUtils.findResourceFor(linkedFolderFile.getLocationURI().toString()));
 	}
 
@@ -198,27 +203,27 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		IFolder virtualFolder = project.getFolder("virtual_folder");
 		virtualFolder.create(IResource.VIRTUAL, true, new NullProgressMonitor());
 
-		Assert.assertEquals(virtualFolder.isVirtual(), true);
-		Assert.assertEquals(virtualFolder.getLocationURI().toString(), "virtual:/virtual");
-		Assert.assertEquals(virtualFolder.getRawLocationURI().toString(), "virtual:/virtual");
+		assertEquals(virtualFolder.isVirtual(), true);
+		assertEquals(virtualFolder.getLocationURI().toString(), "virtual:/virtual");
+		assertEquals(virtualFolder.getRawLocationURI().toString(), "virtual:/virtual");
 		// getLocationURI()/getRawLocationURI() of virtual folders cannot be used to resolve a workspace resource
 		// thus LSPEclipseUtils.findResourceFor() returns null
-		Assert.assertEquals(null, LSPEclipseUtils.findResourceFor(virtualFolder.getLocationURI().toString()));
+		assertEquals(null, LSPEclipseUtils.findResourceFor(virtualFolder.getLocationURI().toString()));
 
 		IFile linkedFile = virtualFolder.getFile("linked_file");
 		linkedFile.createLink(externalFile.toUri(), 0, new NullProgressMonitor());
-		Assert.assertTrue(linkedFile.isLinked());
-		Assert.assertEquals(linkedFile, LSPEclipseUtils.findResourceFor(linkedFile.getLocationURI().toString()));
+		assertTrue(linkedFile.isLinked());
+		assertEquals(linkedFile, LSPEclipseUtils.findResourceFor(linkedFile.getLocationURI().toString()));
 
 		IFolder linkedFolder = virtualFolder.getFolder("linked_folder");
 		linkedFolder.createLink(externalFolder.toUri(), 0, new NullProgressMonitor());
-		Assert.assertTrue(linkedFolder.isLinked());
-		Assert.assertEquals(linkedFolder,
+		assertTrue(linkedFolder.isLinked());
+		assertEquals(linkedFolder,
 				LSPEclipseUtils.findResourceFor(linkedFolder.getLocationURI().toString()));
 
 		Files.createFile(externalFolder.resolve("child"));
 		IFile linkedFolderFile = linkedFolder.getFile("child");
-		Assert.assertEquals(linkedFolderFile,
+		assertEquals(linkedFolderFile,
 				LSPEclipseUtils.findResourceFor(linkedFolderFile.getLocationURI().toString()));
 	}
 
@@ -231,8 +236,8 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 		IFile file = project.getFile("res.txt");
 		file.createLink(uri, IResource.REPLACE | IResource.ALLOW_MISSING_LOCAL, new NullProgressMonitor());
-		Assert.assertEquals(file, LSPEclipseUtils.findResourceFor(file.getLocationURI().toString()));
-		Assert.assertEquals(file, LSPEclipseUtils.getFileHandle(file.getLocationURI()));
+		assertEquals(file, LSPEclipseUtils.findResourceFor(file.getLocationURI().toString()));
+		assertEquals(file, LSPEclipseUtils.getFileHandle(file.getLocationURI()));
 	}
 
 	@Test
@@ -240,7 +245,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		URI uri = URI.create("other://res.txt");
 		IFile file = project.getFile("res.txt");
 		file.createLink(uri, IResource.REPLACE | IResource.ALLOW_MISSING_LOCAL, new NullProgressMonitor());
-		Assert.assertEquals(LSPEclipseUtils.toUri(file).toString(), "other://a/res.txt");
+		assertEquals(LSPEclipseUtils.toUri(file).toString(), "other://a/res.txt");
 	}
 
 	@Test
@@ -250,7 +255,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		final var textEdit = new TextEdit(new Range(new Position(1, 4), new Position(1, 4 + "InsertHere".length())), "Inserted");
 		IDocument document = viewer.getDocument();
 		LSPEclipseUtils.applyEdit(textEdit, document);
-		Assert.assertEquals("line1\nlineInserted", document.get());
+		assertEquals("line1\nlineInserted", document.get());
 	}
 
 	@Test
@@ -260,7 +265,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		final var textEdit = new TextEdit(new Range(new Position(1, 4), new Position(1, 4 + "HERE".length())), "Inserted");
 		IDocument document = viewer.getDocument();
 		LSPEclipseUtils.applyEdit(textEdit, document);
-		Assert.assertEquals("line1\nlineInserted", document.get());
+		assertEquals("line1\nlineInserted", document.get());
 	}
 
 	@Test
@@ -272,7 +277,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 				new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "Exception") };
 		IDocument document = viewer.getDocument();
 		LSPEclipseUtils.applyEdits(document, List.of(edits));
-		Assert.assertEquals(" throws Exception", document.get());
+		assertEquals(" throws Exception", document.get());
 	}
 
 	@Test
@@ -286,63 +291,63 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// WHEN the TextEdit gets applied to the document:
 		LSPEclipseUtils.applyEdits(document, List.of(edits));
 		// THEN line1 has been swapped with line 3:
-		Assert.assertEquals("line3\r\nline2\r\nline1\r\n", document.get());
+		assertEquals("line3\r\nline2\r\nline1\r\n", document.get());
 		// AND the number of lines is still the same, because we have not appended a line:
-		Assert.assertEquals(linesBeforeApplyEdits, document.getNumberOfLines());
+		assertEquals(linesBeforeApplyEdits, document.getNumberOfLines());
 	}
 
 	@Test
 	public void testURICreationUnix() {
-		Assume.assumeFalse(Platform.OS_WIN32.equals(Platform.getOS()));
-		Assert.assertEquals("file:///test%20with%20space", LSPEclipseUtils.toUri(new File("/test with space")).toString());
+		assumeFalse(Platform.OS_WIN32.equals(Platform.getOS()));
+		assertEquals("file:///test%20with%20space", LSPEclipseUtils.toUri(new File("/test with space")).toString());
 	}
 
 	@Test
 	public void testToUri_WindowsDriveLetter() {
-		Assume.assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
+		assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
 		// Use a synthetic drive path (doesn't need to exist)
 		File drivePath = new File("C:\\Temp\\with space");
 		URI uri = LSPEclipseUtils.toUri(drivePath);
 		// Should be file:///C:/... and percent-encode spaces
-		Assert.assertTrue(uri.toString().startsWith("file:///C:/Temp/"));
-		Assert.assertFalse(uri.toString().contains("  "));
-		Assert.assertTrue(uri.toString().contains("with%20space"));
+		assertTrue(uri.toString().startsWith("file:///C:/Temp/"));
+		assertFalse(uri.toString().contains("  "));
+		assertTrue(uri.toString().contains("with%20space"));
 		// Should not contain quadruple slashes
-		Assert.assertFalse(uri.toString().startsWith("file:////"));
+		assertFalse(uri.toString().startsWith("file:////"));
 	}
 
 	@Test
 	public void testUNCwindowsURI() {
-		Assume.assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
+		assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
 		URI preferredURI = URI.create("file://localhost/c$/Windows");
 		URI javaURI = URI.create("file:////localhost/c$/Windows");
 
 		File file1 = LSPEclipseUtils.fromUri(preferredURI);
 		File file2 = LSPEclipseUtils.fromUri(javaURI);
-		Assert.assertEquals(file1, file2);
+		assertEquals(file1, file2);
 	}
 
     @Test
     public void testToUri_WindowsUNC() {
-        Assume.assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
+        assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
         File unc = new File("\\\\localhost\\c$\\Windows");
         URI uri = LSPEclipseUtils.toUri(unc);
         System.err.println(uri.toString());
-        Assert.assertTrue(uri.toString().startsWith("file://localhost/c$/Windows"));
+        assertTrue(uri.toString().startsWith("file://localhost/c$/Windows"));
 
 		File uncWithSpaces = new File("\\\\server-name\\shared folder\\dir with space");
 		URI uriWithSpaces = LSPEclipseUtils.toUri(uncWithSpaces);
-		Assert.assertTrue(uriWithSpaces.toString().startsWith("file://server-name/shared%20folder/dir%20with%20space"));
+		assertTrue(uriWithSpaces.toString().startsWith("file://server-name/shared%20folder/dir%20with%20space"));
 
 		// Ensure there is an authority and no malformed quadruple slashes
-		Assert.assertFalse(uriWithSpaces.toString().startsWith("file:////"));
+		assertFalse(uriWithSpaces.toString().startsWith("file:////"));
 	}
 
 	@Test
 	public void testToWorkspaceFolder() {
 		WorkspaceFolder folder = LSPEclipseUtils.toWorkspaceFolder(project);
-		Assert.assertEquals(project.getName(), folder.getName());
-		Assert.assertEquals("file://", folder.getUri().substring(0, "file://".length()));
+		assertEquals(project.getName(), folder.getName());
+		assertEquals("file://", folder.getUri().substring(0, "file://".length()));
 	}
 
 	@Test
@@ -501,7 +506,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 			out.write('a');
 		}
 		IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
-		Assert.assertNotEquals(Collections.emptySet(), LSPEclipseUtils.findOpenEditorsFor(file.toURI()));
+		assertNotEquals(Collections.emptySet(), LSPEclipseUtils.findOpenEditorsFor(file.toURI()));
 	}
 
 	@Test
@@ -512,7 +517,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// When toCompletionParams get called with offset == 0 and document.getLength() == 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 0, LSPEclipseUtils.getDocument(file), triggerChars);
 		// Then no context has been added to param:
-		Assert.assertNull(param.getContext());
+		assertNull(param.getContext());
 	}
 
 	@Test
@@ -523,7 +528,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// When toCompletionParams get called with offset == 0 and document.getLength() > 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 0, LSPEclipseUtils.getDocument(file), triggerChars);
 		// Then the trigger kind is Invoked:
-		Assert.assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.Invoked);
+		assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.Invoked);
 	}
 
 	@Test
@@ -534,9 +539,9 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// When toCompletionParams get called with offset > 0 and document.getLength() > 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 4, LSPEclipseUtils.getDocument(file), triggerChars);
 		// Then the context has been added with a colon as trigger character:
-		Assert.assertEquals(param.getContext().getTriggerCharacter(), ":");
+		assertEquals(param.getContext().getTriggerCharacter(), ":");
 		// And the trigger kind is TriggerCharacter:
-		Assert.assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.TriggerCharacter);
+		assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.TriggerCharacter);
 	}
 
 	@Test
@@ -547,7 +552,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// When toCompletionParams get called with offset > 0 and document.getLength() > 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 3, LSPEclipseUtils.getDocument(file), triggerChars);
 		// Then the trigger kind is Invoked:
-		Assert.assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.Invoked);
+		assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.Invoked);
 	}
 
 	@Test

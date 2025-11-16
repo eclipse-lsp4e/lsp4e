@@ -13,7 +13,11 @@
 package org.eclipse.lsp4e.test.references;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.HashMap;
 import java.util.List;
@@ -42,9 +46,9 @@ import org.eclipse.ui.monitoring.IUiFreezeEventLogger;
 import org.eclipse.ui.monitoring.UiFreezeEvent;
 import org.eclipse.ui.services.IEvaluationService;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("restriction")
 public class FindReferencesTest extends AbstractTestWithProject {
@@ -66,7 +70,7 @@ public class FindReferencesTest extends AbstractTestWithProject {
 		}
 	}
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		ensureSearchResultViewIsClosed();
 
@@ -78,7 +82,7 @@ public class FindReferencesTest extends AbstractTestWithProject {
 				new Location(testFile.getLocationURI().toString(), new Range(new Position(1, 6), new Position(1, 11))));
 	}
 
-	@After
+	@AfterEach
 	public void tearDown() {
 		ensureSearchResultViewIsClosed();
 	}
@@ -113,8 +117,9 @@ public class FindReferencesTest extends AbstractTestWithProject {
 			handler.execute(new ExecutionEvent(null, new HashMap<>(), null, evaluationService.getCurrentState()));
 			long executionTime = System.currentTimeMillis() - startTime;
 
-			assertTrue(handler.getClass().getSimpleName() + ".execute(...) blocks UI for " + executionTime
-					+ "ms. Acceptable is <" + uiFreezeThreshold + "ms", executionTime < uiFreezeThreshold);
+			assertTrue(executionTime < uiFreezeThreshold,
+					handler.getClass().getSimpleName() + ".execute(...) blocks UI for " + executionTime
+							+ "ms. Acceptable is <" + uiFreezeThreshold + "ms");
 
 			waitForAndAssertSearchResult(searchResultListener, findReferencesFakeDuration,
 					findReferencesFakeDuration + 1_000);
@@ -124,8 +129,7 @@ public class FindReferencesTest extends AbstractTestWithProject {
 		}
 
 		final var uiFreezeCount = UiFreezeEventLogger.INSTANCE.events.size();
-		assertEquals("UI Thread was frozen " + uiFreezeCount + " times for more than " + uiFreezeThreshold + "ms", //
-				0, uiFreezeCount);
+		assertEquals(0, uiFreezeCount, "UI Thread was frozen " + uiFreezeCount + " times for more than " + uiFreezeThreshold + "ms");
 	}
 
 	private EventLoopMonitorThread initFreezeMonitor(int uiFreezeThreshold) {
@@ -180,7 +184,7 @@ public class FindReferencesTest extends AbstractTestWithProject {
 
 		waitForAndAssertCondition(max_time_ms, () -> {
 			final var searchResult = searchResultListener.getNow(null);
-			assertNotNull("No search query was executed", searchResult);
+			assertNotNull(searchResult, "No search query was executed");
 
 			if (searchResult.first() instanceof LSSearchResult lsSearchResult) {
 				final long now = System.currentTimeMillis();
@@ -204,9 +208,9 @@ public class FindReferencesTest extends AbstractTestWithProject {
 					searchDuration.set(now - startAt);
 				}
 				// this is to ensure that the simulation of a slow LS actually works
-				assertTrue("Search result returned too early!", searchDuration.get() >= min_time_ms);
+				assertTrue(searchDuration.get() >= min_time_ms, "Search result returned too early!");
 
-				assertNotNull("Search result view is not shown", NewSearchUI.getSearchResultView());
+				assertNotNull(NewSearchUI.getSearchResultView(), "Search result view is not shown");
 			} else {
 				fail("Search result " + searchResult + " is not of expected type LSSearchResult");
 			}

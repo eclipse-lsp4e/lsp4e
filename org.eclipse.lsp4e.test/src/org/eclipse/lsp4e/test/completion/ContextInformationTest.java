@@ -11,7 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.completion;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.Collections;
 import java.util.List;
@@ -27,13 +28,13 @@ import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureInformation;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class ContextInformationTest extends AbstractCompletionTest {
 
 	@Override
-	@Before
+	@BeforeEach
 	public void setUp() {
 		contentAssistProcessor = new LSContentAssistProcessor();
 	}

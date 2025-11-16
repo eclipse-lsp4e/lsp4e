@@ -8,7 +8,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.semanticTokens;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.util.List;
 
@@ -23,14 +24,14 @@ import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class SemanticHighlightReconcilerStrategyTest extends AbstractTestWithProject {
 
 	private Shell shell;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		shell = new Shell();
 

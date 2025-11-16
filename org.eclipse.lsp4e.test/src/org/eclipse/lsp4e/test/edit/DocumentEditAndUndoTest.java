@@ -13,7 +13,8 @@
 package org.eclipse.lsp4e.test.edit;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -34,7 +35,7 @@ import org.eclipse.swt.custom.BusyIndicator;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.ui.IEditorPart;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.common.collect.Iterators;
 
@@ -95,7 +96,7 @@ public class DocumentEditAndUndoTest extends AbstractTestWithProject {
 		});
 
 		waitForAndAssertCondition(3_000, () -> {
-			assertEquals("Document content isn't correctly changed", "<abc></abc>", doc.get());
+			assertEquals("<abc></abc>", doc.get(), "Document content isn't correctly changed");
 			return true;
 		});
 
@@ -104,7 +105,7 @@ public class DocumentEditAndUndoTest extends AbstractTestWithProject {
 		BusyIndicator.showWhile(display, () -> textOperationTarget.doOperation(ITextOperationTarget.UNDO));
 
 		waitForAndAssertCondition(3_000, () -> {
-			assertEquals("Document content isn't correctly reverted", initialContent, doc.get());
+			assertEquals(initialContent, doc.get(), "Document content isn't correctly reverted");
 			return true;
 		});
 	}

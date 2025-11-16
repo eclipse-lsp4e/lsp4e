@@ -12,10 +12,10 @@
 package org.eclipse.lsp4e.test;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class RunningLanguageServerTest extends AbstractTestWithProject {
 
@@ -69,8 +69,8 @@ public class RunningLanguageServerTest extends AbstractTestWithProject {
 		@NonNull List<LanguageServerWrapper> initializedLanguageServers = LanguageServiceAccessor
 				.getLSWrappers(testFile, capabilities -> true);
 		assertNotNull(initializedLanguageServers);
-		assertEquals("language server should not be started because it is disabled", 0,
-				initializedLanguageServers.size());
+		assertEquals(0, initializedLanguageServers.size(),
+				"language server should not be started because it is disabled");
 
 		lsDefinition.setUserEnabled(true);
 		LanguageServiceAccessor.enableLanguageServerContentType(lsDefinition, TestUtils.getEditors());

@@ -35,14 +35,14 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.ide.IDE;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class ColorTest extends AbstractTestWithProject {
 
 	private RGB color;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		color = new RGB(56, 78, 90); // a color that's not likely used anywhere else
 		MockLanguageServer.INSTANCE.getTextDocumentService().setDocumentColors(List.of(new ColorInformation(new Range(new Position(0, 0), new Position(0, 1)), new Color(color.red / 255., color.green / 255., color.blue / 255., 255))));

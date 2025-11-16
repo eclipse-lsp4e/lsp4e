@@ -13,10 +13,26 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test;
 
-import static org.eclipse.lsp4e.LSPEclipseUtils.*;
-import static org.eclipse.lsp4e.LanguageServiceAccessor.*;
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.*;
+import static org.eclipse.lsp4e.LSPEclipseUtils.getDocument;
+import static org.eclipse.lsp4e.LSPEclipseUtils.getTextViewer;
+import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSPDocumentInfosFor;
+import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSWrapper;
+import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSWrappers;
+import static org.eclipse.lsp4e.LanguageServiceAccessor.hasActiveLanguageServers;
+import static org.eclipse.lsp4e.test.utils.TestUtils.createFile;
+import static org.eclipse.lsp4e.test.utils.TestUtils.createProject;
+import static org.eclipse.lsp4e.test.utils.TestUtils.createTempFile;
+import static org.eclipse.lsp4e.test.utils.TestUtils.createUniqueTestFile;
+import static org.eclipse.lsp4e.test.utils.TestUtils.createUniqueTestFileMultiLS;
+import static org.eclipse.lsp4e.test.utils.TestUtils.openEditor;
+import static org.eclipse.lsp4e.test.utils.TestUtils.openTextViewer;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
@@ -41,7 +57,7 @@ import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 
@@ -130,8 +146,8 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 		var file1LS = file1LanguageServers.get(0).serverDefinition;
 		assertTrue(file2LanguageServers.contains(file1LS)); // LS from file1 is reused
 
-		assertEquals("Not right amount of language servers bound to project", 2,
-				LanguageServers.forProject(project).computeAll(ls -> CompletableFuture.completedFuture(null)).size());
+		assertEquals(2,	LanguageServers.forProject(project).computeAll(ls -> CompletableFuture.completedFuture(null)).size(),
+				"Not right amount of language servers bound to project");
 	}
 
 	@Test
@@ -317,7 +333,7 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 		var servers = getLSWrappers(testFile, MATCH_ALL);
 		var iterator = servers.iterator();
 		assertEquals("org.eclipse.lsp4e.test.server", iterator.next().serverDefinition.id);
-		assertFalse("Should only be a single LS", iterator.hasNext());
+		assertFalse(iterator.hasNext(), "Should only be a single LS");
 	}
 
 	@Test

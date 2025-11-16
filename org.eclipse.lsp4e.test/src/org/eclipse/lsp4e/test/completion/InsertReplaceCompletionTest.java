@@ -16,7 +16,7 @@
  */
 package org.eclipse.lsp4e.test.completion;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 
@@ -31,7 +31,7 @@ import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.swt.graphics.Point;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class InsertReplaceCompletionTest extends AbstractCompletionTest {
 

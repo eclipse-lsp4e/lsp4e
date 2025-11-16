@@ -12,7 +12,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.utils;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -366,7 +366,7 @@ public class TestUtils {
 			}
 			throw new AssertionError(errorMessage, ex[0]);
 		}
-		assertTrue(errorMessage, isConditionMet);
+		assertTrue(isConditionMet, errorMessage);
 	}
 
 	public static boolean waitForCondition(int timeout_ms, Condition condition) {

@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.format;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -39,7 +39,7 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.IHandlerService;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class FormatHandlerReadOnlyTest extends AbstractTestWithProject {
 

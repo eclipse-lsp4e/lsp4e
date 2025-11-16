@@ -14,7 +14,9 @@
 package org.eclipse.lsp4e.test.highlight;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,9 +39,7 @@ import org.eclipse.lsp4j.DocumentHighlightKind;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.IEditorReference;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.Version;
 
@@ -71,7 +71,7 @@ public class HighlightTest extends AbstractTestWithProject{
 				return true;
 			});
 		} else {
-			Assert.fail("ISourceViewer expected but got: " + viewer);
+			fail("ISourceViewer expected but got: " + viewer);
 		}
 	}
 
@@ -147,8 +147,8 @@ public class HighlightTest extends AbstractTestWithProject{
 				break;
 			}
 		}
-		Assert.assertNotNull(viewer2);
-		Assert.assertNotNull(editorToClose);
+		assertNotNull(viewer2);
+		assertNotNull(editorToClose);
 
 		final var annotationModel2 = viewer2.getAnnotationModel();
 
@@ -224,6 +224,6 @@ public class HighlightTest extends AbstractTestWithProject{
 	private void checkGenericEditorVersion() {
 		// ignore tests for generic editor without reconciler API
 		Bundle bundle = Platform.getBundle("org.eclipse.ui.genericeditor");
-		Assume.assumeTrue(bundle.getVersion().compareTo(new Version(1, 1, 0)) >= 0);
+		assumeTrue(bundle.getVersion().compareTo(new Version(1, 1, 0)) >= 0);
 	}
 }

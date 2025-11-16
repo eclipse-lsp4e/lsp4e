@@ -13,7 +13,7 @@
 package org.eclipse.lsp4e.test;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.nio.file.Paths;
@@ -32,12 +32,12 @@ import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.WorkspaceFoldersOptions;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class WorkspaceFoldersTest extends AbstractTestWithProject {
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		MockLanguageServer.INSTANCE.getWorkspaceService().getWorkspaceFoldersEvents().clear();
 	}

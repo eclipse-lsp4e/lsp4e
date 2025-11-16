@@ -8,7 +8,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.folding;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 
@@ -25,7 +25,7 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class FoldingTest extends AbstractTest {
 

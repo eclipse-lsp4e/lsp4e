@@ -13,10 +13,10 @@
 package org.eclipse.lsp4e.test.completion;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.net.URI;
@@ -55,7 +55,7 @@ import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class IncompleteCompletionTest extends AbstractCompletionTest {
 	/*

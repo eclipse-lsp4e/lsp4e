@@ -11,7 +11,10 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.definition;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +37,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TypeDefinitionParams;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class HyperlinkDetectorErrorHandlingTest extends AbstractTestWithProject {
 
@@ -98,7 +101,7 @@ public class HyperlinkDetectorErrorHandlingTest extends AbstractTestWithProject 
 		IHyperlink[] links = detector.detectHyperlinks(viewer, new Region(0, 0), true);
 
 		// Expected: 1 link (from definition) even if typeDefinition fails
-		assertNotNull("Hyperlinks should not be null when definition succeeds despite typeDefinition error", links);
+		assertNotNull(links, "Hyperlinks should not be null when definition succeeds despite typeDefinition error");
 		assertEquals(2, links.length);
 	}
 }

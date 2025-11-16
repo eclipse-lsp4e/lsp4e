@@ -12,7 +12,9 @@
 package org.eclipse.lsp4e.test.completion;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,8 +38,8 @@ import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.services.LanguageClient;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.google.gson.Gson;
 
@@ -49,7 +51,7 @@ public class DynamicCompletionRegistrationTest extends AbstractTestWithProject {
 
 	private LSContentAssistProcessor contentAssistProcessor;
 
-	@Before
+	@BeforeEach
 	public void setup() {
 		contentAssistProcessor = new LSContentAssistProcessor(true, false);
 	}

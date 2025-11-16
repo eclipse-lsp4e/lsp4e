@@ -11,6 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.outline;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
@@ -21,15 +24,14 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
 import org.eclipse.ui.views.contentoutline.ContentOutline;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 public class EditorToOutlineAdapterFactoryTest extends AbstractTestWithProject {
 
 	private static ContentOutline outline;
 
-	@BeforeClass
+	@BeforeAll
 	public static void setUpBeforeClass() {
 		// look for content outline in current workbench, could be null
 		IViewPart viewPart = UI.getActivePage().findView("org.eclipse.ui.views.ContentOutline"); //$NON-NLS-1$
@@ -39,7 +41,7 @@ public class EditorToOutlineAdapterFactoryTest extends AbstractTestWithProject {
 			outline = thisOutline;
 		}
 
-		Assert.assertNotNull(outline);
+		assertNotNull(outline);
 	}
 
 	@Test
@@ -54,11 +56,10 @@ public class EditorToOutlineAdapterFactoryTest extends AbstractTestWithProject {
 		outline.partOpened(outline);
 		long endOpenOutline = System.currentTimeMillis();
 		long durationOpenOutline = endOpenOutline - beginOpenOutline;
-		Assert.assertTrue(String.format("Open outline took longer than 50ms: %d", durationOpenOutline),
-				durationOpenOutline <= 50);
+		assertTrue(durationOpenOutline <= 50, String.format("Open outline took longer than 50ms: %d", durationOpenOutline));
 
 		DisplayHelper.sleep(Display.getCurrent(), 1000); // leave time for outline to be refreshed when LS is ready.
 		String pageClassName = outline.getCurrentPage().getClass().getCanonicalName();
-		Assert.assertTrue("Outline page class is not as expected: " + pageClassName, pageClassName.contains("lsp4e"));
+		assertTrue(pageClassName.contains("lsp4e"), "Outline page class is not as expected: " + pageClassName);
 	}
 }

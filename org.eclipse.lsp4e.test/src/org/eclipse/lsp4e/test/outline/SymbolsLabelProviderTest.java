@@ -11,7 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.outline;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.lsp4e.outline.SymbolsLabelProvider;
 import org.eclipse.lsp4e.outline.SymbolsModel;
@@ -22,7 +23,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class SymbolsLabelProviderTest extends AbstractTest {
 

@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.declaration;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.File;
 import java.net.URI;
@@ -25,7 +25,7 @@ import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class LSBasedHyperlinkTest extends AbstractTestWithProject {
 

@@ -12,7 +12,8 @@
 package org.eclipse.lsp4e.test.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -24,8 +25,8 @@ import org.eclipse.lsp4e.internal.CharsInputStream;
 import org.eclipse.lsp4e.internal.DocumentInputStream;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class DocumentInputStreamTest extends AbstractTestWithProject {
 
@@ -39,7 +40,7 @@ public class DocumentInputStreamTest extends AbstractTestWithProject {
 
 	private IDocument document;
 
-	@Before
+	@BeforeEach
 	public void setUp() throws CoreException {
 		final var testFile = TestUtils.createUniqueTestFile(project, TEST_UNICODE);
 		document = LSPEclipseUtils.getDocument(testFile);

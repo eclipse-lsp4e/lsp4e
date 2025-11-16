@@ -11,6 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.utils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,11 +22,11 @@ import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.ILogListener;
 import org.eclipse.core.runtime.IStatus;
 import org.eclipse.lsp4e.LanguageServerPlugin;
-import org.junit.Assert;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
-public class NoErrorLoggedRule extends TestWatcher {
+public class NoErrorLoggedRule implements BeforeEachCallback, AfterEachCallback {
 
 	private ILog log;
 	private ILogListener listener;
@@ -54,16 +56,15 @@ public class NoErrorLoggedRule extends TestWatcher {
 	}
 
 	@Override
-	protected void starting(Description description) {
-		super.starting(description);
+	public void beforeEach(ExtensionContext context) throws Exception {
 		loggedErrors.clear();
 		log.addLogListener(listener);
 	}
 
 	@Override
-	protected void finished(Description description) {
+	public void afterEach(ExtensionContext context) throws Exception {
 		log.removeLogListener(listener);
-		Assert.assertEquals("Some errors were logged", Collections.emptyList(), loggedErrors);
-		super.finished(description);
+		assertEquals(Collections.emptyList(), loggedErrors, "Some errors were logged");
 	}
+
 }

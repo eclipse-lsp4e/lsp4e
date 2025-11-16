@@ -12,8 +12,10 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test;
 
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.fail;
+import static org.eclipse.lsp4e.test.utils.TestUtils.numberOfChangesIs;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
@@ -35,7 +37,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.ui.IEditorPart;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class VersioningSupportTest extends AbstractTestWithProject {
 
@@ -76,7 +78,7 @@ public class VersioningSupportTest extends AbstractTestWithProject {
 		TestUtils.closeEditor(editor, false);
 	}
 
-	@Test(expected=ConcurrentModificationException.class)
+	@Test
 	public void testVersionedEditsFailsOnModification() throws Exception {
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 0), new Position(0, 1)), "MyF"));
@@ -103,6 +105,6 @@ public class VersioningSupportTest extends AbstractTestWithProject {
 		viewer.getDocument().replace(0, 0, "Hello");
 		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
 
-		edits.apply();
+		assertThrows(ConcurrentModificationException.class, () -> edits.apply());
 	}
 }

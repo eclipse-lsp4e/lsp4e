@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.operations.codelens;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +42,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.IHandlerService;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;

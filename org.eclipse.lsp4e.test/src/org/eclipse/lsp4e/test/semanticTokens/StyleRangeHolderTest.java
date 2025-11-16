@@ -8,7 +8,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.semanticTokens;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import java.util.List;
 
@@ -19,7 +20,7 @@ import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeHolder;
 import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class StyleRangeHolderTest extends AbstractTest {
 

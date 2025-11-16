@@ -11,8 +11,10 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.codeactions;
 
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.*;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,12 +52,12 @@ import org.eclipse.ui.part.FileEditorInput;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 import org.eclipse.ui.texteditor.ITextEditorActionConstants;
 import org.eclipse.ui.texteditor.TextOperationAction;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class CodeActionTests extends AbstractTestWithProject {
 
-	public final @Rule NoErrorLoggedRule noErrorLoggedRule = new NoErrorLoggedRule();
+	public final @RegisterExtension NoErrorLoggedRule noErrorLoggedRule = new NoErrorLoggedRule();
 
 	@Test
 	public void testCodeActionsClientCommandForTextEdit() throws CoreException {
@@ -107,7 +109,7 @@ public class CodeActionTests extends AbstractTestWithProject {
 		waitForAndAssertCondition("No item found", 100, () -> completionProposalList.getItemCount() > 0);
 		assertEquals(1, completionProposalList.getItemCount());
 		final TableItem quickAssistItem = completionProposalList.getItem(0);
-		assertTrue("Missing quick assist proposal", quickAssistItem.getText().contains("fixme")); //$NON-NLS-1$ //$NON-NLS-2$
+		assertTrue(quickAssistItem.getText().contains("fixme"), "Missing quick assist proposal"); //$NON-NLS-1$ //$NON-NLS-2$
 	}
 
 	@Test
@@ -262,13 +264,14 @@ public class CodeActionTests extends AbstractTestWithProject {
 		final IMarker m = f.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true, IResource.DEPTH_ZERO)[0];
 		assertEquals(markerMessage, m.getAttribute(IMarker.MESSAGE));
 
-		assertEquals(resolutionExpected ? "Resolution not found within expected time." : "Unexpected resolution found", resolutionExpected,
+		assertEquals(resolutionExpected,
 				waitForCondition(2_000, () ->
 				IDE.getMarkerHelpRegistry().hasResolutions(m) &&
 				// need this 2nd condition because async introduces a dummy resolution that's
 				// not the one we want
 				IDE.getMarkerHelpRegistry().getResolutions(m).length > 0 &&
-				IDE.getMarkerHelpRegistry().getResolutions(m)[0].getLabel().equals(resolutionLabel)));
+				IDE.getMarkerHelpRegistry().getResolutions(m)[0].getLabel().equals(resolutionLabel)),
+				resolutionExpected ? "Resolution not found within expected time." : "Unexpected resolution found");
 		return m;
 	}
 

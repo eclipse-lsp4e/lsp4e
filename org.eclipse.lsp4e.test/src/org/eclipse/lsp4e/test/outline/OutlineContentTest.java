@@ -8,8 +8,9 @@
  */
 package org.eclipse.lsp4e.test.outline;
 
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.assertFalse;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -43,7 +44,7 @@ import org.eclipse.swt.widgets.TreeItem;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class OutlineContentTest extends AbstractTestWithProject {
 

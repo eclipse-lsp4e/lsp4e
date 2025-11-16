@@ -14,7 +14,8 @@ package org.eclipse.lsp4e.test;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -31,14 +32,14 @@ import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockConnectionProviderMultiRootFolders;
 import org.eclipse.ui.IEditorPart;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class LanguageServerWrapperTest extends AbstractTestWithProject {
 
 	private IProject project2;
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		project2 = TestUtils.createProject("LanguageServerWrapperTestProject2" + System.currentTimeMillis());
 	}
@@ -134,7 +135,7 @@ public class LanguageServerWrapperTest extends AbstractTestWithProject {
 		Integer cpStartCount= MockConnectionProviderMultiRootFolders.getStartCount();
 		Integer cpStopCount= MockConnectionProviderMultiRootFolders.getStopCount();
 
-		assertEquals("startCount == stopCount", cpStartCount, cpStopCount);
+		assertEquals(cpStartCount, cpStopCount, "startCount == stopCount");
 	}
 
 }

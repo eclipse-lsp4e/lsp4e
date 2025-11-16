@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.internal;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.text.Collator;
 import java.util.Arrays;
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Locale;
 
 import org.eclipse.lsp4e.internal.HumanFriendlyComparator;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class HumanFriendlyComparatorTest {
 

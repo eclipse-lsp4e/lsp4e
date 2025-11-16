@@ -16,7 +16,7 @@
 
 package org.eclipse.lsp4e.test.documentLink;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +36,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	

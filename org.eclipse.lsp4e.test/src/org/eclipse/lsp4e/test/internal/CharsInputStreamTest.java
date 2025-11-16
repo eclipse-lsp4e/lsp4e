@@ -12,13 +12,14 @@
 package org.eclipse.lsp4e.test.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
 
 import org.eclipse.lsp4e.internal.CharsInputStream;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class CharsInputStreamTest {
 

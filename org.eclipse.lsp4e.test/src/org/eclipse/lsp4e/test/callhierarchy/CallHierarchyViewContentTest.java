@@ -12,7 +12,9 @@
 package org.eclipse.lsp4e.test.callhierarchy;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -32,7 +34,9 @@ import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 /**
  * UI-level test that opens a file, initializes Call Hierarchy and verifies that
@@ -41,8 +45,9 @@ import org.junit.Test;
 public class CallHierarchyViewContentTest extends AbstractTestWithProject {
 
 	@Override
-	public void setUpProject() throws Exception {
-		super.setUpProject();
+	@BeforeEach
+	public void setUpProject(TestInfo testInfo) throws Exception {
+		super.setUpProject(testInfo);
 		// Ensure the mock server advertises callHierarchyProvider
 		MockLanguageServer.reset(() -> {
 			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
@@ -84,7 +89,7 @@ public class CallHierarchyViewContentTest extends AbstractTestWithProject {
 		Tree tree = viewer.getTree();
 		TreeItem root = tree.getItem(0);
 		Object rootData = root.getData();
-		assertTrue("Expected CallHierarchyViewTreeNode root", rootData instanceof CallHierarchyViewTreeNode);
+		assertInstanceOf(CallHierarchyViewTreeNode.class, rootData, "Expected CallHierarchyViewTreeNode root");
 		var rootNode = (CallHierarchyViewTreeNode) rootData;
 		assertEquals("callee", rootNode.getCallContainer().getName());
 

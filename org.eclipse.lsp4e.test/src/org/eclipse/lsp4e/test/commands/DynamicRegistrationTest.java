@@ -12,7 +12,10 @@
 package org.eclipse.lsp4e.test.commands;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.UUID;
@@ -36,8 +39,8 @@ import org.eclipse.lsp4j.UnregistrationParams;
 import org.eclipse.lsp4j.WorkspaceFoldersOptions;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
 import org.eclipse.lsp4j.services.LanguageClient;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import com.google.gson.Gson;
 
@@ -46,7 +49,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 	private static final String WORKSPACE_EXECUTE_COMMAND = "workspace/executeCommand";
 	private static final String WORKSPACE_DID_CHANGE_FOLDERS = "workspace/didChangeWorkspaceFolders";
 
-	@Before
+	@BeforeEach
 	public void setUp() throws Exception {
 		IFile testFile = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
 

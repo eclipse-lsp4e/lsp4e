@@ -13,7 +13,11 @@
 package org.eclipse.lsp4e.test.completion;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -58,7 +62,7 @@ import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Table;
 import org.eclipse.swt.widgets.TableItem;
 import org.eclipse.ui.tests.harness.util.DisplayHelper;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import com.google.gson.JsonPrimitive;
 
@@ -474,10 +478,10 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 
 			ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer,
 					test.caretPos());
-			assertEquals("Unexpected proposals length for " + test + " - ", 1, proposals.length);
+			assertEquals(1, proposals.length, "Unexpected proposals length for " + test + " - ");
 
 			((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, test.caretPos());
-			assertEquals("Unexpected result for " + test + " - ", test.expected, viewer.getDocument().get());
+			assertEquals(test.expected, viewer.getDocument().get(), "Unexpected result for " + test + " - ");
 		}
 	}
 

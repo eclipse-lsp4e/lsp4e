@@ -12,17 +12,16 @@
 package org.eclipse.lsp4e.test.hover;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.core.filesystem.EFS;
@@ -51,15 +50,14 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IDE;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 @SuppressWarnings("restriction")
 public class HoverTest extends AbstractTestWithProject {
 	private LSPTextHover hover;
 
-	@Before
+	@BeforeEach
 	public void setUp() {
 		hover = new LSPTextHover();
 	}
@@ -85,8 +83,8 @@ public class HoverTest extends AbstractTestWithProject {
 
 		var region = hover.getHoverRegion(viewer, 15);
 		assertNotNull(region);
-		assertTrue("region should include the hover offset",
-				region.getOffset() <= 15 && (region.getOffset() + region.getLength()) >= 15);
+		assertTrue(region.getOffset() <= 15 && (region.getOffset() + region.getLength()) >= 15, 
+				"region should include the hover offset");
 	}
 
 	@Test
@@ -147,7 +145,7 @@ public class HoverTest extends AbstractTestWithProject {
 		ITextViewer viewer = LSPEclipseUtils
 				.getTextViewer(IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI())));
 		String html = hover.getHoverInfoFuture(viewer, new Region(0, 0)).get(2, TimeUnit.SECONDS);
-		Assert.assertTrue(html != null && html.contains("blah"));
+		assertTrue(html != null && html.contains("blah"));
 	}
 
 	@Test
@@ -161,10 +159,10 @@ public class HoverTest extends AbstractTestWithProject {
 
 		String hoverInfo = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
 		int index = hoverInfo.indexOf("HoverContent");
-		assertNotEquals("Hover content not found", -1, index);
+		assertNotEquals(-1, index, "Hover content not found");
 		index += "HoverContent".length();
 		index = hoverInfo.indexOf("HoverContent", index);
-		assertNotEquals("Hover content found only once", -1, index);
+		assertNotEquals(-1, index, "Hover content found only once");
 	}
 
 	@Test
@@ -218,7 +216,7 @@ public class HoverTest extends AbstractTestWithProject {
 				}
 			});
 
-			assertNotNull("Editor should be opened", viewer.getTextWidget());
+			assertNotNull(viewer.getTextWidget(), "Editor should be opened");
 
 			UI.getActivePage().activate(editorPart);
 			browser.setText(hoverContent);

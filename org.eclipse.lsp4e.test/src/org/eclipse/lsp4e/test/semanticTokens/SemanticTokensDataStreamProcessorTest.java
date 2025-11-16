@@ -8,7 +8,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.semanticTokens;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 
@@ -17,7 +17,7 @@ import org.eclipse.lsp4e.operations.semanticTokens.SemanticTokensDataStreamProce
 import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.swt.custom.StyleRange;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class SemanticTokensDataStreamProcessorTest extends AbstractTest {
 

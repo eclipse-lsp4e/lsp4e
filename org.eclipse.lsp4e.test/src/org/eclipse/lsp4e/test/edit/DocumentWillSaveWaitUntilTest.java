@@ -12,7 +12,7 @@
 package org.eclipse.lsp4e.test.edit;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 
@@ -30,7 +30,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.ui.IEditorPart;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DocumentWillSaveWaitUntilTest extends AbstractTestWithProject {
 

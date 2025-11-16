@@ -27,7 +27,7 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.ide.IDE;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class ShowMessageTest extends AbstractTestWithProject {
 

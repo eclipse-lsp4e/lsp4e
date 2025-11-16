@@ -15,13 +15,14 @@ import java.io.PrintStream;
 
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4j.ServerCapabilities;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 /**
- * Test base class that configures a {@link AllCleanRule} and a
- * {@link TestInfoRule} and works around a surefire-plugin issue which
+ * Test base class that configures a {@link AllCleanExtension} and a
+ * {@link TestInfoExtension} and works around a surefire-plugin issue which
  * suppresses output to stderr
  */
 public abstract class AbstractTest {
@@ -30,7 +31,7 @@ public abstract class AbstractTest {
 
 	private static final boolean isExecutedBySurefirePlugin = System.getProperty("surefire.real.class.path") != null;
 
-	@BeforeClass
+	@BeforeAll
 	public static void setUpSystemErrRedirection() throws Exception {
 		if (isExecutedBySurefirePlugin) {
 			// redirect stderr to stdout during test execution as it is otherwise suppressed
@@ -40,15 +41,20 @@ public abstract class AbstractTest {
 		}
 	}
 
-	@AfterClass
+	@AfterAll
 	public static void tearDownSystemErrRedirection() throws Exception {
 		if (isExecutedBySurefirePlugin) {
 			System.setErr(originalSystemErr);
 		}
 	}
 
-	public final @Rule(order = 1) AllCleanRule allCleanRule = new AllCleanRule(this::getServerCapabilities);
-	public final @Rule(order = 0) TestInfoRule testInfo = new TestInfoRule();
+	@RegisterExtension
+	@Order(1)
+	public final AllCleanExtension allCleanRule = new AllCleanExtension(this::getServerCapabilities);
+	
+	@RegisterExtension
+	@Order(0)
+	public final TestInfoExtension testInfo = new TestInfoExtension();
 
 	/**
 	 * Override if required, used by {@link #allCleanRule}

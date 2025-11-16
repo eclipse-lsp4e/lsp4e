@@ -8,7 +8,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.debug.debugmodel;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -22,7 +23,7 @@ import org.eclipse.core.variables.IValueVariable;
 import org.eclipse.core.variables.IValueVariableListener;
 import org.eclipse.lsp4e.debug.debugmodel.JsonParserWithStringSubstitution;
 import org.eclipse.lsp4e.test.utils.AbstractTest;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class JsonParserWithStringSubstitutionTest extends AbstractTest {
 
@@ -130,11 +131,11 @@ public class JsonParserWithStringSubstitutionTest extends AbstractTest {
 	 *
 	 * Test if an exception is thrown when the json is _not_ an object at the top level.
 	 */
-	@Test(expected = IllegalStateException.class)
+	@Test
 	public void testThrowsIllegaStateException() throws IllegalStateException, CoreException {
 		final var json = "[\"value1\", \"value2\", \"value3\"]";
 		final var jsonParser = new JsonParserWithStringSubstitution(new StringVariableManagerMock());
-		jsonParser.parseJsonObject(json);
+		assertThrows(IllegalStateException.class, () -> jsonParser.parseJsonObject(json));
 	}
 
 	/**
@@ -144,12 +145,12 @@ public class JsonParserWithStringSubstitutionTest extends AbstractTest {
 	 * Test if an exception is thrown when the json contains a variable that is _not_
 	 * known to the {@link IStringVariableManager}.
 	 */
-	@Test(expected = CoreException.class)
+	@Test
 	public void testThrowsCoreException() throws IllegalStateException, CoreException {
 		final var json = "{\"key\":\"unknown_variable\"}";
 		final var stringVariableManager = new StringVariableManagerMock("Test", "Test");
 		final var jsonParser = new JsonParserWithStringSubstitution(stringVariableManager);
-		jsonParser.parseJsonObject(json);
+		assertThrows(CoreException.class, () -> jsonParser.parseJsonObject(json));
 	}
 
 	/**

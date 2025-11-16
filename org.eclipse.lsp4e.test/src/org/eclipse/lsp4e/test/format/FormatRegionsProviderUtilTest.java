@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.format;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Dictionary;
 import java.util.Hashtable;
@@ -22,7 +22,7 @@ import org.eclipse.jface.text.IRegion;
 import org.eclipse.lsp4e.format.DefaultFormatRegionsProvider;
 import org.eclipse.lsp4e.format.IFormatRegionsProvider;
 import org.eclipse.lsp4e.internal.FormatRegionsProviderUtil;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.FrameworkUtil;
 import org.osgi.framework.ServiceRegistration;

@@ -8,7 +8,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.completion;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.List;
 
@@ -26,7 +26,7 @@ import org.eclipse.lsp4j.InsertTextFormat;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.PartInitException;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class VariableReplacementTest extends AbstractCompletionTest {
 

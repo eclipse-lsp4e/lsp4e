@@ -8,8 +8,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.semanticTokens;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 
@@ -20,7 +20,7 @@ import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.operations.semanticTokens.SemanticTokensClient;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class SemanticTokensLegendProviderTest extends AbstractTestWithProject {
 

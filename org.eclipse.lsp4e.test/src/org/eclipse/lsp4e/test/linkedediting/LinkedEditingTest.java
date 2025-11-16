@@ -12,10 +12,11 @@
 package org.eclipse.lsp4e.test.linkedediting;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -35,8 +36,7 @@ import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class LinkedEditingTest extends AbstractTestWithProject {
 
@@ -58,7 +58,7 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 		}
 
 		Annotation annotation = annotations.get(new LinkedPosition(sourceViewer.getDocument(), 10, 4, 0));
-		Assert.assertNotNull(annotation);
+		assertNotNull(annotation);
 		assertTrue(annotation.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link"));
 	}
 
@@ -73,7 +73,7 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 
 		IAnnotationModel model = sourceViewer.getAnnotationModel();
 		List<Annotation> annotations = findAnnotations(sourceViewer, 14).stream().filter(a -> a.getType().startsWith("org.eclipse.ui.internal.workbench.texteditor.link")).toList();
-		assertEquals("Exepected only 1 link annotation here, got " + annotations, 1, annotations.size());
+		assertEquals(1, annotations.size(), "Exepected only 1 link annotation here, got " + annotations);
 		Annotation masterAnnotation = findAnnotation(sourceViewer, "org.eclipse.ui.internal.workbench.texteditor.link.master");
 		assertNotNull(masterAnnotation);
 		assertTrue(annotations.contains(masterAnnotation));
@@ -110,7 +110,7 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
 
 		if (!(viewer instanceof ISourceViewer)) {
-			Assert.fail();
+			fail();
 		}
 
 		var sourceViewer = (ISourceViewer) viewer;
@@ -149,7 +149,7 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
 
 		if (!(viewer instanceof ISourceViewer)) {
-			Assert.fail();
+			fail();
 		}
 
 		return (ISourceViewer) viewer;

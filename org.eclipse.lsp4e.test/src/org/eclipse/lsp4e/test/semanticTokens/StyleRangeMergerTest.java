@@ -10,7 +10,7 @@ package org.eclipse.lsp4e.test.semanticTokens;
 
 import static org.eclipse.lsp4e.test.semanticTokens.SemanticTokensTestUtil.GREEN;
 import static org.eclipse.lsp4e.test.semanticTokens.SemanticTokensTestUtil.RED;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,13 +18,13 @@ import java.util.List;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.Region;
 import org.eclipse.jface.text.TextPresentation;
-import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeMerger;
 import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeHolder;
+import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeMerger;
 import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class StyleRangeMergerTest extends AbstractTest {
 

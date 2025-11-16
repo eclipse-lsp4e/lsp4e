@@ -13,8 +13,8 @@
 package org.eclipse.lsp4e.test.edit;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +34,7 @@ import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.ide.IDE;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DocumentDidSaveTest extends AbstractTestWithProject {
 

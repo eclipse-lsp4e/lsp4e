@@ -11,8 +11,12 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.format;
 
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.junit.Assert.*;
+import static org.eclipse.lsp4e.test.utils.TestUtils.numberOfChangesIs;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +44,7 @@ import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class FormatTest extends AbstractTestWithProject {
 

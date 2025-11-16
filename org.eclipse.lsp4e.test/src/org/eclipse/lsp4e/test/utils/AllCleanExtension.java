@@ -25,24 +25,24 @@ import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.intro.IIntroPart;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
-public class AllCleanRule extends TestWatcher {
+public class AllCleanExtension implements BeforeEachCallback, AfterEachCallback {
 
 	private final Supplier<ServerCapabilities> serverConfigurer;
 
-	public AllCleanRule() {
+	public AllCleanExtension() {
 		this.serverConfigurer = MockLanguageServer::defaultServerCapabilities;
 	}
 
-	public AllCleanRule(final Supplier<ServerCapabilities> serverConfigurer) {
+	public AllCleanExtension(final Supplier<ServerCapabilities> serverConfigurer) {
 		this.serverConfigurer = serverConfigurer;
 	}
 
 	@Override
-	protected void starting(Description description) {
-		super.starting(description);
+	public void beforeEach(ExtensionContext context) throws Exception {
 		IIntroPart intro = PlatformUI.getWorkbench().getIntroManager().getIntro();
 		if (intro != null) {
 			PlatformUI.getWorkbench().getIntroManager().closeIntro(intro);
@@ -51,9 +51,8 @@ public class AllCleanRule extends TestWatcher {
 	}
 
 	@Override
-	protected void finished(Description description) {
+	public void afterEach(ExtensionContext context) throws Exception {
 		clear();
-		super.finished(description);
 	}
 
 	private void clear() {
@@ -74,4 +73,5 @@ public class AllCleanRule extends TestWatcher {
 		MockConnectionProvider.cancellations.clear();
 		TestUtils.tearDown();
 	}
+
 }

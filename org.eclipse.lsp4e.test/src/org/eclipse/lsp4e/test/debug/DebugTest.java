@@ -11,9 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.debug;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.util.Map;
 
@@ -21,7 +21,7 @@ import org.eclipse.lsp4e.debug.debugmodel.DSPDebugTarget;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4j.jsonrpc.json.JsonRpcMethod;
 import org.eclipse.lsp4j.jsonrpc.services.ServiceEndpoints;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class DebugTest extends AbstractTestWithProject {
 
@@ -38,8 +38,8 @@ public class DebugTest extends AbstractTestWithProject {
 	public void testSupportedJSONRPCMethods() throws Exception {
 		try {
 			Map<String, JsonRpcMethod> rpcMethods = ServiceEndpoints.getSupportedMethods(DSPDebugTarget.class);
-			assertNotNull("RPC Methods not found on DSPDebugTarget", rpcMethods);
-			assertFalse("Zero RPC Methods found on DSPDebugTarget", rpcMethods.isEmpty());
+			assertNotNull(rpcMethods, "RPC Methods not found on DSPDebugTarget");
+			assertFalse(rpcMethods.isEmpty(), "Zero RPC Methods found on DSPDebugTarget");
 		} catch (Throwable ex) {
 			fail("An error occurred while getting the RPC Methods of DSPDebugTarget: " + ex.getMessage());
 		}

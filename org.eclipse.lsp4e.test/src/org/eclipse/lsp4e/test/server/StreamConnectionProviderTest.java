@@ -12,7 +12,8 @@
 package org.eclipse.lsp4e.test.server;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -24,7 +25,7 @@ import java.net.URI;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4j.jsonrpc.messages.Message;
 import org.eclipse.lsp4j.services.LanguageServer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class StreamConnectionProviderTest {
 
@@ -69,7 +70,7 @@ public class StreamConnectionProviderTest {
 				// read one byte at a time to exercise single-byte read path
 			}
 		}
-		assertEquals("expected input to be forwarded to provided OutputStream", "ABC", sink.toString(UTF_8));
+		assertEquals("ABC", sink.toString(UTF_8), "expected input to be forwarded to provided OutputStream");
 	}
 
 	@Test
@@ -80,7 +81,7 @@ public class StreamConnectionProviderTest {
 		try (final var forwarding = newProvider().forwardCopyTo(emptyInput, sink)) {
 			final var buf = new byte[8];
 			int n = forwarding.read(buf); // should be -1 and not throw
-			assertEquals("expected EOF (-1) on empty stream", -1, n);
+			assertEquals(-1, n, "expected EOF (-1) on empty stream");
 		}
 		assertArrayEquals(new byte[0], sink.toByteArray());
 	}

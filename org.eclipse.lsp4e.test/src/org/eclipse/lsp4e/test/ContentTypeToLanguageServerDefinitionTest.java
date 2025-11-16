@@ -11,8 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 
@@ -21,9 +21,9 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServersRegistry;
 import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 public class ContentTypeToLanguageServerDefinitionTest extends AbstractTest {
 
@@ -31,12 +31,12 @@ public class ContentTypeToLanguageServerDefinitionTest extends AbstractTest {
 	public static final String DISABLED_CONTENT_TYPE = "org.eclipse.lsp4e.test.content-type-disabled";
 	public static final String DISABLED_SERVER_PREF = SERVER_TO_DISABLE + "/" + DISABLED_CONTENT_TYPE;
 
-	@BeforeClass
+	@BeforeAll
 	public static void setup() {
 		LanguageServerPlugin.getDefault().getPreferenceStore().setValue(DISABLED_SERVER_PREF, "false");
 	}
 
-	@AfterClass
+	@AfterAll
 	public static void cleanup() {
 		TestUtils.getDisabledLS().setUserEnabled(false);
 	}

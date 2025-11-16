@@ -11,7 +11,11 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.debug;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -55,7 +59,7 @@ import org.eclipse.lsp4j.debug.services.IDebugProtocolServer;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
 import org.eclipse.lsp4j.jsonrpc.RemoteEndpoint;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * End-to-end style test around DSPStackFrame.getVariables() to verify that
@@ -229,39 +233,39 @@ public class DebugScopesAndVariablesTest extends AbstractTestWithProject {
 		TestUtils.waitForAndAssertCondition(5000, target::isSuspended);
 
 		var threads = target.getThreads();
-		assertTrue("No threads reported by debug target", threads.length > 0);
-		assertEquals("Expected exactly one thread", 1, threads.length);
-		assertEquals("Thread name mismatch", "Main", threads[0].getName());
-		assertEquals("Thread id mismatch", Integer.valueOf(1), threads[0].getId());
+		assertTrue(threads.length > 0, "No threads reported by debug target");
+		assertEquals(1, threads.length, "Expected exactly one thread");
+		assertEquals("Main", threads[0].getName(), "Thread name mismatch");
+		assertEquals(Integer.valueOf(1), threads[0].getId(), "Thread id mismatch");
 
 		var frames = threads[0].getStackFrames();
-		assertTrue("No stack frames available on stopped thread", frames.length > 0);
-		assertEquals("Expected exactly one frame", 1, frames.length);
+		assertTrue(frames.length > 0, "No stack frames available on stopped thread");
+		assertEquals(1, frames.length, "Expected exactly one frame");
 
 		IStackFrame frame = frames[0];
-		assertEquals("Frame name mismatch", "func", frame.getName());
-		assertEquals("Frame line mismatch", 1, frame.getLineNumber());
-		assertEquals("Frame id mismatch", 101, ((DSPStackFrame) frame).getFrameId().intValue());
+		assertEquals("func", frame.getName(), "Frame name mismatch");
+		assertEquals(1, frame.getLineNumber(), "Frame line mismatch");
+		assertEquals(101, ((DSPStackFrame) frame).getFrameId().intValue(), "Frame id mismatch");
 		IVariable[] scopes = frame.getVariables();
-		assertTrue("Expected at least one scope", scopes.length > 0);
-		assertEquals("Expected exactly one scope", 1, scopes.length);
+		assertTrue(scopes.length > 0, "Expected at least one scope");
+		assertEquals(1, scopes.length, "Expected exactly one scope");
 		// Expect exactly one scope named "locals"
 		assertArrayEquals(new String[] { "locals" }, new String[] { scopes[0].getName() });
-		assertTrue("Scope should advertise child variables", scopes[0].getValue().hasVariables());
+		assertTrue(scopes[0].getValue().hasVariables(), "Scope should advertise child variables");
 
 		// Expand the scope to fetch actual variables via 'variables' request
 		var value = scopes[0].getValue();
 		var vars = value.getVariables();
-		assertNotNull("Scope value should not be null", value);
-		assertTrue("Expected at least one variable under 'locals'", vars != null && vars.length > 0);
-		assertEquals("Expected exactly one local variable", 1, vars.length);
+		assertNotNull(value, "Scope value should not be null");
+		assertTrue(vars != null && vars.length > 0, "Expected at least one variable under 'locals'");
+		assertEquals(1, vars.length, "Expected exactly one local variable");
 		assertArrayEquals(new String[] { "x" }, new String[] { vars[0].getName() });
-		assertEquals("Variable value mismatch", "42", vars[0].getValue().getValueString());
-		assertFalse("Leaf variable should not have children", vars[0].getValue().hasVariables());
+		assertEquals("42", vars[0].getValue().getValueString(), "Variable value mismatch");
+		assertFalse(vars[0].getValue().hasVariables(), "Leaf variable should not have children");
 
 		// Capabilities returned by mock initialize
-		assertNotNull("Capabilities should be available after initialize", target.getCapabilities());
-		assertFalse("supportsConfigurationDoneRequest should be false",
-				target.getCapabilities().getSupportsConfigurationDoneRequest());
+		assertNotNull(target.getCapabilities(), "Capabilities should be available after initialize");
+		assertFalse(target.getCapabilities().getSupportsConfigurationDoneRequest(), 
+				"supportsConfigurationDoneRequest should be false");
 	}
 }

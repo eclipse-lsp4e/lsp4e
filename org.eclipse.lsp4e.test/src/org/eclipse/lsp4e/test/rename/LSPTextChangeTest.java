@@ -11,7 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.rename;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -27,7 +28,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.ltk.core.refactoring.PerformChangeOperation;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class LSPTextChangeTest extends AbstractTestWithProject {
 

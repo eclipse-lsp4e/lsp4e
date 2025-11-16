@@ -12,7 +12,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.symbols;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -28,7 +30,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class SymbolsModelTest extends AbstractTest {
 

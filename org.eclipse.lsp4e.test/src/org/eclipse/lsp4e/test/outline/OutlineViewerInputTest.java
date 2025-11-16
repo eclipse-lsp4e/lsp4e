@@ -11,8 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.outline;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -25,7 +25,7 @@ import org.eclipse.lsp4e.outline.LSSymbolsContentProvider.OutlineViewerInput;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.ui.texteditor.ITextEditor;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 /**
  * Tests to verify that documentURI always contains absolute paths in the file system.
@@ -43,15 +43,15 @@ public class OutlineViewerInputTest extends AbstractTestWithProject {
 		var outlineInput = new LSSymbolsContentProvider.OutlineViewerInput(document, null, null);
 		var documentURI = getDocumentURI(outlineInput);
 		
-		assertNotNull("documentURI should not be null", documentURI);	
+		assertNotNull(documentURI, "documentURI should not be null");	
 		// Verify it represents a valid file system path
 		assertTrue("file".equals(documentURI.getScheme()));
 		assertTrue(documentURI.toString().startsWith("file:///"));
 	
 		// For workspace files, verify the URI corresponds to the absolute workspace file location
 		var workspaceFileLocation = testFile.getLocation().toString();
-		assertTrue("documentURI should contain the abolute path in the file system", 
-				documentURI.toString().contains(workspaceFileLocation));
+		assertTrue(documentURI.toString().contains(workspaceFileLocation),
+				"documentURI should contain the abolute path in the file system");
 	}
 
 	@Test
@@ -70,7 +70,7 @@ public class OutlineViewerInputTest extends AbstractTestWithProject {
 		var outlineInput = new LSSymbolsContentProvider.OutlineViewerInput(document, null, editor);
 		var documentURI = getDocumentURI(outlineInput);
 		
-		assertNotNull("DocumentURI should not be null for external files", documentURI);
+		assertNotNull(documentURI, "DocumentURI should not be null for external files");
 		
 		// Verify it represents a valid file system path
 		assertTrue("file".equals(documentURI.getScheme()));
@@ -78,8 +78,8 @@ public class OutlineViewerInputTest extends AbstractTestWithProject {
 			
 		// Verify it points to the same file we created
 		// replace '\' with '/' on Windows and remove leading '/' from documentURI path on Windows:
-		assertTrue("documentURI should contain the abolute path in the file system", 
-				 documentURI.toString().contains(tempFile.getAbsolutePath().replace("\\","/")));
+		assertTrue(documentURI.toString().contains(tempFile.getAbsolutePath().replace("\\","/")),
+				"documentURI should contain the abolute path in the file system");
 	}
 
 
