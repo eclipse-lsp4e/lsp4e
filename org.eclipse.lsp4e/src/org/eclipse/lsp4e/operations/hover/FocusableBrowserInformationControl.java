@@ -162,7 +162,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		if (input instanceof AsyncHtmlHoverInput async) {
 			this.currentAsyncToken = async.token;
 			super.setInput(styleHtml(async.placeholderHtml));
-			async.future.whenComplete((html, ex) -> UI.getDisplay().asyncExec(() -> {
+			async.future.whenComplete((html, ex) -> UI.runOnUIThread(() -> {
 				if (getShell() == null || getShell().isDisposed()) {
 					return;
 				}
@@ -172,14 +172,15 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 				}
 				if (ex != null) {
 					LanguageServerPlugin.logError(ex);
-					dispose();
+					super.setInput(
+							"Unexpected error: " + ex.getClass().getSimpleName() + ": " + ex.getLocalizedMessage()); //$NON-NLS-1$ //$NON-NLS-2$
 					return;
 				}
 				if (html != null && !html.isBlank()) {
 					super.setInput(styleHtml(html));
 				} else {
 					// No content from LS; hide placeholder
-					dispose();
+					super.setInput(""); //$NON-NLS-1$
 				}
 			}));
 			return;
