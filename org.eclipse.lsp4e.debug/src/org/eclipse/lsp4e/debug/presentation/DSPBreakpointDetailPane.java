@@ -199,11 +199,13 @@ public class DSPBreakpointDetailPane implements IDetailPane {
 				// Apply capability gating
 				final var caps = getDebugAdapterCapabilities(); // is null if no debug session is active
 
-				final boolean condSupported = caps == null || caps.getSupportsConditionalBreakpoints();
+				final boolean condSupported = caps == null
+						|| caps.getSupportsConditionalBreakpoints() != null && caps.getSupportsConditionalBreakpoints();
 				enableConditionButton.setEnabled(condSupported);
 				conditionEditor.setEnabled(condSupported);
 
-				final boolean hitSupported = caps == null || caps.getSupportsHitConditionalBreakpoints();
+				final boolean hitSupported = caps == null || caps.getSupportsHitConditionalBreakpoints() != null
+						&& caps.getSupportsHitConditionalBreakpoints();
 				enableHitConditionButton.setEnabled(hitSupported);
 				hitConditionText.setEnabled(hitSupported);
 			} else {
