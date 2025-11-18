@@ -160,6 +160,12 @@ public class DSPBreakpointManager implements IBreakpointManagerListener, IBreakp
 	private void addBreakpointToMap(IBreakpoint breakpoint) {
 		Assert.isTrue(supportsBreakpoint(breakpoint) && breakpoint instanceof ILineBreakpoint);
 		if (breakpoint instanceof ILineBreakpoint lineBreakpoint) {
+			// Ensure we do not keep stale breakpoint entries for the same
+			// location (line/column) when attributes such as conditions change.
+			// This avoids sending multiple breakpoints for the same source
+			// location to the debug adapter.
+			deleteBreakpointFromMap(breakpoint);
+
 			IMarker marker = lineBreakpoint.getMarker();
 			IResource resource = marker.getResource();
 			IPath location = resource.getLocation();

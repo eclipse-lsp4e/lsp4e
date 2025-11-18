@@ -113,4 +113,51 @@ class BreakpointMappingTest extends AbstractTestWithProject {
 			manager.shutdown();
 		}
 	}
+
+	@Test
+	void changing_breakpoint_condition_replaces_existing_entry() throws Exception {
+		IFile file = TestUtils.createUniqueTestFile(project, "txt", "first line\nsecond line\n");
+
+		var bp = new DSPLineBreakpoint(file, 2);
+		bp.setCondition("x > 0");
+		created.add(bp);
+
+		var server = new CapturingServer();
+		var manager = new DSPBreakpointManager(DebugPlugin.getDefault().getBreakpointManager(), server, null);
+
+		try {
+			// Simulate initial registration of the breakpoint with the manager
+			manager.initialize().join();
+			manager.breakpointAdded(bp);
+
+			// Change the condition and simulate the platform reporting the change
+			server.calls.clear();
+			bp.setCondition("x > 1");
+			manager.breakpointChanged(bp, null);
+
+			SetBreakpointsArguments matching = null;
+			synchronized (server.calls) {
+				assertTrue(!server.calls.isEmpty(),
+						"No setBreakpoints() calls captured after breakpoint condition change");
+				String path = file.getLocation().toOSString();
+				for (SetBreakpointsArguments a : server.calls) {
+					if (a.getSource() != null && path.equals(a.getSource().getPath())) {
+						matching = a;
+						break;
+					}
+				}
+			}
+
+			assertNotNull(matching,
+					"No setBreakpoints() call for our file was captured after breakpoint condition change");
+			SourceBreakpoint[] sent = matching.getBreakpoints();
+			assertNotNull(sent);
+			assertEquals(1, sent.length, "Expected exactly one SourceBreakpoint after condition change");
+
+			SourceBreakpoint sb = sent[0];
+			assertEquals("x > 1", sb.getCondition());
+		} finally {
+			manager.shutdown();
+		}
+	}
 }
