@@ -142,6 +142,7 @@
 							<goal>compare-version-with-baselines</goal>
 						</goals>
 						<configuration>
+							<skip>${tycho.p2.baseline.skip}</skip>
 							<baselines>
 								<url>https://download.eclipse.org/lsp4e/releases/latest</url>
 							</baselines>

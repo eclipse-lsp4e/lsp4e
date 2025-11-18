@@ -154,6 +154,7 @@ jobs:
           --batch-mode \
           --show-version \
           -Declipse.p2.mirrors=false \
+          -Dtycho.p2.baseline.skip=true \
           -Dmaven.test.skip=true \
           clean verify
 
