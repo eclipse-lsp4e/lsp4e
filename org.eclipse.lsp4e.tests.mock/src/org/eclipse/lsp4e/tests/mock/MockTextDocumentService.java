@@ -28,13 +28,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CallHierarchyIncomingCall;
 import org.eclipse.lsp4j.CallHierarchyIncomingCallsParams;
 import org.eclipse.lsp4j.CallHierarchyItem;
 import org.eclipse.lsp4j.CallHierarchyOutgoingCall;
 import org.eclipse.lsp4j.CallHierarchyOutgoingCallsParams;
 import org.eclipse.lsp4j.CallHierarchyPrepareParams;
+import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.CodeActionParams;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
@@ -190,10 +190,6 @@ public class MockTextDocumentService implements TextDocumentService {
 	@Override
 	public CompletableFuture<List<Either<SymbolInformation, DocumentSymbol>>> documentSymbol(
 			DocumentSymbolParams params) {
-		String documentURI = params.getTextDocument().getUri();
-		if (!documentURI.startsWith("file:///")) {
-			throw new IllegalArgumentException("invalid uri: " + documentURI);
-		}
 		return CompletableFuture.completedFuture(documentSymbols.stream().map(symbol -> {
 			Either<SymbolInformation, DocumentSymbol> res = Either.forRight(symbol);
 			return res;
