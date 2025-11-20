@@ -14,10 +14,11 @@
  *  Kris De Volder (Pivotal, Inc.) - dynamic command registration
  *  Tamas Miklossy (itemis) - bug 571162
  *  Rubén Porras Campo (Avaloq Evolution AG) - documentAboutToBeSaved implementation
+ *  Sebastian Thomschke (Vegard IT GmbH) - textDocument/completion, workspace/didChangeWatchedFiles support; bug fixes
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -80,17 +81,22 @@ import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
+import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.ClientInfo;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CompletionOptions;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
+import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
 import org.eclipse.lsp4j.DocumentFormattingOptions;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
 import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
+import org.eclipse.lsp4j.FileChangeType;
+import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.InitializedParams;
@@ -103,6 +109,7 @@ import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
 import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
 import org.eclipse.lsp4j.UnregistrationParams;
+import org.eclipse.lsp4j.WatchKind;
 import org.eclipse.lsp4j.WindowClientCapabilities;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.WorkspaceFoldersChangeEvent;
@@ -276,6 +283,9 @@ public class LanguageServerWrapper {
 	private boolean initiallySupportsWorkspaceFolders = false;
 	private final IResourceChangeListener workspaceFolderUpdater = new WorkspaceFolderListener();
 
+	private final FileSystemWatcherManager fileSystemWatcherManager;
+	private final WatchedFilesListener watchedFilesListener = new WatchedFilesListener();
+
 	/* Backwards compatible constructor */
 	public LanguageServerWrapper(IProject project, LanguageServerDefinition serverDefinition) {
 		this(project, serverDefinition, null);
@@ -314,6 +324,8 @@ public class LanguageServerWrapper {
 		final var errorsThreadNameFormat = formatPrefix + "#errorProcessor"; //$NON-NLS-1$
 		this.errorProcessor = Executors
 				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(errorsThreadNameFormat).build());
+
+		this.fileSystemWatcherManager = new FileSystemWatcherManager(initialProject);
 	}
 
 	void stopDispatcher() {
@@ -733,6 +745,8 @@ public class LanguageServerWrapper {
 		this.dynamicRegistrations.clear();
 
 		ResourcesPlugin.getWorkspace().removeResourceChangeListener(workspaceFolderUpdater);
+		ResourcesPlugin.getWorkspace().removeResourceChangeListener(watchedFilesListener);
+		fileSystemWatcherManager.clear();
 
 		CompletableFuture.runAsync(workingContext::close);
 
@@ -1124,6 +1138,27 @@ public class LanguageServerWrapper {
 				"Dynamic capability registration failed! Server not yet initialized?"); //$NON-NLS-1$
 		params.getRegistrations().forEach(reg -> {
 			switch (reg.getMethod()) {
+			case "workspace/didChangeWatchedFiles": { //$NON-NLS-1$
+				try {
+					DidChangeWatchedFilesRegistrationOptions options = toDidChangeWatchedFilesRegistrationOptions(
+							reg.getRegisterOptions());
+					if (options != null && !options.getWatchers().isEmpty()) {
+						fileSystemWatcherManager.registerFileSystemWatchers(reg.getId(), options.getWatchers());
+						enableWatchedFiles();
+						addRegistration(reg, () -> {
+							fileSystemWatcherManager.unregisterFileSystemWatchers(reg.getId());
+							disableWatchedFiles();
+						});
+					} else {
+						// No usable watchers - still track registration so it can be unregistered cleanly
+						addRegistration(reg, this::disableWatchedFiles);
+					}
+				} catch (final Exception ex) {
+					LanguageServerPlugin.logError(ex);
+					addRegistration(reg, this::disableWatchedFiles);
+				}
+				break;
+			}
 			case "workspace/didChangeWorkspaceFolders":  //$NON-NLS-1$
 				if (initiallySupportsWorkspaceFolders) {
 					// Can treat this as a NOP since nothing can disable it dynamically if it was
@@ -1214,6 +1249,17 @@ public class LanguageServerWrapper {
 		}});
 	}
 
+	private static @Nullable DidChangeWatchedFilesRegistrationOptions toDidChangeWatchedFilesRegistrationOptions(
+			@Nullable Object registerOptions) {
+		if (registerOptions == null)
+			return null;
+		if (registerOptions instanceof DidChangeWatchedFilesRegistrationOptions direct)
+			return direct;
+		if (registerOptions instanceof JsonObject jsonObject)
+			return new Gson().fromJson(jsonObject, DidChangeWatchedFilesRegistrationOptions.class);
+		return null;
+	}
+
 	private void addRegistration(Registration reg, Runnable unregistrationHandler) {
 		String regId = reg.getId();
 		synchronized (dynamicRegistrations) {
@@ -1222,6 +1268,18 @@ public class LanguageServerWrapper {
 			} else {
 				dynamicRegistrations.put(regId, unregistrationHandler);
 			}
+		}
+	}
+
+	synchronized void disableWatchedFiles() {
+		if (!fileSystemWatcherManager.hasFilePatterns()) {
+			ResourcesPlugin.getWorkspace().removeResourceChangeListener(watchedFilesListener);
+		}
+	}
+
+	synchronized void enableWatchedFiles() {
+		if (fileSystemWatcherManager.hasFilePatterns()) {
+			ResourcesPlugin.getWorkspace().addResourceChangeListener(watchedFilesListener, IResourceChangeEvent.POST_CHANGE);
 		}
 	}
 
@@ -1440,6 +1498,119 @@ public class LanguageServerWrapper {
 			return wsFolder != null && wsFolder.getUri() != null && !wsFolder.getUri().isEmpty();
 		}
 
+	}
+
+	/**
+	 * Resource listener that translates Eclipse resource change events into LSP
+	 * file watch events and dispatches them if the language server is still active
+	 */
+	private final class WatchedFilesListener implements IResourceChangeListener {
+
+		private record WatchedFileChange(URI uri, FileChangeType changeType) {
+		}
+
+		@Override
+		public void resourceChanged(final IResourceChangeEvent event) {
+			// Fast-path: if no watchers are registered, skip work entirely
+			if (!fileSystemWatcherManager.hasFilePatterns())
+				return;
+
+			final List<WatchedFileChange> changes = collectChanges(event);
+			if (changes.isEmpty())
+				return;
+
+			final LanguageServer currentServer = context.languageServer;
+			if (currentServer == null)
+				return;
+
+			// Offload potentially expensive glob matching and notification dispatching
+			// to the language-server dispatcher thread to avoid blocking the workspace
+			// resource change thread.
+			dispatcher.execute(() -> {
+				final LanguageServer serverInContext = context.languageServer;
+				if (serverInContext == null || serverInContext != currentServer)
+					return;
+
+				final var fileEvents = new ArrayList<FileEvent>();
+				for (final WatchedFileChange change : changes) {
+					final int watchKind = toWatchKind(change.changeType());
+					if (!fileSystemWatcherManager.isMatchFilePattern(change.uri(), watchKind)) {
+						continue;
+					}
+					final var fileEvent = new FileEvent();
+					fileEvent.setUri(change.uri().toASCIIString());
+					fileEvent.setType(change.changeType());
+					fileEvents.add(fileEvent);
+				}
+				if (fileEvents.isEmpty())
+					return;
+				serverInContext.getWorkspaceService()
+						.didChangeWatchedFiles(new DidChangeWatchedFilesParams(fileEvents));
+			});
+		}
+
+		private List<WatchedFileChange> collectChanges(final IResourceChangeEvent event) {
+			if (event.getType() != IResourceChangeEvent.POST_CHANGE || event.getDelta() == null)
+				return List.of();
+
+			final var relevantFolders = getRelevantWorkspaceFolders();
+			final var changes = new ArrayList<WatchedFileChange>();
+			try {
+				event.getDelta().accept(delta -> {
+					final IResource resource = delta.getResource();
+					if (resource.getType() == IResource.ROOT)
+						return true;
+					if (resource.getType() != IResource.FILE)
+						return true;
+					if (!(resource instanceof IFile file))
+						return false;
+
+					final WorkspaceFolder wsFolder = LSPEclipseUtils.toWorkspaceFolder(file.getProject());
+					if (!relevantFolders.contains(wsFolder))
+						return false;
+
+					final FileChangeType changeType = getFileChangeType(delta);
+					if (changeType == null)
+						return false;
+
+					final URI uri = LSPEclipseUtils.toUri(file);
+					if (uri == null)
+						return false;
+
+					changes.add(new WatchedFileChange(uri, changeType));
+
+					return false;
+				});
+			} catch (final CoreException ex) {
+				LanguageServerPlugin.logError(ex);
+			}
+			return changes;
+		}
+
+		private int toWatchKind(FileChangeType changeType) {
+			return switch (changeType) {
+			case Created -> WatchKind.Create;
+			case Changed -> WatchKind.Change;
+			case Deleted -> WatchKind.Delete;
+			default -> WatchKind.Create;
+			};
+		}
+
+		private @Nullable FileChangeType getFileChangeType(final IResourceDelta delta) {
+			return switch (delta.getKind()) {
+			case IResourceDelta.ADDED -> FileChangeType.Created;
+			case IResourceDelta.REMOVED -> FileChangeType.Deleted;
+			case IResourceDelta.CHANGED -> {
+				int flags = delta.getFlags();
+				if ((flags & (IResourceDelta.CONTENT | IResourceDelta.REPLACED | IResourceDelta.MOVED_FROM
+						| IResourceDelta.MOVED_TO)) != 0) {
+					yield FileChangeType.Changed;
+				}
+				yield null;
+			}
+			default -> null;
+			};
+		}
 	}
 
 	/**

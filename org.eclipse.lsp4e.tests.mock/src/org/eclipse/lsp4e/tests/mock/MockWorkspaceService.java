@@ -32,6 +32,7 @@ public class MockWorkspaceService implements WorkspaceService {
 	private Function<?, ?> _futureFactory;
 	private CompletableFuture<ExecuteCommandParams> executedCommand = new CompletableFuture<>();
 	private List<DidChangeWorkspaceFoldersParams> workspaceFoldersEvents = new ArrayList<>();
+	private List<DidChangeWatchedFilesParams> watchedFilesEvents = new ArrayList<>();
 
 	public <U> MockWorkspaceService(Function<U, CompletableFuture<U>> futureFactory) {
 		this._futureFactory = futureFactory;
@@ -63,6 +64,7 @@ public class MockWorkspaceService implements WorkspaceService {
 
 	@Override
 	public void didChangeWatchedFiles(DidChangeWatchedFilesParams params) {
+		watchedFilesEvents.add(params);
 	}
 
 	@Override
@@ -72,6 +74,10 @@ public class MockWorkspaceService implements WorkspaceService {
 
 	public List<DidChangeWorkspaceFoldersParams> getWorkspaceFoldersEvents() {
 		return this.workspaceFoldersEvents;
+	}
+
+	public List<DidChangeWatchedFilesParams> getWatchedFilesEvents() {
+		return this.watchedFilesEvents;
 	}
 
 	@Override

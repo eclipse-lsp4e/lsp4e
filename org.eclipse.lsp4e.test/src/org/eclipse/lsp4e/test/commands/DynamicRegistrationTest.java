@@ -30,7 +30,10 @@ import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
+import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
+import org.eclipse.lsp4j.FileChangeType;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.ServerCapabilities;
@@ -48,6 +51,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 
 	private static final String WORKSPACE_EXECUTE_COMMAND = "workspace/executeCommand";
 	private static final String WORKSPACE_DID_CHANGE_FOLDERS = "workspace/didChangeWorkspaceFolders";
+	private static final String WORKSPACE_DID_CHANGE_WATCHED_FILES = "workspace/didChangeWatchedFiles";
 
 	@BeforeEach
 	public void setUp() throws Exception {
@@ -73,10 +77,34 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command.2")));
 		} finally {
-			unregister(registration);
+			unregister(registration, WORKSPACE_EXECUTE_COMMAND);
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command.2")));
+	}
+
+	@Test
+	public void testWatchedFilesRegistrationAndNotification() throws Exception {
+		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+
+		UUID registration = registerWatchedFiles();
+		try {
+			MockWorkspaceService workspaceService = MockLanguageServer.INSTANCE.getWorkspaceService();
+
+			TestUtils.createFile(project, "watched.txt", "");
+			TestUtils.createFile(project, "unwatched.bin", "");
+
+			waitForCondition(5_000, () -> !workspaceService.getWatchedFilesEvents().isEmpty());
+
+			DidChangeWatchedFilesParams params = workspaceService.getWatchedFilesEvents().get(0);
+			assertFalse(params.getChanges().isEmpty());
+			assertTrue(params.getChanges().stream().anyMatch(
+					ev -> ev.getUri().endsWith("watched.txt") && ev.getType() == FileChangeType.Created));
+			assertFalse(params.getChanges().stream()
+					.anyMatch(ev -> ev.getUri().endsWith("unwatched.bin")));
+		} finally {
+			unregister(registration, WORKSPACE_DID_CHANGE_WATCHED_FILES);
+		}
 	}
 
 	@Test
@@ -89,7 +117,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		try {
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 		} finally {
-			unregister(registration);
+			unregister(registration, WORKSPACE_DID_CHANGE_FOLDERS);
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> !hasWorkspaceFolderSupport(c)));
@@ -97,11 +125,27 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 
 	//////////////////////////////////////////////////////////////////////////////////
 
-	private void unregister(UUID registration) throws Exception {
+	private void unregister(UUID registration, String method) throws Exception {
 		LanguageClient client = getMockClient();
-		final var unregistration = new Unregistration(registration.toString(), WORKSPACE_EXECUTE_COMMAND);
+		final var unregistration = new Unregistration(registration.toString(), method);
 		client.unregisterCapability(new UnregistrationParams(List.of(unregistration)))
 			.get(1, TimeUnit.SECONDS);
+	}
+
+	private UUID registerWatchedFiles() throws Exception {
+		var id = UUID.randomUUID();
+		LanguageClient client = getMockClient();
+		final var registration = new Registration();
+		registration.setId(id.toString());
+		registration.setMethod(WORKSPACE_DID_CHANGE_WATCHED_FILES);
+		// Only watch *.txt files to verify that glob-based filtering works
+		final var options = new org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions();
+		final var watcher = new org.eclipse.lsp4j.FileSystemWatcher(
+				org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/*.txt"), null);
+		options.setWatchers(List.of(watcher));
+		registration.setRegisterOptions(new Gson().toJsonTree(options));
+		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
+		return id;
 	}
 
 	private UUID registerWorkspaceFolders() throws Exception {
