@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="org.eclipse.lsp4e.format.DefaultFormatRegionsProvider">
-   <property name="service.ranking" value="1"/>
+   <property name="service.ranking" type="Integer" value="1"/>
    <service>
       <provide interface="org.eclipse.lsp4e.format.IFormatRegionsProvider"/>
    </service>

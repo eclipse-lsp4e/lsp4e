@@ -24,7 +24,7 @@ import org.osgi.service.component.annotations.Component;
  * This implementation has a 'service.ranking' of 1 so it is chosen as the default when querying
  * {@link BundleContext#getServiceReference(String)} without specifying a serverDefinitionId.
  */
-@Component(property={"service.ranking=1"})
+@Component(property={"service.ranking:Integer=1"})
 public class DefaultFormatRegionsProvider implements IFormatRegionsProvider {
 
 	@Override
