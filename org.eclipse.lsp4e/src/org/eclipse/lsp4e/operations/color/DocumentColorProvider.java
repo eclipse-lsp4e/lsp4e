@@ -11,7 +11,6 @@
  */
 package org.eclipse.lsp4e.operations.color;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,17 +18,14 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.ITextViewer;
-import org.eclipse.jface.text.codemining.AbstractCodeMiningProvider;
 import org.eclipse.jface.text.codemining.ICodeMining;
-import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.AbstractLSPCodeMiningProvider;
 import org.eclipse.lsp4j.ColorInformation;
 import org.eclipse.lsp4j.DocumentColorParams;
 import org.eclipse.lsp4j.ServerCapabilities;
@@ -41,9 +37,8 @@ import org.eclipse.swt.widgets.Display;
 /**
  * Consume the 'textDocument/documentColor' request to decorate color references
  * in the editor.
- *
  */
-public class DocumentColorProvider extends AbstractCodeMiningProvider {
+public class DocumentColorProvider extends AbstractLSPCodeMiningProvider {
 
 	private final Map<RGBA, Color> colorTable;
 
@@ -51,24 +46,19 @@ public class DocumentColorProvider extends AbstractCodeMiningProvider {
 		colorTable = new HashMap<>();
 	}
 
-	private @Nullable CompletableFuture<List<? extends ICodeMining>> provideCodeMinings(IDocument document) {
-		URI docURI = LSPEclipseUtils.toUri(document);
-
-		if (docURI != null) {
-			final var textDocumentIdentifier = LSPEclipseUtils.toTextDocumentIdentifier(docURI);
-			final var param = new DocumentColorParams(textDocumentIdentifier);
-			return LanguageServers.forDocument(document)
-				.withCapability(ServerCapabilities::getColorProvider)
-				.collectAll(
-					// Need to do some of the result processing inside the function we supply to collectAll(...)
-					// as need the LSW to construct the ColorInformationMining
-					(wrapper, ls) -> ls.getTextDocumentService().documentColor(param)
-								.thenApply(colors -> LanguageServers.streamSafely(colors)
-										.map(color -> toMining(color, document, textDocumentIdentifier, wrapper))))
-				.thenApply(res -> res.stream().flatMap(Function.identity()).filter(Objects::nonNull).toList());
-		} else {
-			return null;
-		}
+	@Override
+	protected @Nullable CompletableFuture<List<? extends ICodeMining>> doProvideCodeMinings(IDocument document,
+			TextDocumentIdentifier docId) {
+		final var param = new DocumentColorParams(docId);
+		return LanguageServers.forDocument(document)
+			.withCapability(ServerCapabilities::getColorProvider)
+			.collectAll(
+				// Need to do some of the result processing inside the function we supply to collectAll(...)
+				// as need the LSW to construct the ColorInformationMining
+				(wrapper, ls) -> ls.getTextDocumentService().documentColor(param)
+							.thenApply(colors -> LanguageServers.streamSafely(colors)
+									.map(color -> toMining(color, document, docId, wrapper))))
+			.thenApply(res -> res.stream().flatMap(Function.identity()).filter(Objects::nonNull).toList());
 	}
 
 	private @Nullable ColorInformationMining toMining(ColorInformation color, IDocument document, TextDocumentIdentifier textDocumentIdentifier, LanguageServerWrapper wrapper) {
@@ -80,13 +70,6 @@ public class DocumentColorProvider extends AbstractCodeMiningProvider {
 			LanguageServerPlugin.logError(e);
 		}
 		return null;
-	}
-
-	@Override
-	public @Nullable CompletableFuture<List<? extends ICodeMining>> provideCodeMinings(ITextViewer viewer,
-			IProgressMonitor monitor) {
-		IDocument document = viewer.getDocument();
-		return document != null ? provideCodeMinings(document) : null;
 	}
 
 	/**

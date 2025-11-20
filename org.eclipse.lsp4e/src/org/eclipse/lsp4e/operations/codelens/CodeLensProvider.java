@@ -8,42 +8,36 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.codelens;
 
-import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
-import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.text.ITextViewer;
-import org.eclipse.jface.text.codemining.AbstractCodeMiningProvider;
 import org.eclipse.jface.text.codemining.ICodeMining;
-import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.LanguageServers.LanguageServerDocumentExecutor;
+import org.eclipse.lsp4e.internal.AbstractLSPCodeMiningProvider;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.CodeLensParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
 
-public class CodeLensProvider extends AbstractCodeMiningProvider {
+public class CodeLensProvider extends AbstractLSPCodeMiningProvider {
 
-	private @Nullable CompletableFuture<List<? extends ICodeMining>> provideCodeMinings(IDocument document) {
-		URI docURI = LSPEclipseUtils.toUri(document);
-		if (docURI != null) {
-			final var param = new CodeLensParams(LSPEclipseUtils.toTextDocumentIdentifier(docURI));
-			LanguageServerDocumentExecutor executor = LanguageServers.forDocument(document)
-					.withFilter(sc -> sc.getCodeLensProvider() != null);
-			return executor
-					.collectAll((w, ls) -> ls.getTextDocumentService().codeLens(param)
-							.thenApply(codeLenses -> LanguageServers.streamSafely(codeLenses)
-									.map(codeLens -> toCodeMining(document, w, codeLens)).filter(Objects::nonNull)))
-					.thenApply(result -> result.stream().flatMap(s -> s).toList());
-		} else {
-			return null;
-		}
+	@Override
+	protected @Nullable CompletableFuture<List<? extends ICodeMining>> doProvideCodeMinings(IDocument document,
+			TextDocumentIdentifier docId) {
+		final var param = new CodeLensParams(docId);
+		LanguageServerDocumentExecutor executor = LanguageServers.forDocument(document)
+				.withFilter(sc -> sc.getCodeLensProvider() != null);
+		return executor
+				.collectAll((w, ls) -> ls.getTextDocumentService().codeLens(param)
+						.thenApply(codeLenses -> LanguageServers.streamSafely(codeLenses)
+								.map(codeLens -> toCodeMining(document, w, codeLens)).filter(Objects::nonNull)))
+				.thenApply(result -> result.stream().flatMap(s -> s).toList());
 	}
 
 	private @Nullable LSPCodeMining toCodeMining(IDocument document, LanguageServerWrapper languageServerWrapper,
@@ -58,12 +52,4 @@ public class CodeLensProvider extends AbstractCodeMiningProvider {
 			return null;
 		}
 	}
-
-	@Override
-	public @Nullable CompletableFuture<List<? extends ICodeMining>> provideCodeMinings(ITextViewer viewer,
-			IProgressMonitor monitor) {
-		IDocument document = viewer.getDocument();
-		return document != null ? provideCodeMinings(document) : null;
-	}
-
 }
