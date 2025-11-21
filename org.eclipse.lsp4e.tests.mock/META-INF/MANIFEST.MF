@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Mock Language Server to test LSP4E
 Bundle-SymbolicName: org.eclipse.lsp4e.tests.mock
-Bundle-Version: 0.17.1.qualifier
+Bundle-Version: 0.17.2.qualifier
 Bundle-Vendor: Eclipse LSP4E
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Require-Bundle: org.eclipse.lsp4j,

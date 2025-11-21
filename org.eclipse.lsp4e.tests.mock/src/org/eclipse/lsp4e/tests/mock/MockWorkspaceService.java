@@ -17,10 +17,13 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
+import org.eclipse.lsp4j.CreateFilesParams;
 import org.eclipse.lsp4j.DidChangeConfigurationParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
+import org.eclipse.lsp4j.DeleteFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandParams;
+import org.eclipse.lsp4j.RenameFilesParams;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.WorkspaceSymbol;
 import org.eclipse.lsp4j.WorkspaceSymbolParams;
@@ -33,6 +36,11 @@ public class MockWorkspaceService implements WorkspaceService {
 	private CompletableFuture<ExecuteCommandParams> executedCommand = new CompletableFuture<>();
 	private List<DidChangeWorkspaceFoldersParams> workspaceFoldersEvents = new ArrayList<>();
 	private List<DidChangeWatchedFilesParams> watchedFilesEvents = new ArrayList<>();
+
+	// Track file operation requests for assertions in tests
+	private volatile CreateFilesParams lastWillCreate;
+	private volatile RenameFilesParams lastWillRename;
+	private volatile DeleteFilesParams lastWillDelete;
 
 	public <U> MockWorkspaceService(Function<U, CompletableFuture<U>> futureFactory) {
 		this._futureFactory = futureFactory;
@@ -88,5 +96,36 @@ public class MockWorkspaceService implements WorkspaceService {
 
 	public CompletableFuture<ExecuteCommandParams> getExecutedCommand() {
 		return executedCommand;
+	}
+
+	// --- File operations ---
+	@Override
+	public CompletableFuture<org.eclipse.lsp4j.WorkspaceEdit> willCreateFiles(CreateFilesParams params) {
+		this.lastWillCreate = params;
+		return futureFactory(new org.eclipse.lsp4j.WorkspaceEdit());
+	}
+
+	@Override
+	public CompletableFuture<org.eclipse.lsp4j.WorkspaceEdit> willRenameFiles(RenameFilesParams params) {
+		this.lastWillRename = params;
+		return futureFactory(new org.eclipse.lsp4j.WorkspaceEdit());
+	}
+
+	@Override
+	public CompletableFuture<org.eclipse.lsp4j.WorkspaceEdit> willDeleteFiles(DeleteFilesParams params) {
+		this.lastWillDelete = params;
+		return futureFactory(new org.eclipse.lsp4j.WorkspaceEdit());
+	}
+
+	public CreateFilesParams getLastWillCreate() {
+		return lastWillCreate;
+	}
+
+	public RenameFilesParams getLastWillRename() {
+		return lastWillRename;
+	}
+
+	public DeleteFilesParams getLastWillDelete() {
+		return lastWillDelete;
 	}
 }

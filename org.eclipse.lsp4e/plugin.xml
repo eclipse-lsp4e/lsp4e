@@ -462,6 +462,71 @@
       </menuContribution>
    </extension>
 
+   <extension point="org.eclipse.ltk.core.refactoring.createParticipants">
+      <createParticipant
+            id="org.eclipse.lsp4e.operations.createParticipant"
+            class="org.eclipse.lsp4e.operations.rename.LSPCreateParticipant"
+            name="LSPCreateParticipant">
+         <enablement>
+            <or>
+               <and>
+                  <instanceof value="org.eclipse.core.resources.IFile" />
+                  <test forcePluginActivation="true" property="org.eclipse.lsp4e.hasLanguageServer" />
+               </and>
+               <instanceof value="org.eclipse.core.resources.IFolder" />
+            </or>
+         </enablement>
+      </createParticipant>
+   </extension>
+   <extension point="org.eclipse.ltk.core.refactoring.deleteParticipants">
+      <deleteParticipant
+            id="org.eclipse.lsp4e.operations.deleteParticipant"
+            class="org.eclipse.lsp4e.operations.rename.LSPDeleteParticipant"
+            name="LSPDeleteParticipant">
+         <enablement>
+            <or>
+               <and>
+                  <instanceof value="org.eclipse.core.resources.IFile" />
+                  <test forcePluginActivation="true" property="org.eclipse.lsp4e.hasLanguageServer" />
+               </and>
+               <instanceof value="org.eclipse.core.resources.IFolder" />
+            </or>
+         </enablement>
+      </deleteParticipant>
+   </extension>
+   <extension point="org.eclipse.ltk.core.refactoring.moveParticipants">
+      <moveParticipant
+            id="org.eclipse.lsp4e.operations.moveParticipant"
+            class="org.eclipse.lsp4e.operations.rename.LSPMoveParticipant"
+            name="LSPMoveParticipant">
+         <enablement>
+            <or>
+               <and>
+                  <instanceof value="org.eclipse.core.resources.IFile" />
+                  <test forcePluginActivation="true" property="org.eclipse.lsp4e.hasLanguageServer" />
+               </and>
+               <instanceof value="org.eclipse.core.resources.IFolder" />
+            </or>
+         </enablement>
+      </moveParticipant>
+   </extension>
+   <extension point="org.eclipse.ltk.core.refactoring.renameParticipants">
+      <renameParticipant
+            id="org.eclipse.lsp4e.operations.renameParticipant"
+            class="org.eclipse.lsp4e.operations.rename.LSPRenameParticipant"
+            name="LSPRenameParticipant">
+         <enablement>
+            <or>
+               <and>
+                  <instanceof value="org.eclipse.core.resources.IFile" />
+                  <test forcePluginActivation="true" property="org.eclipse.lsp4e.hasLanguageServer" />
+               </and>
+               <instanceof value="org.eclipse.core.resources.IFolder" />
+            </or>
+         </enablement>
+       </renameParticipant>
+    </extension>
+
 
    <!-- ===================================== -->
    <!-- Selection Range Support               -->

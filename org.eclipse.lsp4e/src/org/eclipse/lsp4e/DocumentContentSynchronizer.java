@@ -357,11 +357,19 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 	}
 
 	public void documentClosed() {
-	   final var identifier = LSPEclipseUtils.toTextDocumentIdentifier(fileUri);
+		final var identifier = LSPEclipseUtils.toTextDocumentIdentifier(fileUri);
 		WILL_SAVE_WAIT_UNTIL_TIMEOUT_MAP.remove(identifier.getUri());
 		// When LS is shut down all documents are being disconnected. No need to send
 		// "didClose" message to the LS that is being shut down or not yet started
 		if (languageServerWrapper.isActive()) {
+			// Ensure any pending textDocument/didChange is sent before didClose
+			// to preserve LSP event ordering during rename/move flows.
+			final var pendingChange = this.changeParams;
+			if (pendingChange != null) {
+				this.changeParams = null;
+				pendingChange.getTextDocument().setVersion(++version);
+				languageServerWrapper.sendNotification(ls -> ls.getTextDocumentService().didChange(pendingChange));
+			}
 			final var params = new DidCloseTextDocumentParams(identifier);
 			languageServerWrapper.sendNotification(ls -> ls.getTextDocumentService().didClose(params));
 		}

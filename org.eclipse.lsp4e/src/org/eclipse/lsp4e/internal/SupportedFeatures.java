@@ -35,6 +35,7 @@ import org.eclipse.lsp4j.DocumentLinkCapabilities;
 import org.eclipse.lsp4j.DocumentSymbolCapabilities;
 import org.eclipse.lsp4j.ExecuteCommandCapabilities;
 import org.eclipse.lsp4j.FailureHandlingKind;
+import org.eclipse.lsp4j.FileOperationsWorkspaceCapabilities;
 import org.eclipse.lsp4j.FoldingRangeCapabilities;
 import org.eclipse.lsp4j.FoldingRangeKind;
 import org.eclipse.lsp4j.FoldingRangeKindSupportCapabilities;
@@ -124,10 +125,9 @@ public class SupportedFeatures {
 		foldingRangeCapabilities.setLineFoldingOnly(true);
 		foldingRangeCapabilities.setFoldingRange(new FoldingRangeSupportCapabilities(false));
 		foldingRangeCapabilities.setFoldingRangeKind(new FoldingRangeKindSupportCapabilities(List.of( //
-				FoldingRangeKind.Comment,
-				FoldingRangeKind.Imports,
-				FoldingRangeKind.Region
-				)));
+				FoldingRangeKind.Comment, //
+				FoldingRangeKind.Imports, //
+				FoldingRangeKind.Region)));
 		textDocumentClientCapabilities.setFoldingRange(foldingRangeCapabilities);
 		textDocumentClientCapabilities.setFormatting(new FormattingCapabilities(true));
 		final var hoverCapabilities = new HoverCapabilities();
@@ -155,6 +155,7 @@ public class SupportedFeatures {
 		workspaceClientCapabilities.setExecuteCommand(new ExecuteCommandCapabilities(true));
 		workspaceClientCapabilities.setSymbol(new SymbolCapabilities(true));
 		workspaceClientCapabilities.setWorkspaceFolders(true);
+
 		final var editCapabilities = new WorkspaceEditCapabilities();
 		editCapabilities.setDocumentChanges(true);
 		editCapabilities.setResourceOperations(List.of( //
@@ -164,12 +165,19 @@ public class SupportedFeatures {
 		editCapabilities.setFailureHandling(FailureHandlingKind.Undo);
 		editCapabilities.setChangeAnnotationSupport(new WorkspaceEditChangeAnnotationSupportCapabilities(true));
 		workspaceClientCapabilities.setWorkspaceEdit(editCapabilities);
+
 		final var codeLensWorkspaceCapabilities = new CodeLensWorkspaceCapabilities(true);
 		workspaceClientCapabilities.setCodeLens(codeLensWorkspaceCapabilities);
 
-		DidChangeWatchedFilesCapabilities didChangeWatchedFilesCapabilities = new DidChangeWatchedFilesCapabilities(true);
+		final var didChangeWatchedFilesCapabilities = new DidChangeWatchedFilesCapabilities(true);
 		didChangeWatchedFilesCapabilities.setRelativePatternSupport(true);
 		workspaceClientCapabilities.setDidChangeWatchedFiles(didChangeWatchedFilesCapabilities);
+
+		final var fileOperationsWorkspaceCapabilities = new FileOperationsWorkspaceCapabilities();
+		fileOperationsWorkspaceCapabilities.setWillCreate(true);
+		fileOperationsWorkspaceCapabilities.setWillDelete(true);
+		fileOperationsWorkspaceCapabilities.setWillRename(true);
+		workspaceClientCapabilities.setFileOperations(fileOperationsWorkspaceCapabilities);
 
 		return workspaceClientCapabilities;
 	}
