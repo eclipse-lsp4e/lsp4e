@@ -45,8 +45,6 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.google.gson.Gson;
-
 public class DynamicRegistrationTest extends AbstractTestWithProject {
 
 	private static final String WORKSPACE_EXECUTE_COMMAND = "workspace/executeCommand";
@@ -143,7 +141,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		final var watcher = new org.eclipse.lsp4j.FileSystemWatcher(
 				org.eclipse.lsp4j.jsonrpc.messages.Either.forLeft("**/*.txt"), null);
 		options.setWatchers(List.of(watcher));
-		registration.setRegisterOptions(new Gson().toJsonTree(options));
+		registration.setRegisterOptions(options);
 		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
 		return id;
 	}
@@ -165,7 +163,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		final var registration = new Registration();
 		registration.setId(id.toString());
 		registration.setMethod(WORKSPACE_EXECUTE_COMMAND);
-		registration.setRegisterOptions(new Gson().toJsonTree(new ExecuteCommandOptions(List.of(command))));
+		registration.setRegisterOptions(new ExecuteCommandOptions(List.of(command)));
 		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
 		return id;
 	}

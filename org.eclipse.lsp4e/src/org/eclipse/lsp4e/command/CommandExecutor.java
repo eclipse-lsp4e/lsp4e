@@ -8,7 +8,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.command;
 
-import static org.eclipse.lsp4e.command.LSPCommandHandler.*;
+import static org.eclipse.lsp4e.command.LSPCommandHandler.LSP_COMMAND_PARAMETER_ID;
+import static org.eclipse.lsp4e.command.LSPCommandHandler.LSP_PATH_PARAMETER_ID;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.command.internal.CommandEventParameter;
+import org.eclipse.lsp4e.internal.JsonUtil;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.WorkspaceEdit;
@@ -192,7 +194,7 @@ public class CommandExecutor {
 			} else if (arg instanceof TextEdit textEdit) {
 				currentEntry.value.add(textEdit);
 			} else if (arg instanceof Map) {
-				final var gson = new Gson(); // TODO? retrieve the GSon used by LS
+				Gson gson = JsonUtil.LSP4J_GSON;
 				TextEdit edit = gson.fromJson(gson.toJson(arg), TextEdit.class);
 				if (edit != null) {
 					currentEntry.value.add(edit);
@@ -210,7 +212,7 @@ public class CommandExecutor {
 					}
 				}
 			} else if (arg instanceof JsonArray jsonArray) {
-				final var gson = new Gson(); // TODO? retrieve the GSon used by LS
+				Gson gson = JsonUtil.LSP4J_GSON;
 				jsonArray.forEach(elt -> {
 					TextEdit edit = gson.fromJson(gson.toJson(elt), TextEdit.class);
 					if (edit != null) {
@@ -218,7 +220,7 @@ public class CommandExecutor {
 					}
 				});
 			} else if (arg instanceof JsonObject jsonObject) {
-				final var gson = new Gson(); // TODO? retrieve the GSon used by LS
+				Gson gson = JsonUtil.LSP4J_GSON;
 				WorkspaceEdit wEdit = gson.fromJson(jsonObject, WorkspaceEdit.class);
 				if (wEdit != null) {
 					Map<String, List<TextEdit>> entries = wEdit.getChanges();

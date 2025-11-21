@@ -41,8 +41,6 @@ import org.eclipse.lsp4j.services.LanguageClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.google.gson.Gson;
-
 /**
  * Verifies that dynamic registration of completion updates LSP4E server
  * capabilities and enables content assist proposals.
@@ -82,7 +80,7 @@ public class DynamicCompletionRegistrationTest extends AbstractTestWithProject {
         registration.setMethod("textDocument/completion");
         var opts = new CompletionOptions();
         opts.setTriggerCharacters(List.of(".", "/", "#"));
-        registration.setRegisterOptions(new Gson().toJsonTree(opts));
+        registration.setRegisterOptions(opts);
         client.registerCapability(new RegistrationParams(List.of(registration))).get(2, TimeUnit.SECONDS);
 
         // Compute proposals (manual invocation). Should return the mock item.

@@ -18,7 +18,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -80,6 +80,7 @@ import org.eclipse.lsp4e.client.DefaultLanguageClient;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
+import org.eclipse.lsp4e.internal.JsonUtil;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
 import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
@@ -129,7 +130,6 @@ import org.eclipse.swt.widgets.Display;
 
 import com.google.common.base.Functions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 public class LanguageServerWrapper {
@@ -1173,7 +1173,7 @@ public class LanguageServerWrapper {
 				break;
 			case "workspace/executeCommand": //$NON-NLS-1$
 				try {
-					ExecuteCommandOptions executeCommandOptions = castNonNull(new Gson().fromJson((JsonObject) reg.getRegisterOptions(),
+					ExecuteCommandOptions executeCommandOptions = castNonNull(JsonUtil.LSP4J_GSON.fromJson((JsonObject) reg.getRegisterOptions(),
 							ExecuteCommandOptions.class));
 					List<String> newCommands = executeCommandOptions.getCommands();
 					if (!newCommands.isEmpty()) {
@@ -1212,7 +1212,7 @@ public class LanguageServerWrapper {
 			case "textDocument/completion": { //$NON-NLS-1$
 				CompletionOptions previous = serverCapabilities.getCompletionProvider();
 				try {
-					final var completionOpts = new Gson().fromJson((JsonObject) reg.getRegisterOptions(),
+					final var completionOpts = JsonUtil.LSP4J_GSON.fromJson((JsonObject) reg.getRegisterOptions(),
 							CompletionOptions.class);
 					serverCapabilities.setCompletionProvider(completionOpts);
 					addRegistration(reg, () -> serverCapabilities.setCompletionProvider(previous));
@@ -1255,8 +1255,9 @@ public class LanguageServerWrapper {
 			return null;
 		if (registerOptions instanceof DidChangeWatchedFilesRegistrationOptions direct)
 			return direct;
-		if (registerOptions instanceof JsonObject jsonObject)
-			return new Gson().fromJson(jsonObject, DidChangeWatchedFilesRegistrationOptions.class);
+		if (registerOptions instanceof JsonObject jsonObject) {
+			return JsonUtil.LSP4J_GSON.fromJson(jsonObject, DidChangeWatchedFilesRegistrationOptions.class);
+		}
 		return null;
 	}
 
