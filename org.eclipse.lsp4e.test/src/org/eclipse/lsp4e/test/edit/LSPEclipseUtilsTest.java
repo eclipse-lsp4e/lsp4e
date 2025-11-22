@@ -19,8 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -47,7 +45,6 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -74,6 +71,9 @@ import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 public class LSPEclipseUtilsTest extends AbstractTestWithProject {
@@ -297,14 +297,14 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	@DisabledOnOs(OS.WINDOWS)
 	public void testURICreationUnix() {
-		assumeFalse(Platform.OS_WIN32.equals(Platform.getOS()));
 		assertEquals("file:///test%20with%20space", LSPEclipseUtils.toUri(new File("/test with space")).toString());
 	}
 
 	@Test
+	@EnabledOnOs(OS.WINDOWS)
 	public void testToUri_WindowsDriveLetter() {
-		assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
 		// Use a synthetic drive path (doesn't need to exist)
 		File drivePath = new File("C:\\Temp\\with space");
 		URI uri = LSPEclipseUtils.toUri(drivePath);
@@ -317,8 +317,8 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	@EnabledOnOs(OS.WINDOWS)
 	public void testUNCwindowsURI() {
-		assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
 		URI preferredURI = URI.create("file://localhost/c$/Windows");
 		URI javaURI = URI.create("file:////localhost/c$/Windows");
 
@@ -328,8 +328,8 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
     @Test
+    @EnabledOnOs(OS.WINDOWS)
     public void testToUri_WindowsUNC() {
-        assumeTrue(Platform.OS_WIN32.equals(Platform.getOS()));
         File unc = new File("\\\\localhost\\c$\\Windows");
         URI uri = LSPEclipseUtils.toUri(unc);
         System.err.println(uri.toString());
