@@ -11,10 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.rename;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
 import java.net.URI;
-import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -24,7 +23,6 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.LSPEclipseUtils;
-import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4j.DeleteFilesParams;
 import org.eclipse.lsp4j.FileDelete;
 import org.eclipse.lsp4j.FileOperationsServerCapabilities;
@@ -36,7 +34,7 @@ import org.eclipse.ltk.core.refactoring.participants.DeleteParticipant;
 public class LSPDeleteParticipant extends DeleteParticipant {
 
 	private URI oldURI = lateNonNull();
-	private List<LanguageServerWrapper> servers = lateNonNull();
+	private IResource resource = lateNonNull();
 
 	@Override
 	public String getName() {
@@ -45,15 +43,14 @@ public class LSPDeleteParticipant extends DeleteParticipant {
 
 	@Override
 	protected boolean initialize(final Object element) {
-		if (element instanceof IFile || element instanceof IFolder) {
-			final var res = (IResource) element;
+		if (element instanceof final IResource res && (res instanceof IFile || res instanceof IFolder)) {
+			resource = res;
 			final URI uri = LSPEclipseUtils.toUri(res);
 			if (uri == null)
 				return false;
 			oldURI = uri;
-			servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(res,
-					FileOperationsServerCapabilities::getWillDelete);
-			return !servers.isEmpty();
+			return LSPFileOperationParticipantSupport
+					.createFileOperationExecutor(res, FileOperationsServerCapabilities::getWillDelete).anyMatching();
 		}
 		return false;
 	}
@@ -75,7 +72,7 @@ public class LSPDeleteParticipant extends DeleteParticipant {
 			throws CoreException, OperationCanceledException {
 		final var params = new DeleteFilesParams();
 		params.getFiles().add(new FileDelete(oldURI.toString()));
-		return LSPFileOperationParticipantSupport.computePreChange(getName(), params, servers,
-				(ws, p) -> ws.willDeleteFiles(p));
+		return LSPFileOperationParticipantSupport.computePreChange(getName(), params, resource,
+				FileOperationsServerCapabilities::getWillDelete, (ws, p) -> ws.willDeleteFiles(p));
 	}
 }

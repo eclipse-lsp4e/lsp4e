@@ -11,10 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.rename;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
 import java.net.URI;
-import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -25,7 +24,6 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.LSPEclipseUtils;
-import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4j.FileOperationsServerCapabilities;
 import org.eclipse.lsp4j.FileRename;
 import org.eclipse.lsp4j.RenameFilesParams;
@@ -38,7 +36,7 @@ public class LSPRenameParticipant extends RenameParticipant {
 
 	private URI oldURI = lateNonNull();
 	private URI newURI = lateNonNull();
-	private List<LanguageServerWrapper> servers = lateNonNull();
+	private IResource resource = lateNonNull();
 
 	@Override
 	public String getName() {
@@ -47,8 +45,8 @@ public class LSPRenameParticipant extends RenameParticipant {
 
 	@Override
 	protected boolean initialize(final Object element) {
-		if (element instanceof IFile || element instanceof IFolder) {
-			final var res = (IResource) element;
+		if (element instanceof final IResource res && (res instanceof IFile || res instanceof IFolder)) {
+			resource = res;
 			final URI uri = LSPEclipseUtils.toUri(res);
 			if (uri == null)
 				return false;
@@ -62,9 +60,8 @@ public class LSPRenameParticipant extends RenameParticipant {
 			}
 			newURI = LSPEclipseUtils.toUri(parentLoc.append(getArguments().getNewName()));
 
-			servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(res,
-					FileOperationsServerCapabilities::getWillRename);
-			return !servers.isEmpty();
+			return LSPFileOperationParticipantSupport
+					.createFileOperationExecutor(res, FileOperationsServerCapabilities::getWillRename).anyMatching();
 		}
 
 		return false;
@@ -87,7 +84,7 @@ public class LSPRenameParticipant extends RenameParticipant {
 			throws CoreException, OperationCanceledException {
 		final var params = new RenameFilesParams();
 		params.getFiles().add(new FileRename(oldURI.toString(), newURI.toString()));
-		return LSPFileOperationParticipantSupport.computePreChange(getName(), params, servers,
-				(ws, p) -> ws.willRenameFiles(p));
+		return LSPFileOperationParticipantSupport.computePreChange(getName(), params, resource,
+				FileOperationsServerCapabilities::getWillRename, (ws, p) -> ws.willRenameFiles(p));
 	}
 }

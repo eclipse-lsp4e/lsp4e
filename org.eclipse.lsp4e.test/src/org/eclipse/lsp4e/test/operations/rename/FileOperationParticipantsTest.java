@@ -75,9 +75,9 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(file);
 		TestUtils.waitForAndAssertCondition(5_000, () -> LanguageServers.forProject(project).anyMatching());
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(file,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(file,
 				FileOperationsServerCapabilities::getWillRename);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 	}
 
 	@Test
@@ -90,16 +90,16 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		// Ensure an LS is available
 		assertTrue(LanguageServers.forProject(project).anyMatching());
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(file,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(file,
 				FileOperationsServerCapabilities::getWillRename);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 
 		var params = new RenameFilesParams();
 		URI newUri = LSPEclipseUtils.toUri(project.getFile("renamed-" + file.getName()));
 		params.getFiles().add(new FileRename(uri.toString(), newUri.toString()));
 
 		// Exercise helper to trigger server call
-		LSPFileOperationParticipantSupport.computePreChange("rename", params, servers,
+		LSPFileOperationParticipantSupport.computePreChange("rename", params, executor,
 				(ws, p) -> ws.willRenameFiles(p));
 
 		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
@@ -116,14 +116,14 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		URI uri = LSPEclipseUtils.toUri(file);
 		assertNotNull(uri);
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(file,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(file,
 				FileOperationsServerCapabilities::getWillCreate);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 
 		var params = new CreateFilesParams();
 		params.getFiles().add(new FileCreate(uri.toString()));
 
-		LSPFileOperationParticipantSupport.computePreChange("create", params, servers,
+		LSPFileOperationParticipantSupport.computePreChange("create", params, executor,
 				(ws, p) -> ws.willCreateFiles(p));
 
 		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
@@ -139,14 +139,14 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		URI uri = LSPEclipseUtils.toUri(file);
 		assertNotNull(uri);
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(file,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(file,
 				FileOperationsServerCapabilities::getWillDelete);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 
 		var params = new DeleteFilesParams();
 		params.getFiles().add(new FileDelete(uri.toString()));
 
-		LSPFileOperationParticipantSupport.computePreChange("delete", params, servers,
+		LSPFileOperationParticipantSupport.computePreChange("delete", params, executor,
 				(ws, p) -> ws.willDeleteFiles(p));
 
 		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();

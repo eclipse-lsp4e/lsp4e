@@ -70,9 +70,9 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 			folder.create(true, true, null);
 		}
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(folder,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(folder,
 				FileOperationsServerCapabilities::getWillRename);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 	}
 
 	@Test
@@ -100,15 +100,15 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 		URI oldUri = LSPEclipseUtils.toUri(folder);
 		assertNotNull(oldUri);
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(folder,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(folder,
 				FileOperationsServerCapabilities::getWillRename);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 
 		var params = new RenameFilesParams();
 		URI newUri = LSPEclipseUtils.toUri(project.getFolder("newDir"));
 		params.getFiles().add(new FileRename(oldUri.toString(), newUri.toString()));
 
-		LSPFileOperationParticipantSupport.computePreChange("rename-folder", params, servers,
+		LSPFileOperationParticipantSupport.computePreChange("rename-folder", params, executor,
 				(ws, p) -> ws.willRenameFiles(p));
 
 		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
@@ -138,14 +138,14 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 		URI uri = LSPEclipseUtils.toUri(folder);
 		assertNotNull(uri);
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(folder,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(folder,
 				FileOperationsServerCapabilities::getWillCreate);
-		assertTrue(!servers.isEmpty());
+		assertTrue(executor.anyMatching());
 
 		var params = new CreateFilesParams();
 		params.getFiles().add(new FileCreate(uri.toString()));
 
-		LSPFileOperationParticipantSupport.computePreChange("create-folder", params, servers,
+		LSPFileOperationParticipantSupport.computePreChange("create-folder", params, executor,
 				(ws, p) -> ws.willCreateFiles(p));
 
 		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
@@ -177,14 +177,13 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 		URI uri = LSPEclipseUtils.toUri(folder);
 		assertNotNull(uri);
 
-		var servers = LSPFileOperationParticipantSupport.getServersWithFileOperation(folder,
+		var executor = LSPFileOperationParticipantSupport.createFileOperationExecutor(folder,
 				FileOperationsServerCapabilities::getWillDelete);
-		assertTrue(!servers.isEmpty());
 
 		var params = new DeleteFilesParams();
 		params.getFiles().add(new FileDelete(uri.toString()));
 
-		LSPFileOperationParticipantSupport.computePreChange("delete-folder", params, servers,
+		LSPFileOperationParticipantSupport.computePreChange("delete-folder", params, executor,
 				(ws, p) -> ws.willDeleteFiles(p));
 
 		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();

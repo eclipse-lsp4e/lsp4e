@@ -12,7 +12,6 @@
 package org.eclipse.lsp4e.operations.rename;
 
 import java.nio.file.Path;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -23,8 +22,8 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
-import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.LanguageServers.LanguageServerProjectExecutor;
 import org.eclipse.lsp4e.internal.files.PathPatternMatcher;
 import org.eclipse.lsp4j.FileOperationFilter;
 import org.eclipse.lsp4j.FileOperationOptions;
@@ -35,6 +34,11 @@ import org.eclipse.lsp4j.services.WorkspaceService;
 import org.eclipse.ltk.core.refactoring.Change;
 import org.eclipse.ltk.core.refactoring.CompositeChange;
 
+/**
+ * Internal class, only public to be accessible by test cases.
+ *
+ * @noreference
+ */
 public final class LSPFileOperationParticipantSupport {
 
 	/**
@@ -44,22 +48,28 @@ public final class LSPFileOperationParticipantSupport {
 	private static final long FILE_OP_TIMEOUT_SECONDS = 10;
 
 	public static <P> @Nullable Change computePreChange(final String changeName, final P params,
-			final List<LanguageServerWrapper> servers,
+			final IResource resource,
+			final Function<FileOperationsServerCapabilities, @Nullable FileOperationOptions> optionsProvider,
 			final BiFunction<WorkspaceService, P, CompletableFuture<@Nullable WorkspaceEdit>> request) {
+		return computePreChange(changeName, params, createFileOperationExecutor(resource, optionsProvider), request);
+	}
 
-		final CompositeChange[] changes = servers.stream() //
-				.map(wrapper -> wrapper.execute(ls -> request //
-						.apply(ls.getWorkspaceService(), params)) //
-						.orTimeout(FILE_OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
-							LanguageServerPlugin.logWarning(
-									"File operation pre-change '" + changeName + "' failed or timed out for server: " //$NON-NLS-1$ //$NON-NLS-2$
-											+ wrapper.serverDefinition.label,
-									ex);
-							return null;
-						}).thenApply(edits -> edits == null || isEmptyEdit(edits) //
-								? (@Nullable CompositeChange) null
-								: LSPEclipseUtils.toCompositeChange(edits, wrapper.serverDefinition.label))) //
-				.map(CompletableFuture::join) //
+	public static <P> @Nullable Change computePreChange(final String changeName, final P params,
+			final LanguageServerProjectExecutor executor,
+			final BiFunction<WorkspaceService, P, CompletableFuture<@Nullable WorkspaceEdit>> request) {
+		final CompositeChange[] changes = executor.collectAll((wrapper, ls) -> request //
+				.apply(ls.getWorkspaceService(), params) //
+				.orTimeout(FILE_OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
+					LanguageServerPlugin.logWarning(
+							"File operation pre-change '" + changeName + "' failed or timed out for server: " //$NON-NLS-1$ //$NON-NLS-2$
+									+ wrapper.serverDefinition.label,
+							ex);
+					return null;
+				}).thenApply(edits -> edits == null || isEmptyEdit(edits) //
+						? (@Nullable CompositeChange) null
+						: LSPEclipseUtils.toCompositeChange(edits, wrapper.serverDefinition.label))) //
+				.join() //
+				.stream() //
 				.filter(Objects::nonNull) //
 				.toArray(CompositeChange[]::new);
 
@@ -70,24 +80,28 @@ public final class LSPFileOperationParticipantSupport {
 		};
 	}
 
-	public static List<LanguageServerWrapper> getServersWithFileOperation(final IResource res,
+	public static LanguageServerProjectExecutor createFileOperationExecutor(final IResource res,
 			final Function<FileOperationsServerCapabilities, @Nullable FileOperationOptions> optionsProvider) {
 		final var uri = LSPEclipseUtils.toUri(res);
-		if (uri == null)
-			return List.of();
+		final var project = res.getProject();
+		if (uri == null) {
+			// No URI means we cannot match any file operation filters; return an executor
+			// that will not match any servers.
+			return LanguageServers.forProject(project).withFilter(capabilities -> false);
+		}
 
 		final var path = Path.of(uri);
-		return LanguageServers.forProject(res.getProject()).withFilter(caps -> {
-			final var wks = caps.getWorkspace();
-			if (wks == null)
+		return LanguageServers.forProject(project).withFilter(capabilities -> {
+			final var workspace = capabilities.getWorkspace();
+			if (workspace == null)
 				return false;
-			final var fileOps = wks.getFileOperations();
+			final var fileOps = workspace.getFileOperations();
 			if (fileOps == null)
 				return false;
 
 			final var options = optionsProvider.apply(fileOps);
 			return matches(options, path, res.getType() == IResource.FOLDER);
-		}).collectAll((wrapper, ls) -> CompletableFuture.completedFuture(wrapper)).join();
+		});
 	}
 
 	private static boolean isEmptyEdit(final WorkspaceEdit edits) {
