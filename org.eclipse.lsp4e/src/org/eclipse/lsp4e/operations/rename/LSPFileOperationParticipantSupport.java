@@ -12,13 +12,19 @@
 package org.eclipse.lsp4e.operations.rename;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
@@ -47,31 +53,52 @@ public final class LSPFileOperationParticipantSupport {
 	 */
 	private static final long FILE_OP_TIMEOUT_SECONDS = 10;
 
-	public static <P> @Nullable Change computePreChange(final String changeName, final P params,
-			final IResource resource,
+	static <P> @Nullable Change computePreChange(final String changeName, final P params, final IResource resource,
 			final Function<FileOperationsServerCapabilities, @Nullable FileOperationOptions> optionsProvider,
-			final BiFunction<WorkspaceService, P, CompletableFuture<@Nullable WorkspaceEdit>> request) {
+			final BiFunction<WorkspaceService, P, CompletableFuture<@Nullable WorkspaceEdit>> request)
+			throws CoreException {
 		return computePreChange(changeName, params, createFileOperationExecutor(resource, optionsProvider), request);
 	}
 
 	public static <P> @Nullable Change computePreChange(final String changeName, final P params,
 			final LanguageServerProjectExecutor executor,
-			final BiFunction<WorkspaceService, P, CompletableFuture<@Nullable WorkspaceEdit>> request) {
-		final CompositeChange[] changes = executor.collectAll((wrapper, ls) -> request //
-				.apply(ls.getWorkspaceService(), params) //
-				.orTimeout(FILE_OP_TIMEOUT_SECONDS, TimeUnit.SECONDS).exceptionally(ex -> {
-					LanguageServerPlugin.logWarning(
-							"File operation pre-change '" + changeName + "' failed or timed out for server: " //$NON-NLS-1$ //$NON-NLS-2$
-									+ wrapper.serverDefinition.label,
-							ex);
-					return null;
-				}).thenApply(edits -> edits == null || isEmptyEdit(edits) //
-						? (@Nullable CompositeChange) null
-						: LSPEclipseUtils.toCompositeChange(edits, wrapper.serverDefinition.label))) //
-				.join() //
-				.stream() //
-				.filter(Objects::nonNull) //
-				.toArray(CompositeChange[]::new);
+			final BiFunction<WorkspaceService, P, CompletableFuture<@Nullable WorkspaceEdit>> request)
+			throws CoreException {
+
+		final CompletableFuture<List<CompositeChange>> future = executor //
+				.collectAll((wrapper, ls) -> request //
+						.apply(ls.getWorkspaceService(), params) //
+						.thenApply(edits -> edits == null || isEmptyEdit(edits) //
+								? (@Nullable CompositeChange) null
+								: LSPEclipseUtils.toCompositeChange(edits, wrapper.serverDefinition.label)) //
+						.orTimeout(FILE_OP_TIMEOUT_SECONDS, TimeUnit.SECONDS) //
+						.exceptionally(ex -> {
+							final String logHeader = "File operation pre-change '" + changeName; //$NON-NLS-1$
+							if (ex instanceof TimeoutException) {
+								LanguageServerPlugin.logWarning(logHeader + "' timed out for server: " //$NON-NLS-1$
+										+ wrapper.serverDefinition.label + " after " + FILE_OP_TIMEOUT_SECONDS //$NON-NLS-1$
+										+ " seconds"); //$NON-NLS-1$
+							} else {
+								LanguageServerPlugin.logError(logHeader + "' failed for server: " //$NON-NLS-1$
+										+ wrapper.serverDefinition.label, ex);
+							}
+							return null;
+						}));
+
+		final CompositeChange[] changes;
+		try {
+			changes = future.get() //
+					.stream() //
+					.filter(Objects::nonNull) //
+					.toArray(CompositeChange[]::new);
+		} catch (final InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new CoreException(new Status(IStatus.ERROR, LanguageServerPlugin.PLUGIN_ID,
+					"File operation pre-change '" + changeName + "' was interrupted", ex)); //$NON-NLS-1$ //$NON-NLS-2$
+		} catch (final ExecutionException ex) {
+			throw new CoreException(new Status(IStatus.ERROR, LanguageServerPlugin.PLUGIN_ID,
+					"File operation pre-change '" + changeName + "' failed", ex)); //$NON-NLS-1$ //$NON-NLS-2$
+		}
 
 		return switch (changes.length) {
 		case 0 -> null;
