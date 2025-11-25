@@ -16,6 +16,7 @@ import java.util.Map;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.lsp4e.internal.NullSafetyHelper;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
@@ -48,8 +49,9 @@ public interface IMarkerAttributeComputer {
 	 */
 	default String computeMarkerMessage(Diagnostic diagnostic) {
 		final Either<String, Integer> code = diagnostic.getCode();
+		String messageText = NullSafetyHelper.defaultIfNull(diagnostic.getMessage().getLeft(), ""); //$NON-NLS-1$
 		return code == null //
-				? diagnostic.getMessage()
-				: diagnostic.getMessage() + " [" + code.get() + "]";  //$NON-NLS-1$//$NON-NLS-2$
+				? messageText
+				: messageText + " [" + code.get() + "]";  //$NON-NLS-1$//$NON-NLS-2$
 	}
 }
