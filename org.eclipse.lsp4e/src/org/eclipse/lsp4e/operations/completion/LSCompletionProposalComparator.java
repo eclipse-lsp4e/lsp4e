@@ -13,43 +13,60 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.completion;
 
+import static org.eclipse.lsp4e.operations.completion.CompletionProposalTools.*;
+
 import java.util.Comparator;
 
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 
-final class LSCompletionProposalComparator implements Comparator<LSCompletionProposal> {
+public final class LSCompletionProposalComparator implements Comparator<LSCompletionProposal> {
 	@Override
 	public int compare(LSCompletionProposal o1, LSCompletionProposal o2) {
-		try {
-			int docFilterLen1 = o1.getDocumentFilter().length();
-			int docFilterLen2 = o2.getDocumentFilter().length();
-			if (docFilterLen1 > docFilterLen2) {
-				return -1;
-			} else if (docFilterLen1 < docFilterLen2) {
-				return +1;
+		int category1 = o1.getRankCategory();
+		int category2 = o2.getRankCategory();
+
+		// Prefer proposals that have a stronger match (categories 1-4),
+		// but use the document filter length only for those categories so that
+		// completely unmatched proposals (category CATEGORY_NO_MATCH) are not affected.
+		if (category1 < CATEGORY_NO_MATCH && category2 < CATEGORY_NO_MATCH) {
+			try {
+				int docFilterLen1 = o1.getDocumentFilter().length();
+				int docFilterLen2 = o2.getDocumentFilter().length();
+				if (docFilterLen1 > docFilterLen2) {
+					return -1;
+				} else if (docFilterLen1 < docFilterLen2) {
+					return 1;
+				}
+			} catch (BadLocationException e) {
+				LanguageServerPlugin.logError(e);
 			}
-		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
 		}
-		if (o1.getRankCategory() < o2.getRankCategory()) {
+
+		if (category1 < category2) {
 			return -1;
-		} else if (o1.getRankCategory() > o2.getRankCategory()) {
-			return +1;
+		} else if (category1 > category2) {
+			return 1;
 		}
-		if ((o1.getRankCategory() < 5 && o2.getRankCategory() < 5)
-				&& (!(o1.getRankScore() == -1 && o2.getRankScore() == -1))) {
-			if (o2.getRankScore() == -1 || o1.getRankScore() < o2.getRankScore()) {
-				return -1;
-			} else if (o1.getRankScore() == -1 || o1.getRankScore() > o2.getRankScore()) {
-				return +1;
+
+		if (category1 < CATEGORY_NO_MATCH /* && category2 < CATEGORY_NO_MATCH */) {
+			int score1 = o1.getRankScore();
+			int score2 = o2.getRankScore();
+			if (!(score1 == -1 && score2 == -1)) {
+				if (score1 == -1) {
+					return 1;
+				} else if (score2 == -1) {
+					return -1;
+				} else if (score1 < score2) {
+					return -1;
+				} else if (score1 > score2) {
+					return 1;
+				}
 			}
 		}
+
 		String c1 = o1.getSortText();
 		String c2 = o2.getSortText();
-		if (c1 == null) {
-			return -1;
-		}
 		return c1.compareToIgnoreCase(c2);
 	}
 }

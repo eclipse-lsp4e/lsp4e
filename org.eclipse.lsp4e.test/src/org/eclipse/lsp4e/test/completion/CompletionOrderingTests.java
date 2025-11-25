@@ -151,6 +151,21 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 	}
 
 	@Test
+	public void testSortTextIsComparedLexicographically() throws Exception {
+		final var completions = new ArrayList<CompletionItem>();
+
+		final var item15 = createCompletionItem("15", CompletionItemKind.Class);
+		item15.setSortText("15");
+		completions.add(item15);
+
+		final var item5 = createCompletionItem("5", CompletionItemKind.Class);
+		item5.setSortText("5");
+		completions.add(item5);
+
+		confirmCompletionResults(completions, "", 0, new String[] { "15", "5" });
+	}
+
+	@Test
 	public void testMovingOffset() throws Exception {
 		final var range = new Range(new Position(0, 0), new Position(0, 4));
 		IFile testFile = TestUtils.createUniqueTestFile(project, "test");

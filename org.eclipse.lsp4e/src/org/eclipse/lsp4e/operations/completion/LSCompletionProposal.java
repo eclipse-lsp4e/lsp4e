@@ -258,7 +258,7 @@ public class LSCompletionProposal
 					getFilterString());
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
-			rankCategory = 5;
+			rankCategory = CompletionProposalTools.CATEGORY_NO_MATCH;
 		}
 		this.rankCategory = rankCategory;
 		return rankCategory;

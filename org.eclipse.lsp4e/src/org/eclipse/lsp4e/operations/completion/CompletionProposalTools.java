@@ -21,6 +21,12 @@ public final class CompletionProposalTools {
 	}
 
 	/**
+	 * Category used when the document filter does not meaningfully match
+	 * the completion filter (catch-all / no-match case).
+	 */
+	public static final int CATEGORY_NO_MATCH = 5;
+
+	/**
 	 * The portion of the document leading up to the cursor that is being used as a
 	 * filter for requesting completion assist
 	 *
@@ -101,9 +107,9 @@ public final class CompletionProposalTools {
 		documentFilter = documentFilter.toLowerCase();
 		completionFilter = completionFilter.toLowerCase();
 		int subIndex = completionFilter.indexOf(documentFilter);
-		int topCategory = 5;
+		int topCategory = CATEGORY_NO_MATCH;
 		if (subIndex == -1) {
-			return isSubstringFoundOrderedInString(documentFilter, completionFilter) ? 4 : 5;
+			return isSubstringFoundOrderedInString(documentFilter, completionFilter) ? 4 : CATEGORY_NO_MATCH;
 		}
 		final int documentFilterLength = documentFilter.length();
 		final int completionFilterLength = completionFilter.length();
