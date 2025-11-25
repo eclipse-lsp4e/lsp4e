@@ -13,12 +13,10 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.diagnostics;
 
-import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.eclipse.lsp4e.test.utils.TestUtils.*;
+import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -106,7 +104,7 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 			assertEquals(markerCharStart, MarkerUtilities.getCharStart(marker.get()));
 			assertEquals(markerCharEnd, MarkerUtilities.getCharEnd(marker.get()));
 			assertEquals(markerLineIndex + 1, MarkerUtilities.getLineNumber(marker.get()));
-			assertEquals(diagnostic.getMessage() + " [" + diagnostic.getCode().get() + "]",
+			assertEquals(diagnostic.getMessage().getLeft() + " [" + diagnostic.getCode().get() + "]",
 					MarkerUtilities.getMessage(marker.get()));
 		}
 
@@ -232,7 +230,7 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 			Diagnostic diagnostic = diagnostics.get(i);
 			IMarker marker = markers[i];
 
-			assertEquals(diagnostic.getMessage() + " [" + diagnostic.getCode().get() + "]",
+			assertEquals(diagnostic.getMessage().getLeft() + " [" + diagnostic.getCode().get() + "]",
 					MarkerUtilities.getMessage(marker));
 			assertEquals(content.length(), MarkerUtilities.getCharStart(marker));
 			assertEquals(content.length(), MarkerUtilities.getCharEnd(marker));
