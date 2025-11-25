@@ -23,6 +23,8 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
+import org.eclipse.lsp4j.WorkspaceSymbol;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.junit.jupiter.api.Test;
 
 public class SymbolsLabelProviderTest extends AbstractTest {
@@ -42,6 +44,26 @@ public class SymbolsLabelProviderTest extends AbstractTest {
 		final var labelProvider = new SymbolsLabelProvider(true, true);
 		final var info = new SymbolInformation("Foo", SymbolKind.Class, LOCATION);
 		assertEquals("Foo :Class path/to/foo", labelProvider.getText(info));
+	}
+
+	@Test
+	public void testWorkspaceSymbolShowKind() {
+		final var labelProvider = new SymbolsLabelProvider(false, true);
+		final var workspaceSymbol = new WorkspaceSymbol();
+		workspaceSymbol.setName("Foo");
+		workspaceSymbol.setKind(SymbolKind.Class);
+		workspaceSymbol.setLocation(Either.forLeft(LOCATION));
+		assertEquals("Foo :Class", labelProvider.getText(workspaceSymbol));
+	}
+
+	@Test
+	public void testWorkspaceSymbolShowKindLocation() {
+		final var labelProvider = new SymbolsLabelProvider(true, true);
+		final var workspaceSymbol = new WorkspaceSymbol();
+		workspaceSymbol.setName("Foo");
+		workspaceSymbol.setKind(SymbolKind.Class);
+		workspaceSymbol.setLocation(Either.forLeft(LOCATION));
+		assertEquals("Foo :Class path/to/foo", labelProvider.getText(workspaceSymbol));
 	}
 
 	@Test
