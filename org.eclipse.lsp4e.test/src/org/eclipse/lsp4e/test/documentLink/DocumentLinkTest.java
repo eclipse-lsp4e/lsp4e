@@ -79,6 +79,20 @@ public class DocumentLinkTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	public void testDocumentLinkWithEncodedUri() throws Exception {
+		final var links = new ArrayList<DocumentLink>();
+		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file:///tmp/fi%C3%A9le.ts"));
+		MockLanguageServer.INSTANCE.setDocumentLinks(links);
+
+		IFile file = TestUtils.createUniqueTestFile(project, "not_link <link>");
+		ITextViewer viewer = TestUtils.openTextViewer(file);
+
+		IHyperlink[] hyperlinks = documentLinkDetector.detectHyperlinks(viewer, new Region(13, 0), true);
+		assertEquals(1, hyperlinks.length);
+		assertEquals("/tmp/fiéle.ts", hyperlinks[0].getHyperlinkText());
+	}
+
+	@Test
 	public void testDocumentLinkWrongRegion() throws Exception {
 		final var links = new ArrayList<DocumentLink>();
 		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file://test0"));

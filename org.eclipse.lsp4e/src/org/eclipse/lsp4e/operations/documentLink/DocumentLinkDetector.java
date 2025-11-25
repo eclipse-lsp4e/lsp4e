@@ -39,10 +39,12 @@ public class DocumentLinkDetector extends AbstractHyperlinkDetector {
 	public static class DocumentHyperlink implements IHyperlink {
 
 		private final String uri;
+		private final String label;
 		private final IRegion highlightRegion;
 
 		public DocumentHyperlink(String uri, IRegion highlightRegion) {
 			this.uri = uri;
+			this.label = toLabel(uri);
 			this.highlightRegion = highlightRegion;
 		}
 
@@ -53,12 +55,12 @@ public class DocumentLinkDetector extends AbstractHyperlinkDetector {
 
 		@Override
 		public String getTypeLabel() {
-			return uri;
+			return label;
 		}
 
 		@Override
 		public String getHyperlinkText() {
-			return uri;
+			return label;
 		}
 
 		@Override
@@ -66,6 +68,22 @@ public class DocumentLinkDetector extends AbstractHyperlinkDetector {
 			LSPEclipseUtils.open(uri, null, true);
 		}
 
+		private static String toLabel(final String uri) {
+			if (uri.isEmpty())
+				return uri;
+
+			if (uri.startsWith(LSPEclipseUtils.FILE_URI)) {
+				try {
+					final URI fileUri = URI.create(uri);
+					final String path = fileUri.getPath();
+					if (path != null && !path.isEmpty())
+						return path;
+				} catch (final IllegalArgumentException ex) {
+					LanguageServerPlugin.logError(ex);
+				}
+			}
+			return uri;
+		}
 	}
 
 	@Override
