@@ -94,7 +94,7 @@ pipeline {
 							rm -rf ${DOWNLOAD_AREA}/* && \
 							mkdir -p ${DOWNLOAD_AREA}"
 						scp -r repository/target/repository/* genie.lsp4e@projects-storage.eclipse.org:${DOWNLOAD_AREA}
-						scp repository/target/repository-*-SNAPSHOT.zip genie.lsp4e@projects-storage.eclipse.org:${DOWNLOAD_AREA}/repository.zip
+						scp repository/target/org.eclipse.lsp4e.repository-*-SNAPSHOT.zip genie.lsp4e@projects-storage.eclipse.org:${DOWNLOAD_AREA}/repository.zip
 					'''
 				}
 			}

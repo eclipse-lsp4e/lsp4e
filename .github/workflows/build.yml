@@ -216,7 +216,7 @@ jobs:
       if: runner.os == 'Linux'
       with:
         name: org.eclipse.lsp4e.repository-${{matrix.target-platform}}-${{matrix.os}}
-        path: repository/target/repository-*.zip
+        path: repository/target/org.eclipse.lsp4e.repository-*.zip
         retention-days: 14
 
 
