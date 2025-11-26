@@ -12,6 +12,7 @@
 package org.eclipse.lsp4e.operations.symbols;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -230,10 +231,10 @@ public class LSPSymbolInWorkspaceDialog extends FilteredItemsSelectionDialog {
 		return res;
 	}
 
-	static List<? extends WorkspaceSymbol> eitherToWorkspaceSymbols(
+	static List<@Nullable ? extends WorkspaceSymbol> eitherToWorkspaceSymbols(
 			final @Nullable Either<List<? extends SymbolInformation>, List<@Nullable ? extends WorkspaceSymbol>> source) {
 		return source == null //
-				? List.of()
-				: source.map(LSPSymbolInWorkspaceDialog::toWorkspaceSymbols, Function.identity());
+						? Collections.emptyList()
+						: source.map(LSPSymbolInWorkspaceDialog::toWorkspaceSymbols, Function.identity());
 	}
 }

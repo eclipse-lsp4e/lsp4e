@@ -14,6 +14,7 @@ package org.eclipse.lsp4e.operations.symbols;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -69,7 +70,7 @@ public class WorkspaceSymbolsQuickAccessProvider implements IQuickAccessComputer
 			CompletableFuture.allOf(usedLanguageServerWrappers.stream()
 					.map(w -> w.execute(ls -> ls.getWorkspaceService().symbol(params).thenAcceptAsync((@Nullable Either<List<? extends SymbolInformation>, List<@Nullable ? extends WorkspaceSymbol>> symbols) -> {
 						if (symbols != null) {
-							res.addAll(LSPSymbolInWorkspaceDialog.eitherToWorkspaceSymbols(symbols).stream().map(WorkspaceSymbolQuickAccessElement::new)
+							res.addAll(LSPSymbolInWorkspaceDialog.eitherToWorkspaceSymbols(symbols).stream().filter(Objects::nonNull).map(WorkspaceSymbolQuickAccessElement::new)
 									.toList());
 						}
 					}))).toArray(CompletableFuture[]::new)).get(1, TimeUnit.SECONDS);
