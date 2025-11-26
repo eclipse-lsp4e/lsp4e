@@ -69,6 +69,8 @@ jobs:
         - macos-15-intel  # Intel
         - macos-latest  # ARM
         - windows-latest
+        # https://github.com/actions/partner-runner-images
+        - ubuntu-24.04-arm
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
