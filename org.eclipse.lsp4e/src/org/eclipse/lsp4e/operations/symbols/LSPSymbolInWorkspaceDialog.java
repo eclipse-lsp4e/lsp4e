@@ -192,11 +192,12 @@ public class LSPSymbolInWorkspaceDialog extends FilteredItemsSelectionDialog {
 
 	@Override
 	protected IDialogSettings getDialogSettings() {
-		IDialogSettings settings = LanguageServerPlugin.getDefault().getDialogSettings().getSection(DIALOG_SETTINGS);
-		if (settings == null) {
-			settings = LanguageServerPlugin.getDefault().getDialogSettings().addNewSection(DIALOG_SETTINGS);
+		IDialogSettings dialogSettings = LanguageServerPlugin.getDefault().getDialogSettings();
+		IDialogSettings sectionSettings = dialogSettings.getSection(DIALOG_SETTINGS);
+		if (sectionSettings == null) {
+			sectionSettings = dialogSettings.addNewSection(DIALOG_SETTINGS);
 		}
-		return settings;
+		return sectionSettings;
 	}
 
 	@Override
