@@ -64,8 +64,13 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	@Override
 	public void stop(BundleContext context) throws Exception {
 		plugin = null;
-		LanguageServiceAccessor.shutdownAllDispatchers();
-		super.stop(context);
+		try {
+			LanguageServiceAccessor.shutdownAllDispatchers();
+			LSPImages.dispose();
+		}
+		finally {
+			super.stop(context);
+		}
 	}
 
 	/**

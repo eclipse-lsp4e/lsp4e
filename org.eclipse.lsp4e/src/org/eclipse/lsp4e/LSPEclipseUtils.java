@@ -21,7 +21,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -121,6 +121,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.RenameFile;
 import org.eclipse.lsp4j.ResourceOperation;
 import org.eclipse.lsp4j.SignatureHelpParams;
+import org.eclipse.lsp4j.SnippetTextEdit;
 import org.eclipse.lsp4j.TextDocumentEdit;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
 import org.eclipse.lsp4j.TextDocumentPositionParams;
@@ -1078,7 +1079,8 @@ public final class LSPEclipseUtils {
 					.map(TextDocumentIdentifier::getUri)
 					.map(LSPEclipseUtils::toUri)
 					.forEach(documentUris::add);
-				firstDocumentEdits.addAll(wsEdit.getDocumentChanges().get(0).getLeft().getEdits());
+				firstDocumentEdits.addAll(toTextEditList(
+						wsEdit.getDocumentChanges().get(0).getLeft().getEdits()));
 			}
 		}
 		if (documentUris.size() != 1 || firstDocumentEdits.isEmpty()) {
@@ -1140,7 +1142,7 @@ public final class LSPEclipseUtils {
 					TextDocumentEdit edit = action.getLeft();
 					VersionedTextDocumentIdentifier id = edit.getTextDocument();
 					URI uri = URI.create(id.getUri());
-					List<TextEdit> textEdits = edit.getEdits();
+					List<TextEdit> textEdits = toTextEditList(edit.getEdits());
 					change.add(toChanges(uri, textEdits));
 					collectChangedURI(uri, textEdits, collector);
 				} else if (action.isRight()) {
@@ -1236,6 +1238,13 @@ public final class LSPEclipseUtils {
 			}
 		}
 		return change;
+	}
+
+	private static final List<TextEdit> toTextEditList(List<Either<TextEdit, SnippetTextEdit>> textEdits) {
+		return textEdits.stream()
+				.filter(e -> e.isLeft())
+				.map(e -> e.getLeft())
+				.toList();
 	}
 
 	private static final Range DEFAULT_RANGE = new Range(new Position(0, 0), new Position(0, 0));
