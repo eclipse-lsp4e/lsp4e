@@ -14,9 +14,11 @@
 package org.eclipse.lsp4e.operations.format;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
@@ -31,6 +33,7 @@ import org.eclipse.lsp4j.DocumentRangeFormattingParams;
 import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.ui.editors.text.EditorsUI;
 import org.eclipse.ui.texteditor.AbstractDecoratedTextEditorPreferenceConstants;
 
@@ -49,20 +52,21 @@ public class LSPFormatter {
 
 		DocumentFormattingParams params = getFullFormatParams(formatOptions, docId);
 
-		// TODO: Could refine this algorithm: at present this grabs the first non-null response but the most functional
-		// implementation (if a text selection is present) would try all the servers in turn to see if they supported
-		// range formatting, falling back to a full format if unavailable
+		// **NOTE:** We let LanguageServers.computeFirst() see the *raw* edit lists so that servers which
+		// advertise formatting but return no edits (empty list) are treated as "no result" and formatting
+		// can fall through to the next server (e.g. Vue LS after TS LS on .vue files).
 		long modificationStamp = DocumentUtil.getDocumentModificationStamp(document);
 		return executor.computeFirst((w, ls) -> w.getServerCapabilitiesAsync().thenCompose(capabilities -> {
 			if (isDocumentRangeFormattingSupported(capabilities) && (textSelection.getLength() > 0 || !isDocumentFormattingSupported(capabilities))) {
-				return ls.getTextDocumentService().rangeFormatting(rangeParams)
-						.thenApply(edits -> new VersionedEdits(modificationStamp, edits, document));
+				return (CompletableFuture<@Nullable List<? extends TextEdit>>) ls.getTextDocumentService()
+						.rangeFormatting(rangeParams);
 			} else if (isDocumentFormattingSupported(capabilities)) {
-				return ls.getTextDocumentService().formatting(params)
-						.thenApply(edits -> new VersionedEdits(modificationStamp, edits, document));
+				return (CompletableFuture<@Nullable List<? extends TextEdit>>) ls.getTextDocumentService()
+						.formatting(params);
 			}
-			return CompletableFuture.<VersionedEdits>completedFuture(null);
-		}));
+			return CompletableFuture.completedFuture(null);
+		})).thenApply(
+				optionalEdits -> optionalEdits.map(edits -> new VersionedEdits(modificationStamp, edits, document)));
 	}
 
 	public static DocumentFormattingParams getFullFormatParams(FormattingOptions formatOptions,
