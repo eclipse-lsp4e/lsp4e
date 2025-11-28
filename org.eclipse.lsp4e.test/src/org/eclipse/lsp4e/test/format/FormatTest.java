@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -57,6 +58,29 @@ public class FormatTest extends AbstractTestWithProject {
 		assertTrue(edits.isEmpty());
 	}
 
+	/**
+	 * Verifies that when the language server reports no formatting edits
+	 * (empty edit list), {@link LSPFormatter} returns an empty Optional
+	 * and leaves the document content unchanged.
+	 */
+	@Test
+	public void testFormattingEmptyEditsYieldEmptyOptional() throws Exception {
+		MockLanguageServer.INSTANCE.setFormattingTextEdits(Collections.emptyList());
+
+		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
+		IEditorPart editor = TestUtils.openEditor(file);
+		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
+
+		final var formatter = new LSPFormatter();
+		ISelection selection = viewer.getSelectionProvider().getSelection();
+
+		Optional<VersionedEdits> edits = formatter.requestFormatting(viewer.getDocument(), (ITextSelection) selection).get();
+		assertTrue(edits.isEmpty());
+		assertEquals("Formatting Other Text", viewer.getDocument().get());
+
+		TestUtils.closeEditor(editor, false);
+	}
+
 	@Test
 	public void testFormattingNoChanges() throws Exception {
 		MockLanguageServer.INSTANCE.setFormattingTextEdits(Collections.emptyList());
@@ -69,14 +93,10 @@ public class FormatTest extends AbstractTestWithProject {
 		ISelection selection = viewer.getSelectionProvider().getSelection();
 
 		Optional<VersionedEdits> edits = formatter.requestFormatting(viewer.getDocument(), (ITextSelection) selection).get();
-		assertTrue(edits.isPresent());
-		editor.getSite().getShell().getDisplay().syncExec(() -> {
-			try {
-				edits.get().apply();
-			} catch (ConcurrentModificationException | BadLocationException e) {
-				fail(e.getMessage());
-			}
-		});
+
+		// No formatting edits produced -> no VersionedEdits returned
+		assertTrue(edits.isEmpty());
+
 		final var textEditor = (ITextEditor) editor;
 		textEditor.getDocumentProvider().getDocument(textEditor.getEditorInput());
 		assertEquals("Formatting Other Text", viewer.getDocument().get());
@@ -243,7 +263,8 @@ public class FormatTest extends AbstractTestWithProject {
 	@Test
 	public void testOutdatedFormatting()
 			throws CoreException, InterruptedException, ExecutionException, BadLocationException {
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(Collections.emptyList());
+		// Use a non-empty edit list so that a VersionedEdits is produced
+		MockLanguageServer.INSTANCE.setFormattingTextEdits(List.of(new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "X")));
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		IEditorPart editor = TestUtils.openEditor(file);
