@@ -8,7 +8,7 @@
 	</parent>
 	<artifactId>org.eclipse.lsp4e.test</artifactId>
 	<packaging>eclipse-test-plugin</packaging>
-	<version>0.16.3-SNAPSHOT</version>
+	<version>0.16.4-SNAPSHOT</version>
 
 	<properties>
 		<os-jvm-flags /> <!-- for the default case -->
@@ -43,7 +43,6 @@
 					<useUIThread>true</useUIThread>
 					<forkedProcessTimeoutInSeconds>1200</forkedProcessTimeoutInSeconds>
 					<argLine>-Dfile.encoding=${project.build.sourceEncoding} -Xms1g -Xmx1g -Djava.util.logging.config.file=${project.basedir}/src/jul.properties ${ui.test.vmargs} ${os-jvm-flags}</argLine>
-					<providerHint>junit5</providerHint>
 				</configuration>
 			</plugin>
 		</plugins>
