@@ -212,13 +212,30 @@ public class HighlightReconcilingStrategy
 			lastCacheKeyOffset = cacheKeyOffset;
 		}
 
+		final int docLength = document.getLength();
+		if (caretOffset < 0 || caretOffset > docLength) {
+			// Stale caret offset after document changes, skip this highlight run.
+			// Logging is limited to debug/trace to avoid noisy error log entries.
+			if (LanguageServerPlugin.DEBUG || LanguageServerPlugin.isLogTraceEnabled()) {
+				LanguageServerPlugin.logWarning(
+						"Ignoring documentHighlight for stale caret offset " + caretOffset + " (document length " //$NON-NLS-1$ //$NON-NLS-2$
+								+ docLength + ')');
+			}
+			return;
+		}
+
 		Position position;
 		try {
 			// Send the original caret offset to the LS to preserve behavior
 			// expected by tests and servers that distinguish positions within a word.
 			position = LSPEclipseUtils.toPosition(caretOffset, document);
 		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
+			// Document may have changed again between the length check above and this call.
+			// Treat this as a transient, non-fatal condition and only log when debugging.
+			if (LanguageServerPlugin.DEBUG || LanguageServerPlugin.isLogTraceEnabled()) {
+				LanguageServerPlugin.logWarning(
+						"BadLocationException while computing documentHighlight position for offset " + caretOffset, e); //$NON-NLS-1$
+			}
 			return;
 		}
 		URI uri = LSPEclipseUtils.toUri(document);
