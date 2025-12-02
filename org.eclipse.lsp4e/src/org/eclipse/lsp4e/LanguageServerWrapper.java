@@ -1524,6 +1524,10 @@ public class LanguageServerWrapper {
 			if (currentServer == null)
 				return;
 
+			if (dispatcher.isShutdown()) {
+				return;
+			}
+
 			// Offload potentially expensive glob matching and notification dispatching
 			// to the language-server dispatcher thread to avoid blocking the workspace
 			// resource change thread.
