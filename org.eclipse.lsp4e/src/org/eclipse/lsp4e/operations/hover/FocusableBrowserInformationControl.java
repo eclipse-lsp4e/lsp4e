@@ -26,6 +26,7 @@ import org.eclipse.jface.text.IInformationControlCreator;
 import org.eclipse.jface.util.Util;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.swt.browser.Browser;
 import org.eclipse.swt.browser.LocationEvent;
@@ -171,6 +172,11 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 					return; // input changed; ignore stale update
 				}
 				if (ex != null) {
+					if (CancellationUtil.isRequestCancelledException(ex)) {
+						// Hover request was cancelled; treat as benign and hide placeholder.
+						super.setInput(""); //$NON-NLS-1$
+						return;
+					}
 					LanguageServerPlugin.logError(ex);
 					super.setInput(
 							"Unexpected error: " + ex.getClass().getSimpleName() + ": " + ex.getLocalizedMessage()); //$NON-NLS-1$ //$NON-NLS-2$

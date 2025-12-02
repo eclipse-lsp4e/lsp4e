@@ -21,6 +21,7 @@ import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -48,6 +49,7 @@ import org.eclipse.jface.text.Region;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.MarkedString;
@@ -78,8 +80,12 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 		if (hoverInfoRequest_.isDone()) {
 			try {
 				return hoverInfoRequest_.getNow(null);
-			} catch (Exception e) {
-				LanguageServerPlugin.logError(e);
+			} catch (final Exception ex) {
+				if (CancellationUtil.isRequestCancelledException(ex)) {
+					// Hover was cancelled; ignore as this is an expected fast-mouse-move scenario.
+					return null;
+				}
+				LanguageServerPlugin.logError(ex);
 			}
 		}
 		return null;
@@ -171,10 +177,12 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 					LSPEclipseUtils.toOffset(range.getEnd(), document));
 			return this.lastRegion = new Region(regionStartOffset, regionEndOffset - regionStartOffset);
 		} catch (ExecutionException | BadLocationException e) {
-			LanguageServerPlugin.logError("Cannot get hover region for offset " + offset, e); //$NON-NLS-1$
+			if (!CancellationUtil.isRequestCancelledException(e)) {
+				LanguageServerPlugin.logError("Cannot get hover region for offset " + offset, e); //$NON-NLS-1$
+			}
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-		} catch (NoSuchElementException | TimeoutException e) {
+		} catch (NoSuchElementException | TimeoutException | CancellationException e) {
 			// Fallback to heuristic region without blocking.
 		}
 
