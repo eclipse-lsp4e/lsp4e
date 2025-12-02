@@ -54,6 +54,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.DocumentOffsetAsyncCache;
+import org.eclipse.lsp4e.internal.DocumentUtil;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightKind;
 import org.eclipse.lsp4j.DocumentHighlightParams;
@@ -130,8 +131,11 @@ public class HighlightReconcilingStrategy
 			if (highlightJob != null) {
 				highlightJob.cancel();
 			}
+
+			long timestamp = DocumentUtil.getDocumentModificationStamp(document);
+
 			highlightJob = Job.createSystem("LSP4E Highlight", //$NON-NLS-1$
-					(ICoreRunnable)(monitor -> collectHighlights(textSelection.getOffset(), monitor)));
+					(ICoreRunnable)(monitor -> collectHighlights(textSelection.getOffset(), timestamp, monitor)));
 			// Debounce scheduling slightly to coalesce rapid selection changes
 			highlightJob.schedule(HIGHLIGHT_DEBOUNCE_MS);
 		}
@@ -194,14 +198,16 @@ public class HighlightReconcilingStrategy
 	 * server 'documentHighligh't.
 	 *
 	 * @param caretOffset
+	 * @param timestamp
 	 * @param monitor
 	 */
-	private void collectHighlights(int caretOffset, @Nullable IProgressMonitor monitor) {
+	private void collectHighlights(int caretOffset, long timestamp, @Nullable IProgressMonitor monitor) {
 		final var sourceViewer = this.sourceViewer;
 		final var document = this.document;
 		if (sourceViewer == null || document == null || !enabled || monitor != null && monitor.isCanceled()) {
 			return;
 		}
+
 
 		// Normalize the cache key to the start of the word/symbol.
 		final int cacheKeyOffset = normalizedOffset(document, caretOffset);
@@ -212,13 +218,20 @@ public class HighlightReconcilingStrategy
 			lastCacheKeyOffset = cacheKeyOffset;
 		}
 
+		if (DocumentUtil.getDocumentModificationStamp(document) != timestamp) {
+			return;
+		}
+
 		Position position;
 		try {
 			// Send the original caret offset to the LS to preserve behavior
 			// expected by tests and servers that distinguish positions within a word.
 			position = LSPEclipseUtils.toPosition(caretOffset, document);
 		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
+			// skip error if the document changed in the background
+			if (DocumentUtil.getDocumentModificationStamp(document) == timestamp) {
+				LanguageServerPlugin.logError(e);
+			}
 			return;
 		}
 		URI uri = LSPEclipseUtils.toUri(document);
