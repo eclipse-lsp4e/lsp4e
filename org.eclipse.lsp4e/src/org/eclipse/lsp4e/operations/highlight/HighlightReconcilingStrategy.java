@@ -208,22 +208,21 @@ public class HighlightReconcilingStrategy
 			return;
 		}
 
-
-		// Normalize the cache key to the start of the word/symbol.
-		final int cacheKeyOffset = normalizedOffset(document, caretOffset);
-
-		// Only cancel previous requests if the target symbol actually changed.
-		if (cacheKeyOffset != lastCacheKeyOffset) {
-			cancel();
-			lastCacheKeyOffset = cacheKeyOffset;
-		}
-
 		if (DocumentUtil.getDocumentModificationStamp(document) != timestamp) {
 			return;
 		}
 
-		Position position;
+		final Position position;
+		final int cacheKeyOffset;
 		try {
+			// Normalize the cache key to the start of the word/symbol.
+			cacheKeyOffset = normalizedOffset(document, caretOffset);
+
+			// Only cancel previous requests if the target symbol actually changed.
+			if (cacheKeyOffset != lastCacheKeyOffset) {
+				cancel();
+				lastCacheKeyOffset = cacheKeyOffset;
+			}
 			// Send the original caret offset to the LS to preserve behavior
 			// expected by tests and servers that distinguish positions within a word.
 			position = LSPEclipseUtils.toPosition(caretOffset, document);
@@ -323,22 +322,17 @@ public class HighlightReconcilingStrategy
 	 * Compute a stable cache key for the symbol at the given caret offset by
 	 * normalizing to the start of the Unicode identifier under the caret.
 	 */
-	private static int normalizedOffset(final IDocument document, final int offset) {
-		try {
-			// Walk left to the first non-identifier part, then move right one.
-		   int pos = Math.max(0, offset - 1);
-		   final int docLen = document.getLength();
-			while (pos >= 0 && pos < docLen) {
-				if (!Character.isUnicodeIdentifierPart(document.getChar(pos))) {
-					break;
-				}
-				pos--;
+	private static int normalizedOffset(final IDocument document, final int offset) throws BadLocationException {
+		// Walk left to the first non-identifier part, then move right one.
+		int pos = Math.max(0, offset - 1);
+		final int docLen = document.getLength();
+		while (pos >= 0 && pos < docLen) {
+			if (!Character.isUnicodeIdentifierPart(document.getChar(pos))) {
+				break;
 			}
-			return Math.min(docLen, pos + 1);
-		} catch (final BadLocationException ex) {
-			LanguageServerPlugin.logError(ex.getMessage(), ex);
-			return offset;
+			pos--;
 		}
+		return Math.min(docLen, pos + 1);
 	}
 
 	void removeOccurrenceAnnotations() {
