@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2022, 2024 VMware Inc. and others.
+ * Copyright (c) 2022, 2025 VMware Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -18,25 +18,21 @@ import java.net.URL;
 
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.internal.codeassist.RelevanceConstants;
 import org.eclipse.jdt.internal.ui.text.java.AbstractJavaCompletionProposal;
-import org.eclipse.jdt.internal.ui.text.java.hover.JavadocBrowserInformationControlInput;
 import org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover;
 import org.eclipse.jdt.ui.PreferenceConstants;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
-import org.eclipse.jface.internal.text.html.BrowserInformationControl;
 import org.eclipse.jface.internal.text.html.HTMLPrinter;
 import org.eclipse.jface.resource.ColorRegistry;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.IInformationControlCreator;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
-import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.swt.widgets.Shell;
-import org.eclipse.ui.IWorkbenchPart;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 
@@ -98,21 +94,10 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 		return base;
 	}
 	
-	/*
-	 * Copied from org.eclipse.jdt.internal.ui.text.java.AbstractJavaCompletionProposal.getInformationControlCreator()
-	 */
 	@Override
 	public @Nullable IInformationControlCreator getInformationControlCreator() {
-		Shell shell= UI.getActiveShell();
-		if (shell == null || !BrowserInformationControl.isAvailable(shell))
-			return null;
-
 		if (infoControlCreator == null) {
-			/*
-			 * see https://bugs.eclipse.org/bugs/show_bug.cgi?id=232024
-			 */
-			IWorkbenchPart part = UI.getActivePart();
-			JavadocHover.PresenterControlCreator presenterControlCreator= new JavadocHover.PresenterControlCreator(part == null ? null : part.getSite());
+			IInformationControlCreator presenterControlCreator = super.getInformationControlCreator();
 			infoControlCreator= new JavadocHover.HoverControlCreator(presenterControlCreator, true);
 		}
 		return infoControlCreator;
@@ -129,10 +114,14 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 		RGB bgRGB= registry.getRGB("org.eclipse.jdt.ui.Javadoc.backgroundColor"); //$NON-NLS-1$
 		HTMLPrinter.insertPageProlog(buffer, 0, fgRGB, bgRGB, getCSSStyles());
 		HTMLPrinter.addPageEpilog(buffer);
-		return new JavadocBrowserInformationControlInput(null, null, buffer.toString(), 0);
-
+		return buffer.toString();
 	}
 	
+	@Override
+	public @NonNull String getInformationDisplayString() {
+		return item.getLabel();
+	}
+
 	/**
 	 * Returns the style information for displaying HTML (Javadoc) content.
 	 * Copied from org.eclipse.jdt.internal.ui.text.java.AbstractJavaCompletionProposal.getCSSStyles()
