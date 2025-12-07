@@ -83,36 +83,36 @@ public final class LSPImages {
 	public static void initalize(ImageRegistry registry) {
 		imageRegistry = registry;
 
-		declareRegistryImage(IMG_MODULE, OBJECT + "module.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_NAMESPACE, OBJECT + "namespace.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_PACKAGE, OBJECT + "package.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_CLASS, OBJECT + "class.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_MODULE, OBJECT + "module.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_NAMESPACE, OBJECT + "namespace.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_PACKAGE, OBJECT + "package.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_CLASS, OBJECT + "class.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_TYPE_PARAMETER, OBJECT + "type_parameter.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_METHOD, OBJECT + "method.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_PROPERTY, OBJECT + "property.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_FIELD, OBJECT + "field.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_CONSTRUCTOR, OBJECT + "constructor.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_ENUM, OBJECT + "enum.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_METHOD, OBJECT + "method.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_PROPERTY, OBJECT + "property.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_FIELD, OBJECT + "field.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_CONSTRUCTOR, OBJECT + "constructor.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_ENUM, OBJECT + "enum.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_ENUM_MEMBER, OBJECT + "enum_member.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_STRUCT, OBJECT + "struct.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_INTERACE, OBJECT + "interface.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_FUNCTION, OBJECT + "function.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_VARIABLE, OBJECT + "variable.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_CONSTANT, OBJECT + "constant.png"); //$NON-NLS-1$
-      declareRegistryImage(IMG_OBJECT, OBJECT + "object.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_INTERACE, OBJECT + "interface.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_FUNCTION, OBJECT + "function.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_VARIABLE, OBJECT + "variable.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_CONSTANT, OBJECT + "constant.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OBJECT, OBJECT + "object.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_STRING, OBJECT + "string.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_NUMBER, OBJECT + "number.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_BOOLEAN, OBJECT + "boolean.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_NUMBER, OBJECT + "number.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_BOOLEAN, OBJECT + "boolean.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_ARRAY, OBJECT + "array.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_NULL, OBJECT + "null.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_NULL, OBJECT + "null.svg"); //$NON-NLS-1$
 
-		declareRegistryImage(IMG_TEXT, OBJECT + "text.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_UNIT, OBJECT + "unit.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_VALUE, OBJECT + "value.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_KEYWORD, OBJECT + "keyword.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_SNIPPET, OBJECT + "snippet.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_TEXT, OBJECT + "text.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_UNIT, OBJECT + "unit.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_VALUE, OBJECT + "value.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_KEYWORD, OBJECT + "keyword.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_SNIPPET, OBJECT + "snippet.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_COLOR, OBJECT + "color.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_REFERENCE, OBJECT + "reference.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_REFERENCE, OBJECT + "reference.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SUPERTYPE, ACTION + "super_co.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SUBTYPE, ACTION + "sub_co.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_TERMINATE_CO, OBJECT + "terminate_co.png"); //$NON-NLS-1$
@@ -176,9 +176,6 @@ public final class LSPImages {
 	}
 
 	public static @Nullable Image imageFromSymbolKind(@Nullable SymbolKind kind) {
-		if (kind == null) {
-			return EMPTY_IMAGE;
-		}
 		return switch (kind) {
 		case Array -> getImage(IMG_ARRAY);
 		case Boolean -> getImage(IMG_BOOLEAN);
@@ -203,7 +200,8 @@ public final class LSPImages {
 		case TypeParameter -> getImage(IMG_TYPE_PARAMETER);
 		case Variable -> getImage(IMG_VARIABLE);
 		case Null -> getImage(IMG_NULL);
-		default -> EMPTY_IMAGE; // when the SymbolKind is out the cases above
+		case Event, Key, Operator -> EMPTY_IMAGE;
+		case null -> EMPTY_IMAGE;
 		};
 	}
 
@@ -230,7 +228,10 @@ public final class LSPImages {
 		case File -> getSharedImage(ISharedImages.IMG_OBJ_FILE);
 		case Folder -> getSharedImage(ISharedImages.IMG_OBJ_FOLDER);
 		case Reference -> getImage(IMG_REFERENCE);
-		default -> null;
+		case Constant -> getImage(IMG_CONSTANT);
+		case TypeParameter -> getImage(IMG_TYPE_PARAMETER);
+		case Event, Operator -> null;
+		case null -> null;
 		};
 	}
 

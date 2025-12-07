@@ -974,7 +974,7 @@
       <image
             commandId="org.eclipse.lsp4e.collapseAllOutline"
             disabledIcon="platform:/plugin/org.eclipse.ui/icons/full/dlcl16/collapseall.png"
-            icon="platform:/plugin/org.eclipse.ui/icons/full/elcl16/collapseall.png" />
+            icon="platform:/plugin/org.eclipse.ui/icons/full/elcl16/collapseall.svg" />
       <image
             commandId="org.eclipse.lsp4e.toggleSortOutline"
             disabledIcon="icons/full/dlcl16/alphab_sort_co.png"
@@ -986,7 +986,7 @@
       <image
             commandId="org.eclipse.lsp4e.toggleLinkWithEditor"
             disabledIcon="icons/full/dlcl16/link_to_editor.png"
-            icon="icons/full/elcl16/link_to_editor.png" />
+            icon="icons/full/elcl16/link_to_editor.svg" />
    </extension>
 
    <!-- outline: register commands as toolbar buttons -->
