@@ -973,19 +973,15 @@
    <extension point="org.eclipse.ui.commandImages">
       <image
             commandId="org.eclipse.lsp4e.collapseAllOutline"
-            disabledIcon="platform:/plugin/org.eclipse.ui/icons/full/dlcl16/collapseall.png"
             icon="platform:/plugin/org.eclipse.ui/icons/full/elcl16/collapseall.svg" />
       <image
             commandId="org.eclipse.lsp4e.toggleSortOutline"
-            disabledIcon="icons/full/dlcl16/alphab_sort_co.png"
             icon="icons/full/elcl16/alphab_sort_co.png" />
       <image
             commandId="org.eclipse.lsp4e.toggleHideFieldsOutline"
-            disabledIcon="icons/full/dlcl16/fields_co.png"
             icon="icons/full/elcl16/fields_co.png" />
       <image
             commandId="org.eclipse.lsp4e.toggleLinkWithEditor"
-            disabledIcon="icons/full/dlcl16/link_to_editor.png"
             icon="icons/full/elcl16/link_to_editor.svg" />
    </extension>
 
