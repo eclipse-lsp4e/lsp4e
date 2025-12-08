@@ -64,7 +64,6 @@ public final class LSPImages {
 	public static final String IMG_CONSTANT = "IMG_CONSTANT"; //$NON-NLS-1$
 	public static final String IMG_OBJECT = "IMG_OBJECT"; //$NON-NLS-1$
 	public static final String IMG_TEXT = "IMG_TEXT"; //$NON-NLS-1$
-	public static final String IMG_STRING = IMG_TEXT;
 	public static final String IMG_NUMBER = "IMG_NUMBER"; //$NON-NLS-1$
 	public static final String IMG_BOOLEAN = "IMG_BOOLEAN"; //$NON-NLS-1$
 	public static final String IMG_ARRAY = "IMG_ARRAY"; //$NON-NLS-1$
@@ -73,7 +72,6 @@ public final class LSPImages {
 	public static final String IMG_VALUE = "IMG_VALUE"; //$NON-NLS-1$
 	public static final String IMG_KEYWORD = "IMG_KEYWORD"; //$NON-NLS-1$
 	public static final String IMG_SNIPPET = "IMG_SNIPPET"; //$NON-NLS-1$
-	public static final String IMG_COLOR = "IMG_COLOR"; //$NON-NLS-1$
 	public static final String IMG_REFERENCE = "IMG_REFERENCE"; //$NON-NLS-1$
 	public static final String IMG_TERMINATE_CO = "IMG_TERMINATE_CO"; //$NON-NLS-1$
 
@@ -100,7 +98,6 @@ public final class LSPImages {
 		declareRegistryImage(IMG_VARIABLE, OBJECT + "variable.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_CONSTANT, OBJECT + "constant.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_OBJECT, OBJECT + "object.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_STRING, OBJECT + "string.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_NUMBER, OBJECT + "number.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_BOOLEAN, OBJECT + "boolean.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_ARRAY, OBJECT + "array.png"); //$NON-NLS-1$
@@ -111,7 +108,6 @@ public final class LSPImages {
 		declareRegistryImage(IMG_VALUE, OBJECT + "value.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_KEYWORD, OBJECT + "keyword.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SNIPPET, OBJECT + "snippet.svg"); //$NON-NLS-1$
-		declareRegistryImage(IMG_COLOR, OBJECT + "color.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_REFERENCE, OBJECT + "reference.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SUPERTYPE, ACTION + "super_co.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SUBTYPE, ACTION + "sub_co.png"); //$NON-NLS-1$
@@ -196,7 +192,7 @@ public final class LSPImages {
 		case Object -> getImage(IMG_OBJECT);
 		case Package -> getImage(IMG_PACKAGE);
 		case Property -> getImage(IMG_PROPERTY);
-		case String -> getImage(IMG_STRING);
+		case String -> getImage(IMG_TEXT);
 		case TypeParameter -> getImage(IMG_TYPE_PARAMETER);
 		case Variable -> getImage(IMG_VARIABLE);
 		case Null -> getImage(IMG_NULL);
