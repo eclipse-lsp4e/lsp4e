@@ -67,6 +67,8 @@ import org.eclipse.ui.editors.text.EditorsUI;
 @SuppressWarnings("restriction")
 public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHoverExtension2 {
 
+	private static final int GET_LEGACY_HOVER_INFO_TIMEOUT_MS = 1000;
+	private static final int GET_ASYNC_HOVER_INFO_TIMEOUT_MS = 100;
 	private static final int GET_HOVER_REGION_TIMEOUT_MS = 100;
 
 	private @Nullable IRegion lastRegion;
@@ -75,17 +77,17 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 	private @Nullable CompletableFuture<@Nullable String> hoverInfoFuture;
 
 	@Override
+	@Deprecated
 	public @Nullable String getHoverInfo(ITextViewer textViewer, IRegion hoverRegion) {
-		// Non-blocking: only return immediately available content.
 		final var hoverInfoRequest_ = this.hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
-		if (hoverInfoRequest_.isDone()) {
-			try {
-				return hoverInfoRequest_.getNow(null);
-			} catch (final Exception ex) {
-				if (CancellationUtil.isRequestCancelledException(ex)) {
-					// Hover was cancelled; ignore as this is an expected fast-mouse-move scenario.
-					return null;
-				}
+
+		try {
+			return hoverInfoRequest_.get(GET_LEGACY_HOVER_INFO_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException ex) {
+			LanguageServerPlugin.logError(ex);
+			Thread.currentThread().interrupt();
+		} catch (ExecutionException | TimeoutException ex) {
+			if (!CancellationUtil.isRequestCancelledException(ex)) {
 				LanguageServerPlugin.logError(ex);
 			}
 		}
@@ -95,8 +97,22 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 	@Override
 	public @Nullable Object getHoverInfo2(ITextViewer textViewer, IRegion hoverRegion) {
 		final var hoverInfoRequest_ = this.hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
-		final String placeholder = "<html><body>Loading…</body></html>"; //$NON-NLS-1$
-		return new AsyncHtmlHoverInput(hoverInfoRequest_, placeholder);
+
+		try {
+			return hoverInfoRequest_.get(GET_ASYNC_HOVER_INFO_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException ex) {
+			LanguageServerPlugin.logError(ex);
+			Thread.currentThread().interrupt();
+			return null;
+		} catch (ExecutionException ex) {
+			if (!CancellationUtil.isRequestCancelledException(ex)) {
+				LanguageServerPlugin.logError(ex);
+			}
+			return null;
+		} catch (TimeoutException ex) {
+			final String placeholder = "<html><body>Loading…</body></html>"; //$NON-NLS-1$
+			return new AsyncHtmlHoverInput(hoverInfoRequest_, placeholder);
+		}
 	}
 
 	public CompletableFuture<@Nullable String> getHoverInfoFuture(ITextViewer textViewer, IRegion hoverRegion) {
