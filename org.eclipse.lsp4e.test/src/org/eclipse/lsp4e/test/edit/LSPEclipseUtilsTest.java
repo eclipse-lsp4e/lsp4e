@@ -13,12 +13,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.edit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -138,8 +134,9 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		String uri = file.getLocation().toFile().toURI().toString();
 		edits.add(Either.forRight(new CreateFile(uri)));
 		edits.add(Either.forLeft(
-				new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, null), List.of(
-						new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "abcHere\nabcHere2")))));
+				new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, null),
+						List.of(Either.forLeft(
+								new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "abcHere\nabcHere2"))))));
 		final var workspaceEdit = new WorkspaceEdit(edits);
 		// they should be applied from bottom to top
 		LSPEclipseUtils.applyWorkspaceEdit(workspaceEdit);
@@ -358,8 +355,8 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		assertTrue(targetFile.exists());
 		LSPEclipseUtils.applyWorkspaceEdit(new WorkspaceEdit(List.of(Either.forLeft(
 				new TextDocumentEdit(new VersionedTextDocumentIdentifier(targetFile.getLocationURI().toString(), 1),
-						List.of(
-								new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "hello")))))));
+						List.of(Either.forLeft(
+								new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "hello"))))))));
 		assertEquals("hello", readContent(targetFile));
 		IFile otherFile = project.getFile("another/folder/file.lol");
 		LSPEclipseUtils.applyWorkspaceEdit(new WorkspaceEdit(List.of(Either.forRight(
@@ -388,7 +385,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		te.setNewText("abc\ndef");
 		final var docEdit = new TextDocumentEdit(
 				new VersionedTextDocumentIdentifier(file.toURI().toString(), null),
-				List.of(te));
+				List.of(Either.forLeft(te)));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
 		assertTrue(file.isFile());
@@ -428,7 +425,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		te.setNewText("abc\ndef");
 		final var docEdit = new TextDocumentEdit(
 				new VersionedTextDocumentIdentifier(LSPEclipseUtils.toUri(targetFile).toString(), null),
-				List.of(te));
+				List.of(Either.forLeft(te)));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
 		assertEquals("abc\ndef", ((StyledText) ((AbstractTextEditor) editor).getAdapter(Control.class)).getText());
@@ -444,7 +441,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		te.setNewText("abc\ndef");
 		final var docEdit = new TextDocumentEdit(
 				new VersionedTextDocumentIdentifier(file.toURI().toString(), null),
-				List.of(te));
+				List.of(Either.forLeft(te)));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
 		assertEquals("abc\ndef", ((StyledText) ((AbstractTextEditor) editor).getAdapter(Control.class)).getText());
