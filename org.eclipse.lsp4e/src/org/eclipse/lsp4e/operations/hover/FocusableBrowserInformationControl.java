@@ -102,7 +102,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		Point hint = computeSizeHint();
 		setSize(hint.x, hint.y);
 
-		if (!"complete".equals(safeEvaluate(browser, "return document.readyState"))) { //$NON-NLS-1$ //$NON-NLS-2$
+		if (!"complete".equals(safeEvaluate(browser, "return document.documentElement ? document.readyState : 'no content';"))) { //$NON-NLS-1$ //$NON-NLS-2$
 			UI.getDisplay().timerExec(200, () -> updateBrowserSize(browser));
 			return;
 		}
