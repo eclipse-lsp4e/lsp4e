@@ -30,8 +30,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.e4.ui.workbench,
  org.eclipse.tm4e.ui,
  org.eclipse.core.filesystem,
- junit-jupiter-api,
- junit-jupiter-params,
+ junit-jupiter-api;bundle-version="[5.14.1,6.0.0)",
+ junit-jupiter-params;bundle-version="[5.14.1,6.0.0)",
  org.hamcrest,
  org.opentest4j
 Automatic-Module-Name: org.eclipse.lsp4e.test
