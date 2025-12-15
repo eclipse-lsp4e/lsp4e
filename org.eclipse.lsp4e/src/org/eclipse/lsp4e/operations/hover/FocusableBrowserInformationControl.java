@@ -94,57 +94,79 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 	}
 
 	private void updateBrowserSize(final Browser browser) {
+		updateBrowserSize(browser, 1);
+	}
+
+	private void updateBrowserSize(final Browser browser, final int attempt) {
+		if (attempt > 100) // ~1s total
+			return;
+
 		if (getShell().isDisposed() || browser.isDisposed() || getInput() == null)
 			return;
 
-		@Nullable
-		Point constraints = getSizeConstraints();
-		Point hint = computeSizeHint();
+		final @Nullable Point constraints = getSizeConstraints();
+		final Point hint = computeSizeHint();
 		setSize(hint.x, hint.y);
 
-		if (!"complete".equals(safeEvaluate(browser, "return document.readyState"))) { //$NON-NLS-1$ //$NON-NLS-2$
-			UI.getDisplay().timerExec(200, () -> updateBrowserSize(browser));
+		final var docReadyState = safeEvaluate(browser, "return document.readyState"); //$NON-NLS-1$
+		if (!"complete".equals(docReadyState)) { //$NON-NLS-1$
+			retryUpdateBrowserSize(browser, attempt);
 			return;
 		}
 
-		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"nowrap\""); //$NON-NLS-1$
-		Double width = 20
-				+ (safeEvaluate(browser, "return document.body.scrollWidth;") instanceof Double evaluated ? evaluated //$NON-NLS-1$
-						: 0);
-		setSize(width.intValue(), hint.y);
+		safeExecute(browser, "document.getElementsByTagName('html')[0].style.whiteSpace = 'nowrap'"); //$NON-NLS-1$
+		final Object widthObj = safeEvaluate(browser, "var b = document.body; return b && b.scrollWidth"); //$NON-NLS-1$
+		if (!(widthObj instanceof final Number widthValue)) {
+			retryUpdateBrowserSize(browser, attempt);
+			return;
+		}
+		double width = 20 + widthValue.doubleValue();
+		setSize((int) width, hint.y);
 
-		safeExecute(browser, "document.getElementsByTagName(\"html\")[0].style.whiteSpace = \"normal\""); //$NON-NLS-1$
-		Double height = safeEvaluate(browser, "return document.body.scrollHeight;") instanceof Double evaluated //$NON-NLS-1$
-				? evaluated
-				: 0d;
-		Object marginTop = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginTop;"); //$NON-NLS-1$
-		Object marginBottom = safeEvaluate(browser, "return window.getComputedStyle(document.body).marginBottom;"); //$NON-NLS-1$
+		safeExecute(browser, "document.getElementsByTagName('html')[0].style.whiteSpace = 'normal'"); //$NON-NLS-1$
+		final Object heightObj = safeEvaluate(browser, "var b = document.body; return b && b.scrollHeight"); //$NON-NLS-1$
+		if (!(heightObj instanceof final Number heightValue)) {
+			retryUpdateBrowserSize(browser, attempt);
+			return;
+		}
+
+		double height = heightValue.doubleValue();
 		if (Platform.getPreferencesService().getBoolean(EditorsUI.PLUGIN_ID,
 				AbstractDecoratedTextEditorPreferenceConstants.EDITOR_SHOW_TEXT_HOVER_AFFORDANCE, true, null)) {
-			FontData[] fontDatas = JFaceResources.getDialogFont().getFontData();
+			final FontData[] fontDatas = JFaceResources.getDialogFont().getFontData();
 			height += fontDatas[0].getHeight();
 		}
 
 		width = width * 1.5;
 		if (Util.isWin32()) {
+			Object marginTop = safeEvaluate(browser,
+					"var b = document.body; return b && window.getComputedStyle(b).marginTop"); //$NON-NLS-1$
+			Object marginBottom = safeEvaluate(browser,
+					"var b = document.body; return b && window.getComputedStyle(b).marginBottom"); //$NON-NLS-1$
 			height = adjust(height, marginTop);
 			height = adjust(height, marginBottom);
 		}
 		if (constraints != null && constraints.x < width) {
-			width = (double) constraints.x;
+			width = constraints.x;
 		}
 		if (constraints != null && constraints.y < height) {
-			height = (double) constraints.y;
+			height = constraints.y;
 		}
 
-		setSize(width.intValue(), height.intValue());
+		setSize((int) width, (int) height);
+	}
+
+	private void retryUpdateBrowserSize(final Browser browser, final int currentAttempt) {
+		UI.getDisplay().timerExec(10, () -> updateBrowserSize(browser, currentAttempt + 1));
 	}
 
 	private static @Nullable Object safeEvaluate(Browser browser, String expression) {
 		try {
 			return browser.evaluate(expression);
 		} catch (Exception ex) {
-			LanguageServerPlugin.logError(ex);
+			if (LanguageServerPlugin.DEBUG || LanguageServerPlugin.isLogTraceEnabled()) {
+				LanguageServerPlugin.logError("Failed to evaluate browser expression: " + expression, ex); //$NON-NLS-1$
+			}
 		}
 		return null;
 	}
@@ -153,7 +175,9 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		try {
 			return browser.execute(expression);
 		} catch (Exception ex) {
-			LanguageServerPlugin.logError(ex);
+			if (LanguageServerPlugin.DEBUG || LanguageServerPlugin.isLogTraceEnabled()) {
+				LanguageServerPlugin.logError("Failed to execute browser expression: " + expression, ex); //$NON-NLS-1$
+			}
 		}
 		return false;
 	}
@@ -191,6 +215,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 			}));
 			return;
 		}
+		this.currentAsyncToken = null;
 		if (input instanceof String html) {
 			input = styleHtml(html);
 		}
