@@ -29,7 +29,7 @@ public class TypeHierarchyItemLabelProvider extends LabelProvider implements ISt
 	@Override
 	public @Nullable Image getImage(@Nullable Object element) {
 		if (element instanceof TypeHierarchyItem item) {
-			return LSPImages.imageFromSymbolKind(item.getKind());
+			return LSPImages.getImageFor(item.getKind(), item.getTags());
 		}
 		return element == null ? null : super.getImage(element);
 	}
