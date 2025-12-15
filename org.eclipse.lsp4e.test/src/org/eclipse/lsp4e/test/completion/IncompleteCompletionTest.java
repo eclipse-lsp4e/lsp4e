@@ -675,4 +675,21 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		assertEquals("FirstClass", proposalsWithIncompleteProposal[0].getDisplayString());
 		assertEquals("➕ Continue typing for more proposals...", proposalsWithIncompleteProposal[1].getDisplayString());
 	}
+	
+	@Test
+	public void testIncompleteIndicationWithEmptyList() throws CoreException {
+		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(true, List.of()));
+
+		IFile testFile = TestUtils.createUniqueTestFile(project, "");
+		ITextViewer viewer = TestUtils.openTextViewer(testFile);
+
+		// without incomplete indication
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 0);
+		assertEquals(0, proposals.length);
+
+		// with incomplete indication
+		final var incompleIndicatingProcessor = new LSContentAssistProcessor(true, true);
+		ICompletionProposal[] proposalsWithIncompleteProposal = incompleIndicatingProcessor.computeCompletionProposals(viewer, 0);
+		assertEquals(0, proposalsWithIncompleteProposal.length);
+	}
 }

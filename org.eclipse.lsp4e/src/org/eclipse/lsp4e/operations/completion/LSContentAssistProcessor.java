@@ -189,7 +189,10 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 		}
 		completeProposals.sort(proposalComparator);
 		final ICompletionProposal incompleteProposal = createIncompleteProposal(offset, anyIncomplete.get());
-		if (incompleteProposal != null) {
+		if (incompleteProposal != null && !completeProposals.isEmpty()) {
+			// Only add the incompleteProposal if the list is not empty.
+			// Otherwise we might get a completion popup which contains only the incompleteProposal.
+
 			@SuppressWarnings("unchecked")
 			final var incompleteProposals = (List<ICompletionProposal>) (List<?>) completeProposals;
 			incompleteProposals.add(incompleteProposal);
