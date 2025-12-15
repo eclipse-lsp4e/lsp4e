@@ -62,6 +62,7 @@ Export-Package: org.eclipse.lsp4e;x-friends:="org.eclipse.lsp4e.debug,org.eclips
  org.eclipse.lsp4e.ui
 Bundle-Vendor: Eclipse LSP4E
 Import-Package: com.google.common.base,
- com.google.gson;version="2.7.0"
+ com.google.gson;version="2.7.0",
+ org.apache.commons.lang;version="[2.6.0,3.0.0)"
 Automatic-Module-Name: org.eclipse.lsp4e
 Service-Component: OSGI-INF/org.eclipse.lsp4e.format.DefaultFormatRegionsProvider.xml

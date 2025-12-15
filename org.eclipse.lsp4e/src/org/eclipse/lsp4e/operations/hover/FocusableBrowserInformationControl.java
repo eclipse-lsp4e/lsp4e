@@ -12,9 +12,12 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.hover;
 
+import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Objects;
 import java.util.UUID;
 
+import org.apache.commons.lang.StringEscapeUtils;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.annotation.Nullable;
@@ -93,6 +96,13 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		b.setJavascriptEnabled(true);
 	}
 
+
+	public void setTextInBrowser(final Browser browser, final String text) {
+		String escapedHtmlBody = StringEscapeUtils.escapeJavaScript(text);
+		safeExecute(browser, "document.body.innerHTML = \"" + escapedHtmlBody + "\";");  //$NON-NLS-1$//$NON-NLS-2$
+		updateBrowserSize(browser);
+	}
+
 	private void updateBrowserSize(final Browser browser) {
 		if (getShell().isDisposed() || browser.isDisposed() || getInput() == null)
 			return;
@@ -102,7 +112,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		Point hint = computeSizeHint();
 		setSize(hint.x, hint.y);
 
-		if (!"complete".equals(safeEvaluate(browser, "return document.readyState"))) { //$NON-NLS-1$ //$NON-NLS-2$
+		if (!"complete".equals(safeEvaluate(browser, "if (document.documentElement === null) {return 'no content';} return document.readyState;"))) { //$NON-NLS-1$ //$NON-NLS-2$
 			UI.getDisplay().timerExec(200, () -> updateBrowserSize(browser));
 			return;
 		}
@@ -183,7 +193,15 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 					return;
 				}
 				if (html != null && !html.isBlank()) {
-					super.setInput(styleHtml(html));
+					try {
+						Field f = BrowserInformationControl.class.getDeclaredField("fBrowser"); //$NON-NLS-1$
+						f.setAccessible(true);
+						Browser browser = (Browser) f.get(this);
+						Objects.requireNonNull(browser);
+						setTextInBrowser(browser, html);
+					} catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
+						super.setInput(html);
+					}
 				} else {
 					// No content from LS; hide placeholder
 					super.setInput(""); //$NON-NLS-1$
