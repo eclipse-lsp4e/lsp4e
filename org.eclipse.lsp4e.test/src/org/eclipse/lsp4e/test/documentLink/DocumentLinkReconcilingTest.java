@@ -36,7 +36,6 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
@@ -138,7 +137,6 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	@Disabled("Test faling because of SWT Exception due to invalid ranges")
 	public void testClippedDocumentLinkReconciling() throws Exception {
 		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
 		
@@ -172,7 +170,7 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		
 		var styles = viewer.getTextWidget().getStyleRanges();
 		
-		assertEquals(8, styles.length);
+		assertEquals(9, styles.length);
 		
 		pos = 0;
 		len = 0;
@@ -185,7 +183,8 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		assertEquals(textStyle(pos += len, len = 1, COLOR_4TH_LINE), styles[5]); // new line char
 		
 		assertEquals(textStyle(pos += len, len = 9, COLOR_5TH_LINE), styles[6]);
-		assertEquals(linkStyle(pos += len, 12, COLOR_5TH_LINE), styles[7]);
+		assertEquals(linkStyle(pos += len, len = 12, COLOR_5TH_LINE), styles[7]);
+		assertEquals(linkStyle(pos += len, 11, COLOR_5TH_LINE), styles[8]);
 	}
 	
 	@Test
