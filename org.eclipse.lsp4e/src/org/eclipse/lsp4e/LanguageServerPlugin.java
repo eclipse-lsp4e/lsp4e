@@ -122,9 +122,9 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 		if (thr != null && thr.getCause() instanceof ResponseErrorException ree) {
 			ResponseError responseError = ree.getResponseError();
 			if (responseError.getData() instanceof JsonPrimitive p) {
-				plugin.getLog().log(new Status(status, PLUGIN_ID, responseError.getMessage() + '(' + responseError.getCode() + ')' + '\n' + p.getAsString()));
+				plugin.getLog().log(new Status(status, PLUGIN_ID, message, new Exception(responseError.getMessage() + '(' + responseError.getCode() + ')' + '\n' + p.getAsString(), thr)));
 			} else {
-				plugin.getLog().log(new Status(status, PLUGIN_ID, responseError.toString()));
+				plugin.getLog().log(new Status(status, PLUGIN_ID, message, new Exception(responseError.toString(), thr)));
 			}
 		} else {
 			plugin.getLog().log(new Status(status, PLUGIN_ID, 0, message, thr));
