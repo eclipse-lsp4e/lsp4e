@@ -24,12 +24,15 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.resource.ImageRegistry;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.lsp4e.ui.LSPImages;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
 import com.google.common.base.Throwables;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
+import com.google.gson.JsonPrimitive;
 
 public class LanguageServerPlugin extends AbstractUIPlugin {
 
@@ -110,7 +113,21 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 					return;
 				EXCEPTIONS_COUNTER.compute(key, (k, v) -> v == null ? 1 : ++v);
 			}
-			plugin.getLog().log(new Status(IStatus.ERROR, PLUGIN_ID, 0, message, thr));
+
+			logThrowable(message, IStatus.ERROR, thr, plugin);
+		}
+	}
+
+	private static void logThrowable(final @Nullable String message, final int status, final @Nullable Throwable thr, final LanguageServerPlugin plugin) {
+		if (thr != null && thr.getCause() instanceof ResponseErrorException ree) {
+			ResponseError responseError = ree.getResponseError();
+			if (responseError.getData() instanceof JsonPrimitive p) {
+				plugin.getLog().log(new Status(status, PLUGIN_ID, responseError.getMessage() + '(' + responseError.getCode() + ')' + '\n' + p.getAsString()));
+			} else {
+				plugin.getLog().log(new Status(status, PLUGIN_ID, responseError.toString()));
+			}
+		} else {
+			plugin.getLog().log(new Status(status, PLUGIN_ID, 0, message, thr));
 		}
 	}
 
@@ -145,7 +162,7 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	 */
 	public static void logWarning(final @Nullable String message, final @Nullable Throwable thr) {
 		if (plugin != null) {
-			plugin.getLog().log(new Status(IStatus.WARNING, PLUGIN_ID, 0, message, thr));
+			logThrowable(message, IStatus.WARNING, thr, plugin);
 		}
 	}
 
