@@ -36,7 +36,6 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
@@ -138,16 +137,16 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	@Disabled("Test faling because of SWT Exception due to invalid ranges")
-	public void testClippedDocumentLinkReconciling() throws Exception {
+	public void testMidLineClippedDocumentLinkReconciling() throws Exception {
 		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
 		
-		TextViewer viewer = (TextViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
+		ProjectionViewer viewer = (ProjectionViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
 		IDocument doc = viewer.getDocument();
 		int line5visibleLength = 21;
 		int line3Start = doc.getLineOffset(2);
 		int middleOfLink5 = doc.getLineOffset(4) + line5visibleLength;
 		// set visible region to 3rd + 4th + half of 5th line, link1 + link6 + link7 are completely outside
+		viewer.disableProjection(); // avoid ProjectionViewer aligning end of visible region to end of the last line
 		viewer.setVisibleRegion(
 				line3Start, // TextViewer would align start of visible region to start of the line anyway
 				middleOfLink5 - line3Start);
@@ -186,6 +185,57 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 		
 		assertEquals(textStyle(pos += len, len = 9, COLOR_5TH_LINE), styles[6]);
 		assertEquals(linkStyle(pos += len, 12, COLOR_5TH_LINE), styles[7]);
+	}
+
+	@Test
+	public void testClippedDocumentLinkReconciling() throws Exception {
+		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
+		
+		ProjectionViewer viewer = (ProjectionViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
+		IDocument doc = viewer.getDocument();
+		// set visible region to 3rd + 4th + 5th line, link1 + link6 + link7 are completely outside
+		// (ProjectionViewer by default aligns start/end of visible region to start/end of the lines)
+		int line3Start = doc.getLineOffset(2);
+		var line5Region = doc.getLineInformation(4);
+		viewer.setVisibleRegion(
+				line3Start, 
+				line5Region.getOffset() + line5Region.getLength() - line3Start);
+		var pos = 0;
+		var len = 0;
+		viewer.getTextWidget().setStyleRanges(new StyleRange[] {
+				textStyle(pos += len, len = doc.getLineLength(2), COLOR_3RD_LINE), // whole 3rd line
+				textStyle(pos += len, len = doc.getLineLength(3), COLOR_4TH_LINE), // whole 4th line
+				textStyle(pos += len, doc.getLineLength(4), COLOR_5TH_LINE) // whole 5th line
+		});
+		viewer.addTextPresentationListener(this::textPresentationListener);
+		
+		waitForAndAssertTextPresentations(doc);
+		
+		assertEquals(1, getStylesCount(textPresentations.get(0)));
+		assertEquals(2, getStylesCount(textPresentations.get(1))); // link2 spans 2 lines, invisible 2nd and visible 3rd
+		assertEquals(1, getStylesCount(textPresentations.get(2)));
+		assertEquals(1, getStylesCount(textPresentations.get(3)));
+		assertEquals(1, getStylesCount(textPresentations.get(4)));
+		assertEquals(1, getStylesCount(textPresentations.get(5)));
+		assertEquals(1, getStylesCount(textPresentations.get(6)));
+		
+		var styles = viewer.getTextWidget().getStyleRanges();
+		
+		assertEquals(9, styles.length);
+		
+		pos = 0;
+		len = 0;
+		assertEquals(linkStyle(pos, len = 10, COLOR_3RD_LINE), styles[0]);
+		assertEquals(textStyle(pos += len, len = 10, COLOR_3RD_LINE), styles[1]);
+		assertEquals(linkStyle(pos += len, len = 6, COLOR_3RD_LINE), styles[2]);
+		assertEquals(textStyle(pos += len, len = 9 + 1, COLOR_3RD_LINE), styles[3]); // also new line char
+		
+		assertEquals(linkStyle(pos += len, len = 6, COLOR_4TH_LINE), styles[4]);
+		assertEquals(textStyle(pos += len, len = 1, COLOR_4TH_LINE), styles[5]); // new line char
+		
+		assertEquals(textStyle(pos += len, len = 9, COLOR_5TH_LINE), styles[6]);
+		assertEquals(linkStyle(pos += len, len = 23, COLOR_5TH_LINE), styles[7]);
+		assertEquals(textStyle(pos += len, 1, COLOR_5TH_LINE), styles[8]); // new line char
 	}
 	
 	@Test
