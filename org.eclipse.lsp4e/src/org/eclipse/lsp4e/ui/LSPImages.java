@@ -85,13 +85,13 @@ public final class LSPImages {
 		declareRegistryImage(IMG_NAMESPACE, OBJECT + "namespace.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_PACKAGE, OBJECT + "package.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_CLASS, OBJECT + "class.svg"); //$NON-NLS-1$
-		declareRegistryImage(IMG_TYPE_PARAMETER, OBJECT + "type_parameter.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_TYPE_PARAMETER, OBJECT + "type_parameter.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_METHOD, OBJECT + "method.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_PROPERTY, OBJECT + "property.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_FIELD, OBJECT + "field.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_CONSTRUCTOR, OBJECT + "constructor.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_ENUM, OBJECT + "enum.svg"); //$NON-NLS-1$
-		declareRegistryImage(IMG_ENUM_MEMBER, OBJECT + "enum_member.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_ENUM_MEMBER, OBJECT + "enum_member.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_STRUCT, OBJECT + "struct.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_INTERACE, OBJECT + "interface.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_FUNCTION, OBJECT + "function.svg"); //$NON-NLS-1$
@@ -109,9 +109,9 @@ public final class LSPImages {
 		declareRegistryImage(IMG_KEYWORD, OBJECT + "keyword.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SNIPPET, OBJECT + "snippet.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_REFERENCE, OBJECT + "reference.svg"); //$NON-NLS-1$
-		declareRegistryImage(IMG_SUPERTYPE, ACTION + "super_co.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_SUBTYPE, ACTION + "sub_co.png"); //$NON-NLS-1$
-		declareRegistryImage(IMG_TERMINATE_CO, OBJECT + "terminate_co.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_SUPERTYPE, ACTION + "super_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_SUBTYPE, ACTION + "sub_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_TERMINATE_CO, OBJECT + "terminate_co.svg"); //$NON-NLS-1$
 	}
 
 	private static void declareRegistryImage(String key, String path) {

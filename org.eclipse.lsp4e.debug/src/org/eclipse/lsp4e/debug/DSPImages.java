@@ -44,7 +44,7 @@ public final class DSPImages {
 	@SuppressWarnings("unused") // none yet, leave for the future
 	private static final String T_OBJS = "obj16/"; //$NON-NLS-1$
 
-	public static final String IMG_VIEW_DEBUGGER_TAB = NAME_PREFIX + "debugger_tab.gif"; //$NON-NLS-1$
+	public static final String IMG_VIEW_DEBUGGER_TAB = NAME_PREFIX + "debugger_tab.svg"; //$NON-NLS-1$
 
 	public static final ImageDescriptor DESC_TAB_DEBUGGER = createManaged(T_TABS, IMG_VIEW_DEBUGGER_TAB);
 

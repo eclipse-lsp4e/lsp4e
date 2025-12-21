@@ -814,14 +814,14 @@
       <view
             category="org.eclipse.lsp4e.views"
             class="org.eclipse.lsp4e.callhierarchy.CallHierarchyView"
-            icon="icons/full/dlcl16/call_hierarchy.gif"
+            icon="icons/full/eview16/call_hierarchy.svg"
             id="org.eclipse.lsp4e.callHierarchy.callHierarchyView"
             name="%view.callHierarchy.name"
             restorable="true" />
       <view
             category="org.eclipse.lsp4e.views"
             class="org.eclipse.lsp4e.operations.typeHierarchy.TypeHierarchyView"
-            icon="icons/full/dlcl16/type_hierarchy.gif"
+            icon="icons/full/eview16/type_hierarchy.svg"
             id="org.eclipse.lsp4e.operations.typeHierarchy.TypeHierarchyView"
             name="%view.typeHierarchy.name"
             restorable="true" />
@@ -976,7 +976,7 @@
             icon="platform:/plugin/org.eclipse.ui/icons/full/elcl16/collapseall.svg" />
       <image
             commandId="org.eclipse.lsp4e.toggleSortOutline"
-            icon="icons/full/elcl16/alphab_sort_co.png" />
+            icon="icons/full/elcl16/alphab_sort_co.svg" />
       <image
             commandId="org.eclipse.lsp4e.toggleHideFieldsOutline"
             icon="icons/full/elcl16/fields_co.png" />
