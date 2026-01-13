@@ -19,6 +19,9 @@ import org.eclipse.lsp4j.Diagnostic;
 
 class DiagnosticAnnotation extends Annotation {
 
+	private static final String TYPE_INFO = "org.eclipse.ui.workbench.texteditor.info"; //$NON-NLS-1$
+	private static final String TYPE_WARNING = "org.eclipse.ui.workbench.texteditor.warning"; //$NON-NLS-1$
+	private static final String TYPE_ERROR = "org.eclipse.ui.workbench.texteditor.error"; //$NON-NLS-1$
 	private final Diagnostic diagnostic;
 	private final Function<Diagnostic, String> textComputer;
 
@@ -30,10 +33,11 @@ class DiagnosticAnnotation extends Annotation {
 	@Override
 	public String getType() {
 		return switch (diagnostic.getSeverity()) {
-		case Error -> "org.eclipse.ui.workbench.texteditor.error"; //$NON-NLS-1$
-		case Warning -> "org.eclipse.ui.workbench.texteditor.warning"; //$NON-NLS-1$
-		case Information -> "org.eclipse.ui.workbench.texteditor.info"; //$NON-NLS-1$
-		case Hint -> "org.eclipse.ui.workbench.texteditor.info"; //$NON-NLS-1$
+		case Error -> TYPE_ERROR;
+		case Warning -> TYPE_WARNING;
+		case Information -> TYPE_INFO;
+		case Hint -> TYPE_INFO;
+		case null -> TYPE_ERROR;
 		};
 	}
 
