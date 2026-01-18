@@ -100,10 +100,10 @@ public final class LSPImages {
 		declareRegistryImage(IMG_FUNCTION, OBJECT + "function.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_VARIABLE, OBJECT + "variable.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_CONSTANT, OBJECT + "constant.svg"); //$NON-NLS-1$
-		declareRegistryImage(IMG_OBJECT, OBJECT + "object.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OBJECT, OBJECT + "object.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_NUMBER, OBJECT + "number.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_BOOLEAN, OBJECT + "boolean.svg"); //$NON-NLS-1$
-		declareRegistryImage(IMG_ARRAY, OBJECT + "array.png"); //$NON-NLS-1$
+		declareRegistryImage(IMG_ARRAY, OBJECT + "array.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_NULL, OBJECT + "null.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_KEY, OBJECT + "key.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_EVENT, OBJECT + "event.svg"); //$NON-NLS-1$

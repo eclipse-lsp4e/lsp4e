@@ -26,7 +26,7 @@
          point="org.eclipse.debug.ui.launchConfigurationTypeImages">
       <launchConfigurationTypeImage
             configTypeID="org.eclipse.lsp4e.debug.launchType"
-            icon="icons/pda.gif"
+            icon="icons/pda.svg"
             id="org.eclipse.lsp4e.debug.typeImage">
       </launchConfigurationTypeImage>
    </extension>
