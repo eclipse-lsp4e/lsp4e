@@ -74,6 +74,9 @@ public final class LSPImages {
 	public static final String IMG_SNIPPET = "IMG_SNIPPET"; //$NON-NLS-1$
 	public static final String IMG_REFERENCE = "IMG_REFERENCE"; //$NON-NLS-1$
 	public static final String IMG_TERMINATE_CO = "IMG_TERMINATE_CO"; //$NON-NLS-1$
+	public static final String IMG_EVENT = "IMG_EVENT"; //$NON-NLS-1$
+	public static final String IMG_KEY = "IMG_KEY"; //$NON-NLS-1$
+	public static final String IMG_OPERATOR = "IMG_OPERATOR"; //$NON-NLS-1$
 
 	public static final String IMG_SUPERTYPE = "IMG_SUPERTYPE"; //$NON-NLS-1$
 	public static final String IMG_SUBTYPE = "IMG_SUBTYPE"; //$NON-NLS-1$
@@ -102,6 +105,9 @@ public final class LSPImages {
 		declareRegistryImage(IMG_BOOLEAN, OBJECT + "boolean.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_ARRAY, OBJECT + "array.png"); //$NON-NLS-1$
 		declareRegistryImage(IMG_NULL, OBJECT + "null.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_KEY, OBJECT + "key.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_EVENT, OBJECT + "event.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OPERATOR, OBJECT + "operator.svg"); //$NON-NLS-1$
 
 		declareRegistryImage(IMG_TEXT, OBJECT + "text.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_UNIT, OBJECT + "unit.svg"); //$NON-NLS-1$
@@ -196,7 +202,9 @@ public final class LSPImages {
 		case TypeParameter -> getImage(IMG_TYPE_PARAMETER);
 		case Variable -> getImage(IMG_VARIABLE);
 		case Null -> getImage(IMG_NULL);
-		case Event, Key, Operator -> EMPTY_IMAGE;
+		case Event -> getImage(IMG_EVENT);
+		case Key -> getImage(IMG_KEY);
+		case Operator -> getImage(IMG_OPERATOR);
 		case null -> EMPTY_IMAGE;
 		};
 	}
@@ -226,7 +234,8 @@ public final class LSPImages {
 		case Reference -> getImage(IMG_REFERENCE);
 		case Constant -> getImage(IMG_CONSTANT);
 		case TypeParameter -> getImage(IMG_TYPE_PARAMETER);
-		case Event, Operator -> null;
+		case Event -> getImage(IMG_EVENT);
+		case Operator -> getImage(IMG_OPERATOR);
 		case null -> null;
 		};
 	}
