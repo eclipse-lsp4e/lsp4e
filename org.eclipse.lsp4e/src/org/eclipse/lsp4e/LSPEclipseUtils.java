@@ -240,28 +240,45 @@ public final class LSPEclipseUtils {
 		}
 	}
 
-	public static CompletionParams toCompletionParams(URI fileUri, int offset, IDocument document, char[] completionTriggerChars)
-			throws BadLocationException {
-		Position start = toPosition(offset, document);
-		final var param = new CompletionParams();
+	/**
+	 * Provides the character at the given offset or {@code null} if the document is empty.
+	 */
+	public static @Nullable Character getCharacterAtPosition(IDocument document, int offset) throws BadLocationException {
 		if (document.getLength() > 0) {
-			try {
-				int positionCharacterOffset = offset > 0 ? offset-1 : offset;
-				String positionCharacter = document.get(positionCharacterOffset, 1);
-				if (Chars.contains(completionTriggerChars, positionCharacter.charAt(0))) {
-					param.setContext(new CompletionContext(CompletionTriggerKind.TriggerCharacter, positionCharacter));
-				} else {
-					// According to LSP 3.17 specification: the triggerCharacter in CompletionContext is undefined if
-					// triggerKind != CompletionTriggerKind.TriggerCharacter
-					param.setContext(new CompletionContext(CompletionTriggerKind.Invoked));
-				}
-			} catch (BadLocationException e) {
-				LanguageServerPlugin.logError(e);
-			}
+			int positionCharacterOffset = offset > 0 ? offset - 1 : offset;
+			return document.getChar(positionCharacterOffset);
 		}
+		return null;
+	}
+
+	public static CompletionContext toCompletionContext(@Nullable Character triggerChar, char[] completionTriggerChars) {
+		if (triggerChar == null || !Chars.contains(completionTriggerChars, triggerChar.charValue())) {
+			// According to LSP 3.17 specification: the triggerCharacter in
+			// CompletionContext is undefined if
+			// triggerKind != CompletionTriggerKind.TriggerCharacter
+			return new CompletionContext(CompletionTriggerKind.Invoked);
+		} else {
+			return new CompletionContext(CompletionTriggerKind.TriggerCharacter, triggerChar.toString());
+		}
+	}
+
+	public static CompletionParams toCompletionParams(URI fileUri, Position start, CompletionContext context) {
+		final var param = new CompletionParams();
+		param.setContext(context);
 		param.setPosition(start);
 		param.setTextDocument(toTextDocumentIdentifier(fileUri));
 		return param;
+	}
+
+	/**
+	 * Use {@link #toCompletionParams(URI, Position, CompletionContext)} instead.
+	 */
+	@Deprecated(forRemoval = true)
+	public static CompletionParams toCompletionParams(URI fileUri, int offset, IDocument document, char[] completionTriggerChars)
+			throws BadLocationException {
+		Position start = toPosition(offset, document);
+		@Nullable Character triggerChar = getCharacterAtPosition(document, offset);
+		return toCompletionParams(fileUri, start, toCompletionContext(triggerChar, completionTriggerChars));
 	}
 
 	public static @Nullable ITextSelection toSelection(Range range, IDocument document) {

@@ -234,7 +234,9 @@ public class LSCompletionProposal
 			rankScore = CompletionProposalTools.getScoreOfFilterMatch(getDocumentFilter(),
 					getFilterString());
 		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
+			// Document was changed while we computed completion proposals, which made the
+			// offset invalid. We can stop any further computation as the result will be
+			// discarded anyway.
 			rankScore = -1;
 		}
 		this.rankScore = rankScore;
@@ -257,7 +259,9 @@ public class LSCompletionProposal
 			rankCategory = CompletionProposalTools.getCategoryOfFilterMatch(getDocumentFilter(),
 					getFilterString());
 		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
+			// Document was changed while we computed completion proposals, which made the
+			// offset invalid. We can stop any further computation as the result will be
+			// discarded anyway.
 			rankCategory = CompletionProposalTools.CATEGORY_NO_MATCH;
 		}
 		this.rankCategory = rankCategory;
@@ -442,19 +446,15 @@ public class LSCompletionProposal
 
 	@Override
 	public int getPrefixCompletionStart(IDocument document, int completionOffset) {
-		Either<TextEdit, InsertReplaceEdit> textEdit = item.getTextEdit();
-		if (textEdit != null) {
-			try {
-				return LSPEclipseUtils.toOffset(getTextEditRange().getStart(), document);
-			} catch (BadLocationException e) {
-				LanguageServerPlugin.logError(e);
-			}
-		}
-		final String insertText = getInsertText();
-		final int insertTextLength = insertText.length();
 		try {
-			String subDoc = document.get(
-					Math.max(0, completionOffset - insertTextLength),
+			Either<TextEdit, InsertReplaceEdit> textEdit = item.getTextEdit();
+			if (textEdit != null) {
+				return LSPEclipseUtils.toOffset(getTextEditRange().getStart(), document);
+			}
+
+			final String insertText = getInsertText();
+			final int insertTextLength = insertText.length();
+			String subDoc = document.get(Math.max(0, completionOffset - insertTextLength),
 					Math.min(insertTextLength, completionOffset));
 			for (int i = 0; i < insertTextLength && i < completionOffset; i++) {
 				if (insertText.regionMatches(true, 0, subDoc, i, subDoc.length() - i)) {
@@ -462,7 +462,9 @@ public class LSCompletionProposal
 				}
 			}
 		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
+			// Document was changed while we computed completion proposals, which made the
+			// offset invalid. We can stop any further computation as the result will be
+			// discarded anyway.
 		}
 		return completionOffset;
 	}
