@@ -512,7 +512,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// When toCompletionParams get called with offset == 0 and document.getLength() == 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 0, LSPEclipseUtils.getDocument(file), triggerChars);
 		// Then no context has been added to param:
-		assertNull(param.getContext());
+		assertEquals(param.getContext().getTriggerKind(), CompletionTriggerKind.Invoked);
 	}
 
 	@Test

@@ -51,10 +51,12 @@ import org.eclipse.lsp4e.internal.CancellationSupport;
 import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4e.ui.UI;
+import org.eclipse.lsp4j.CompletionContext;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemDefaults;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.CompletionParams;
+import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SignatureInformation;
 import org.eclipse.lsp4j.jsonrpc.CancelChecker;
@@ -116,21 +118,28 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			return NO_COMPLETION_PROPOSALS;
 		}
 
+		final @Nullable Character triggerChar;
+		final Position completionPosition;
+		try {
+			// Eagerly to try to access the position, so we can fail fast.
+			triggerChar = LSPEclipseUtils.getCharacterAtPosition(document, offset);
+			completionPosition = LSPEclipseUtils.toPosition(offset, document);
+		} catch (BadLocationException e) {
+			// Document was changed while we computed completion proposals, which made the
+			// offset invalid. We can stop any further computation as the result will be
+			// discarded anyway.
+			return NO_COMPLETION_PROPOSALS;
+		}
+
 		URI uri = LSPEclipseUtils.toUri(document);
 		if (uri == null) {
 			return NO_COMPLETION_PROPOSALS;
 		}
 
 		initiateLanguageServers(document);
-		CompletionParams param;
 
-		try {
-			param = LSPEclipseUtils.toCompletionParams(uri, offset, document, this.completionTriggerChars);
-		} catch (BadLocationException e) {
-			LanguageServerPlugin.logError(e);
-			this.errorMessage = createErrorMessage(offset, e);
-			return createErrorProposal(offset, e);
-		}
+		final CompletionContext context = LSPEclipseUtils.toCompletionContext(triggerChar, completionTriggerChars);
+		final CompletionParams param = LSPEclipseUtils.toCompletionParams(uri, completionPosition, context);
 
 		final var proposals = Collections.synchronizedList(new ArrayList<ICompletionProposal>());
 		final var anyIncomplete = new AtomicBoolean(false);
