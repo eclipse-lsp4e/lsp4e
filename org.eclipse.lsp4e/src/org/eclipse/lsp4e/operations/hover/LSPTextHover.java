@@ -29,6 +29,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.commonmark.Extension;
+import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.node.Node;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
@@ -111,9 +113,10 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 					.collect(Collectors.joining("\n\n")) //$NON-NLS-1$
 					.trim();
 			if (!result.isEmpty()) {
-				Parser parser = Parser.builder().build();
+				List<Extension> extensions = List.of(TablesExtension.create());
+				Parser parser = Parser.builder().extensions(extensions).build();
 				Node document = parser.parse(result);
-				HtmlRenderer renderer = HtmlRenderer.builder().build();
+				HtmlRenderer renderer = HtmlRenderer.builder().extensions(extensions).build();
 				return renderer.render(document);
 			} else {
 				return null;
