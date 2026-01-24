@@ -14,7 +14,8 @@ package org.eclipse.lsp4e.test.definition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,6 +42,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class DefinitionTest extends AbstractTestWithProject {
 
@@ -82,12 +84,12 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDefinitionOneLocationExternalFile() throws Exception {
+	public void testDefinitionOneLocationExternalFile(@TempDir Path tempDir) throws Exception {
 		final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
 		MockLanguageServer.INSTANCE.setDefinition(List.of(location));
 
-		File file = TestUtils.createTempFile("testDocumentLinkExternalFile", ".lspt");
-		final var editor = (ITextEditor) IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
+		Path file = Files.createFile(tempDir.resolve("testDocumentLinkExternalFile.lspt"));
+		final var editor = (ITextEditor) IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
 
 		IHyperlink[] hyperlinks = hyperlinkDetector.detectHyperlinks(viewer, new Region(0, 0), true);

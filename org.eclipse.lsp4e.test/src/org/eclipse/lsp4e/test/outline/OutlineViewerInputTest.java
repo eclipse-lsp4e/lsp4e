@@ -14,9 +14,10 @@ package org.eclipse.lsp4e.test.outline;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -26,6 +27,7 @@ import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Tests to verify that documentURI always contains absolute paths in the file system.
@@ -55,15 +57,12 @@ public class OutlineViewerInputTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDocumentURIAbsolutePathForExternalFile() throws IOException, CoreException {
+	public void testDocumentURIAbsolutePathForExternalFile(@TempDir Path tempDir) throws IOException, CoreException {
 		// Create a temporary file outside the workspace
-		var tempFile = TestUtils.createTempFile("externalTest" + System.currentTimeMillis(), ".lspt");
-		
-		try (var fileWriter = new FileWriter(tempFile)) {
-			fileWriter.write("external file content for testing absolute paths");
-		}
+		var tempFile = Files.writeString(tempDir.resolve("externalTest.lspt"), "external file content for testing absolute paths");
+
 		// Open the external file in an editor
-		var editor = (ITextEditor) TestUtils.openExternalFileInEditor(tempFile);
+		var editor = (ITextEditor) TestUtils.openExternalFileInEditor(tempFile.toFile());
 		var document = LSPEclipseUtils.getDocument(editor);
 
 		// Create OutlineViewerInput and verify documentURI
@@ -78,7 +77,7 @@ public class OutlineViewerInputTest extends AbstractTestWithProject {
 			
 		// Verify it points to the same file we created
 		// replace '\' with '/' on Windows and remove leading '/' from documentURI path on Windows:
-		assertTrue(documentURI.toString().contains(tempFile.getAbsolutePath().replace("\\","/")),
+		assertTrue(documentURI.toString().contains(tempFile.toFile().getAbsolutePath().replace("\\","/")),
 				"documentURI should contain the abolute path in the file system");
 	}
 

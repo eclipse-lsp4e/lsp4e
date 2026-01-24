@@ -12,8 +12,9 @@ import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
@@ -45,16 +46,13 @@ import org.eclipse.ui.tests.harness.util.DisplayHelper;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class OutlineContentTest extends AbstractTestWithProject {
 
 	@Test
-	public void testExternalFile() throws CoreException, IOException {
-		var testFile = TestUtils.createTempFile("test" + System.currentTimeMillis(), ".lspt");
-
-		try (FileWriter fileWriter =  new FileWriter(testFile)) {
-			fileWriter.write("content\n does\n not\n matter\n but needs to cover the ranges described below");
-		}
+	public void testExternalFile(@TempDir Path tempDir) throws CoreException, IOException {
+		var testFile = Files.writeString(tempDir.resolve("test.lspt"), "content\n does\n not\n matter\n but needs to cover the ranges described below");
 
 		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
 				new Range(new Position(0, 0), new Position(0, 2)),
@@ -62,7 +60,7 @@ public class OutlineContentTest extends AbstractTestWithProject {
 
 		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
 
-		final var editor = (ITextEditor) TestUtils.openExternalFileInEditor(testFile);
+		final var editor = (ITextEditor) TestUtils.openExternalFileInEditor(testFile.toFile());
 
 		final var outlinePage = (CNFOutlinePage) new EditorToOutlineAdapterFactory().getAdapter(editor, IContentOutlinePage.class);
 		final var shell = new Shell(editor.getEditorSite().getWorkbenchWindow().getShell());
@@ -83,12 +81,8 @@ public class OutlineContentTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testExternalFileOpenedOnFileStore() throws CoreException, IOException {
-		var testFile = TestUtils.createTempFile("test" + System.currentTimeMillis(), ".lspt");
-
-		try (FileWriter fileWriter =  new FileWriter(testFile)) {
-			fileWriter.write("content\n does\n not\n matter\n but needs to cover the ranges described below");
-		}
+	public void testExternalFileOpenedOnFileStore(@TempDir Path tempDir) throws CoreException, IOException {
+		var testFile = Files.writeString(tempDir.resolve("test.lspt"), "content\n does\n not\n matter\n but needs to cover the ranges described below");
 
 		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
 				new Range(new Position(0, 0), new Position(0, 2)),
@@ -96,7 +90,7 @@ public class OutlineContentTest extends AbstractTestWithProject {
 
 		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
 
-		final var editor = (ITextEditor) TestUtils.openExternalFileOnFileStore(testFile);
+		final var editor = (ITextEditor) TestUtils.openExternalFileOnFileStore(testFile.toFile());
 
 		final var outlinePage = (CNFOutlinePage) new EditorToOutlineAdapterFactory().getAdapter(editor, IContentOutlinePage.class);
 		final var shell = new Shell(editor.getEditorSite().getWorkbenchWindow().getShell());

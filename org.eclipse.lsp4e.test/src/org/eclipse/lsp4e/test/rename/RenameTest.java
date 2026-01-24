@@ -23,6 +23,7 @@ import java.io.File;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -66,6 +67,7 @@ import org.eclipse.ui.commands.ICommandService;
 import org.eclipse.ui.handlers.IHandlerService;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class RenameTest extends AbstractTestWithProject {
 
@@ -163,10 +165,11 @@ public class RenameTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testRenameRefactoringExternalFile() throws Exception {
-		File file = TestUtils.createTempFile("testPerformOperationExternalFile", ".lspt");
-		MockLanguageServer.INSTANCE.getTextDocumentService().setRenameEdit(createSimpleMockRenameEdit(file.toURI()));
-		IFileStore store = EFS.getStore(file.toURI());
+	public void testRenameRefactoringExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = Files.createFile(tempDir.resolve("testPerformOperationExternalFile.lspt"));
+		
+		MockLanguageServer.INSTANCE.getTextDocumentService().setRenameEdit(createSimpleMockRenameEdit(file.toUri()));
+		IFileStore store = EFS.getStore(file.toUri());
 		ITextFileBufferManager manager = ITextFileBufferManager.DEFAULT;
 		try {
 			manager.connectFileStore(store, new NullProgressMonitor());
@@ -188,13 +191,13 @@ public class RenameTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testRenameChangeAlsoExternalFile() throws Exception {
+	public void testRenameChangeAlsoExternalFile(@TempDir Path tempDir) throws Exception {
 		IFile workspaceFile = TestUtils.createUniqueTestFile(project, "old");
-		File externalFile = TestUtils.createTempFile("testRenameChangeAlsoExternalFile", ".lspt");
-		Files.write(externalFile.toPath(), "old".getBytes());
+		
+		Path externalFile = Files.writeString(tempDir.resolve("testRenameChangeAlsoExternalFile.lspt"), "old");
 		final var edits = new HashMap<String, List<TextEdit>>(2, 1.f);
 		edits.put(LSPEclipseUtils.toUri(workspaceFile).toString(), List.of(new TextEdit(new Range(new Position(0, 0), new Position(0, 3)), "new")));
-		edits.put(LSPEclipseUtils.toUri(externalFile).toString(), List.of(new TextEdit(new Range(new Position(0, 0), new Position(0, 3)), "new")));
+		edits.put(LSPEclipseUtils.toUri(externalFile.toFile()).toString(), List.of(new TextEdit(new Range(new Position(0, 0), new Position(0, 3)), "new")));
 		MockLanguageServer.INSTANCE.getTextDocumentService().setRenameEdit(new WorkspaceEdit(edits));
 		IDocument document = LSPEclipseUtils.getDocument(workspaceFile);
 		assertNotNull(document);
@@ -208,7 +211,7 @@ public class RenameTest extends AbstractTestWithProject {
 			e.printStackTrace();
 		}
 		assertEquals("new", document.get());
-		assertEquals("new", new String(Files.readAllBytes(externalFile.toPath())));
+		assertEquals("new", Files.readString(externalFile));
 	}
 
 	@Test

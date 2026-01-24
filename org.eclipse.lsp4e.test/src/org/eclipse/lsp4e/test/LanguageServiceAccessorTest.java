@@ -21,7 +21,6 @@ import static org.eclipse.lsp4e.LanguageServiceAccessor.getLSWrappers;
 import static org.eclipse.lsp4e.LanguageServiceAccessor.hasActiveLanguageServers;
 import static org.eclipse.lsp4e.test.utils.TestUtils.createFile;
 import static org.eclipse.lsp4e.test.utils.TestUtils.createProject;
-import static org.eclipse.lsp4e.test.utils.TestUtils.createTempFile;
 import static org.eclipse.lsp4e.test.utils.TestUtils.createUniqueTestFile;
 import static org.eclipse.lsp4e.test.utils.TestUtils.createUniqueTestFileMultiLS;
 import static org.eclipse.lsp4e.test.utils.TestUtils.openEditor;
@@ -34,6 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
@@ -58,6 +59,7 @@ import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 
@@ -368,10 +370,10 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testLSforExternalThenLocalFile() throws Exception {
+	public void testLSforExternalThenLocalFile(@TempDir Path tempDir) throws Exception {
 		var wb = UI.getActiveWindow();
-		var local = createTempFile("testLSforExternalThenLocalFile", ".lspt");
-		var editor = (ITextEditor) IDE.openEditorOnFileStore(wb.getActivePage(), EFS.getStore(local.toURI()));
+		var local = Files.createFile(tempDir.resolve("testLSforExternalThenLocalFile.lspt"));
+		var editor = (ITextEditor) IDE.openEditorOnFileStore(wb.getActivePage(), EFS.getStore(local.toUri()));
 
 		Predicate<ServerCapabilities> hasHoverCapabilities = capabilities -> {
 			var hoverProvider = capabilities.getHoverProvider();

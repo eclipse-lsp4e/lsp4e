@@ -14,7 +14,8 @@ package org.eclipse.lsp4e.test.documentLink;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 
 import org.eclipse.core.filesystem.EFS;
@@ -34,6 +35,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class DocumentLinkTest extends AbstractTestWithProject {
 
@@ -63,13 +65,13 @@ public class DocumentLinkTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDocumentLinkExternalFile() throws Exception {
+	public void testDocumentLinkExternalFile(@TempDir Path tempDir) throws Exception {
 		final var links = new ArrayList<DocumentLink>();
 		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file://test0"));
 		MockLanguageServer.INSTANCE.setDocumentLinks(links);
 
-		File file = TestUtils.createTempFile("testDocumentLinkExternalFile", ".lspt");
-		final var editor = (ITextEditor) IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
+		Path file = Files.createFile(tempDir.resolve("testDocumentLinkExternalFile.lspt"));
+		final var editor = (ITextEditor) IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
 		viewer.getDocument().set("Long enough dummy content to match ranges");
 

@@ -14,7 +14,8 @@ package org.eclipse.lsp4e.test.edit;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +32,7 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.ide.IDE;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class DocumentDidCloseTest extends AbstractTestWithProject {
 
@@ -54,9 +56,9 @@ public class DocumentDidCloseTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testCloseExternalFile() throws Exception {
-		File testFile = TestUtils.createTempFile("testCloseExternalFile", ".lspt");
-		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(testFile.toURI()));
+	public void testCloseExternalFile(@TempDir Path tempDir) throws Exception {
+		Path testFile = Files.createFile(tempDir.resolve("testCloseExternalFile.lspt"));
+		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(testFile.toUri()));
 
 		// Force LS to initialize and open file
 		LanguageServers.forDocument(LSPEclipseUtils.getDocument(editor.getEditorInput())).anyMatching();
@@ -68,6 +70,6 @@ public class DocumentDidCloseTest extends AbstractTestWithProject {
 
 		DidCloseTextDocumentParams lastChange = didCloseExpectation.get(1000, TimeUnit.MILLISECONDS);
 		assertNotNull(lastChange.getTextDocument());
-		assertEquals(LSPEclipseUtils.toUri(testFile).toString(), lastChange.getTextDocument().getUri());
+		assertEquals(LSPEclipseUtils.toUri(testFile.toFile()).toString(), lastChange.getTextDocument().getUri());
 	}
 }

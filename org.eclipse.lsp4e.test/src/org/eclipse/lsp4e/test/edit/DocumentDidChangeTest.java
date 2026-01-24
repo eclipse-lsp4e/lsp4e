@@ -17,7 +17,8 @@ import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -39,6 +40,7 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.ide.IDE;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class DocumentDidChangeTest extends AbstractTestWithProject {
 
@@ -193,12 +195,12 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFullSyncExternalFile() throws Exception {
+	public void testFullSyncExternalFile(@TempDir Path tempDir) throws Exception {
 		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities()
 				.setTextDocumentSync(TextDocumentSyncKind.Full);
 
-		File file = TestUtils.createTempFile("testFullSyncExternalFile", ".lspt");
-		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
+		Path file = Files.createFile(tempDir.resolve("testFullSyncExternalFile.lspt"));
+		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
 		LanguageServers.forDocument(viewer.getDocument()).withFilter(new Predicate<ServerCapabilities>() {
 			@Override

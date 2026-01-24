@@ -16,7 +16,8 @@ import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -35,6 +36,7 @@ import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.ide.IDE;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class DocumentDidSaveTest extends AbstractTestWithProject {
 
@@ -67,9 +69,9 @@ public class DocumentDidSaveTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testSaveExternalFile() throws Exception {
-		File file = TestUtils.createTempFile("testSaveExternalFile", ".lspt");
-		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
+	public void testSaveExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = Files.createFile(tempDir.resolve("testSaveExternalFile.lspt"));
+		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
 
 		// make sure that timestamp after save will differ from creation time (no better idea at the moment)
@@ -87,7 +89,7 @@ public class DocumentDidSaveTest extends AbstractTestWithProject {
 		waitForAndAssertCondition(2_000, () -> {
 			DidSaveTextDocumentParams lastChange = didSaveExpectation.get(10, TimeUnit.MILLISECONDS);
 			assertNotNull(lastChange.getTextDocument());
-			assertEquals(LSPEclipseUtils.toUri(file).toString(), lastChange.getTextDocument().getUri());
+			assertEquals(LSPEclipseUtils.toUri(file.toFile()).toString(), lastChange.getTextDocument().getUri());
 			return true;
 		});
 	}

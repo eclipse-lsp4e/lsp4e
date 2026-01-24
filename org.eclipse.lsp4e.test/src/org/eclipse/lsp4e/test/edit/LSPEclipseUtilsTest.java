@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -75,15 +74,16 @@ import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.api.io.TempDir;
 
 public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 	public final @RegisterExtension NoErrorLoggedRule noErrorLoggedRule = new NoErrorLoggedRule();
 
 	@Test
-	public void testOpenInEditorExternalFile() throws Exception {
-		File externalFile = TestUtils.createTempFile("externalFile", ".txt");
-		final var location = new Location(LSPEclipseUtils.toUri(externalFile).toString(), new Range(new Position(0, 0), new Position(0, 0)));
+	public void testOpenInEditorExternalFile(@TempDir Path tempDir) throws Exception {
+		Path externalFile = Files.createFile(tempDir.resolve("externalFile.txt"));
+		final var location = new Location(LSPEclipseUtils.toUri(externalFile.toFile()).toString(), new Range(new Position(0, 0), new Position(0, 0)));
 		LSPEclipseUtils.openInEditor(location, UI.getActivePage());
 	}
 
@@ -144,7 +144,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		// they should be applied from bottom to top
 		LSPEclipseUtils.applyWorkspaceEdit(workspaceEdit);
 		assertTrue(file.exists());
-		assertEquals("abcHere\nabcHere2", new String(Files.readAllBytes(file.getLocation().toFile().toPath())));
+		assertEquals("abcHere\nabcHere2", Files.readString(file.getLocation().toPath()));
 	}
 
 	@Test
@@ -370,41 +370,38 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void createExternalFile() throws Exception {
-		File file = TestUtils.createTempFile(getClass() + "editExternalFile", ".whatever");
-		file.delete();
-		assertFalse(file.exists());
+	public void createExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = tempDir.resolve("createExternalFile.whatever");
 		final var we = new WorkspaceEdit(
-				List.of(Either.forRight(new CreateFile(file.toURI().toString()))));
+				List.of(Either.forRight(new CreateFile(file.toUri().toString()))));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
-		assertTrue(file.isFile());
+		assertTrue(Files.exists(file));
 	}
 
 	@Test
-	public void editExternalFile() throws Exception {
-		File file = TestUtils.createTempFile(getClass() + "editExternalFile", ".whatever");
+	public void editExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = Files.createFile(tempDir.resolve("editExternalFile.whatever"));
 		final var te = new TextEdit();
 		te.setRange(new Range(new Position(0, 0), new Position(0, 0)));
 		te.setNewText("abc\ndef");
 		final var docEdit = new TextDocumentEdit(
-				new VersionedTextDocumentIdentifier(file.toURI().toString(), null),
+				new VersionedTextDocumentIdentifier(file.toUri().toString(), null),
 				List.of(te));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
-		assertTrue(file.isFile());
-		assertEquals("abc\ndef", new String(Files.readAllBytes(file.toPath())));
+		assertTrue(Files.isRegularFile(file));
+		assertEquals("abc\ndef", Files.readString(file));
 	}
 
 	@Test
-	public void renameExternalFile() throws Exception {
-		File oldFile = TestUtils.createTempFile(getClass() + "editExternalFile", ".whatever");
-		File newFile = new File(oldFile.getAbsolutePath() + "_renamed");
-		TestUtils.addManagedTempFile(newFile);
+	public void renameExternalFile(@TempDir Path tempDir) throws Exception {
+		Path oldFile = Files.createFile(tempDir.resolve("editExternalFile.whatever"));
+		Path newFile = tempDir.resolve("editExternalFile_renamed.whatever");
 		final var we = new WorkspaceEdit(List.of(
-				Either.forRight(new RenameFile(oldFile.toURI().toString(), newFile.toURI().toString()))));
+				Either.forRight(new RenameFile(oldFile.toUri().toString(), newFile.toUri().toString()))));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
-		assertFalse(oldFile.isFile());
-		assertTrue(newFile.isFile());
+		assertFalse(Files.isRegularFile(oldFile));
+		assertTrue(Files.isRegularFile(newFile));
 	}
 
 	private String readContent(IFile targetFile) throws IOException, CoreException {
@@ -436,14 +433,14 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testTextEditDoesntAutomaticallySaveOpenExternalFiles() throws Exception {
-		File file = TestUtils.createTempFile("testTextEditDoesntAutomaticallySaveOpenExternalFiles", ".whatever");
-		IEditorPart editor = IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
+	public void testTextEditDoesntAutomaticallySaveOpenExternalFiles(@TempDir Path tempDir ) throws Exception {
+		Path file = Files.createFile(tempDir.resolve("testTextEditDoesntAutomaticallySaveOpenExternalFiles.whatever"));
+		IEditorPart editor = IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		final var te = new TextEdit();
 		te.setRange(new Range(new Position(0, 0), new Position(0, 0)));
 		te.setNewText("abc\ndef");
 		final var docEdit = new TextDocumentEdit(
-				new VersionedTextDocumentIdentifier(file.toURI().toString(), null),
+				new VersionedTextDocumentIdentifier(file.toUri().toString(), null),
 				List.of(te));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
@@ -465,7 +462,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testGetFile() throws Exception {
+	public void testGetFile(@TempDir Path tempDir) throws Exception {
 		IPath path;
 
 		/*
@@ -495,18 +492,16 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		/*
 		 * test absolute path to existing files outside of current workspace
 		 */
-		path = org.eclipse.core.runtime.Path.fromOSString(TestUtils.createTempFile("testGetFile", ".txt").getAbsolutePath());
+		
+		path = IPath.fromPath(Files.createFile(tempDir.resolve("testGetFile.txt")));
 		assertNull(LSPEclipseUtils.getFile(path));
 	}
 
 	@Test
-	public void testGetOpenEditorExternalFile() throws Exception {
-		File file = TestUtils.createTempFile("testDiagnosticsOnExternalFile", ".lspt");
-		try (var out = new FileOutputStream(file)) {
-			out.write('a');
-		}
-		IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
-		assertNotEquals(Collections.emptySet(), LSPEclipseUtils.findOpenEditorsFor(file.toURI()));
+	public void testGetOpenEditorExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = Files.writeString(tempDir.resolve("testGetOpenEditorExternalFile.lspt"), "a");
+		IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
+		assertNotEquals(Collections.emptySet(), LSPEclipseUtils.findOpenEditorsFor(file.toUri()));
 	}
 
 	@Test

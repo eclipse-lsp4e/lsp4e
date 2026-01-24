@@ -20,8 +20,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -62,6 +62,7 @@ import org.eclipse.swt.graphics.RGB;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.MarkerUtilities;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class DiagnosticsTest extends AbstractTestWithProject {
 
@@ -336,15 +337,12 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDiagnosticsOnExternalFile() throws Exception {
+	public void testDiagnosticsOnExternalFile(@TempDir Path tempDir) throws Exception {
 		MockLanguageServer.INSTANCE.setDiagnostics(List.of(new Diagnostic(new Range(new Position(0, 0), new Position(0, 1)), "This is a warning", DiagnosticSeverity.Warning, null)));
-		File file = TestUtils.createTempFile("testDiagnosticsOnExternalFile", ".lspt");
+		Path file = Files.writeString(tempDir.resolve("testDiagnosticsOnExternalFile.lspt"), "a");
 		Font font = null;
 		try {
-			try (var out = new FileOutputStream(file);) {
-				out.write('a');
-			}
-			ITextViewer viewer = LSPEclipseUtils.getTextViewer(IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI())));
+			ITextViewer viewer = LSPEclipseUtils.getTextViewer(IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri())));
 			StyledText widget = viewer.getTextWidget();
 			final var biggerFont = new FontData(); // bigger font to keep color intact in some pixel (not altered by anti-aliasing)
 			biggerFont.setHeight(40);

@@ -17,8 +17,9 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +53,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.ide.IDE;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 @SuppressWarnings("restriction")
 public class HoverTest extends AbstractTestWithProject {
@@ -136,14 +138,14 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverOnExternalFile() throws Exception {
+	public void testHoverOnExternalFile(@TempDir Path tempDir) throws Exception {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("blah")),
 				new Range(new Position(0, 0), new Position(0, 0)));
 		MockLanguageServer.INSTANCE.setHover(hoverResponse);
 
-		File file = TestUtils.createTempFile("testHoverOnExternalfile", ".lspt");
+		Path file = Files.createFile(tempDir.resolve("testHoverOnExternalfile.lspt"));
 		ITextViewer viewer = LSPEclipseUtils
-				.getTextViewer(IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI())));
+				.getTextViewer(IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri())));
 		String html = hover.getHoverInfoFuture(viewer, new Region(0, 0)).get(2, TimeUnit.SECONDS);
 		assertTrue(html != null && html.contains("blah"));
 	}

@@ -14,8 +14,8 @@ package org.eclipse.lsp4e.test.rename;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.NullProgressMonitor;
@@ -29,6 +29,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.ltk.core.refactoring.PerformChangeOperation;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class LSPTextChangeTest extends AbstractTestWithProject {
 
@@ -53,12 +54,11 @@ public class LSPTextChangeTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testPerformOperationExternalFile() throws Exception {
-		File file = TestUtils.createTempFile("testPerformOperationExternalFile", ".lspt");
-		Files.write(file.toPath(), "old".getBytes());
+	public void testPerformOperationExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = Files.writeString(tempDir.resolve("testPerformOperationExternalFile.lspt"), "old");
 		final var edit = new TextEdit(new Range(new Position(0, 0), new Position(0, 3)), "new");
-		final var operation = new PerformChangeOperation(new LSPTextChange("test", LSPEclipseUtils.toUri(file), edit));
+		final var operation = new PerformChangeOperation(new LSPTextChange("test", LSPEclipseUtils.toUri(file.toFile()), edit));
 		operation.run(new NullProgressMonitor());
-		assertEquals(edit.getNewText(), new String(Files.readAllBytes(file.toPath())));
+		assertEquals(edit.getNewText(), Files.readString(file));
 	}
 }

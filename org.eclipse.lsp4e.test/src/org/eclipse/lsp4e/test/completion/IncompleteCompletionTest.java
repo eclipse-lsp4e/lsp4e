@@ -18,8 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,6 +57,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class IncompleteCompletionTest extends AbstractCompletionTest {
 	/*
@@ -566,13 +568,13 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testCompletionExternalFile() throws Exception {
+	public void testCompletionExternalFile(@TempDir Path tempDir) throws Exception {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClassExternal", CompletionItemKind.Class));
 		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(true, items));
 
-		File file = TestUtils.createTempFile("testCompletionExternalFile", ".lspt");
-		final var editor = (ITextEditor) IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI()));
+		Path file = Files.createFile(tempDir.resolve("testCompletionExternalFile.lspt"));
+		final var editor = (ITextEditor) IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 0);
 		assertEquals(1, proposals.length);

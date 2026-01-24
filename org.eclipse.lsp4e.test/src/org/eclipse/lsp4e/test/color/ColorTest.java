@@ -13,8 +13,8 @@ package org.eclipse.lsp4e.test.color;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.eclipse.core.filesystem.EFS;
@@ -37,6 +37,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.ide.IDE;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 public class ColorTest extends AbstractTestWithProject {
 
@@ -56,12 +57,9 @@ public class ColorTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testColorProviderExternalFile() throws Exception {
-		File file = TestUtils.createTempFile("testColorProviderExternalFile", ".lspt");
-		try (var out = new FileOutputStream(file)) {
-			out.write("\u2588\u2588\u2588\u2588\u2588".getBytes());
-		}
-		ITextViewer viewer = LSPEclipseUtils.getTextViewer(IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toURI())));
+	public void testColorProviderExternalFile(@TempDir Path tempDir) throws Exception {
+		Path file = Files.write(tempDir.resolve("testColorProviderExternalFile.lspt"), "\u2588\u2588\u2588\u2588\u2588".getBytes());
+		ITextViewer viewer = LSPEclipseUtils.getTextViewer(IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri())));
 		StyledText widget = viewer.getTextWidget();
 		waitForAndAssertCondition(3_000, widget.getDisplay(), () -> containsColor(widget, color, 10));
 	}

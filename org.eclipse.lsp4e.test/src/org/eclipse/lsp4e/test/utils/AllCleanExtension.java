@@ -71,7 +71,6 @@ public class AllCleanExtension implements BeforeEachCallback, AfterEachCallback 
 		LanguageServiceAccessor.clearStartedServers();
 		MockLanguageServer.reset(this.serverConfigurer);
 		MockConnectionProvider.cancellations.clear();
-		TestUtils.tearDown();
 	}
 
 }
