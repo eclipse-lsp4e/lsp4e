@@ -43,6 +43,7 @@
 					<useUIThread>true</useUIThread>
 					<forkedProcessTimeoutInSeconds>1200</forkedProcessTimeoutInSeconds>
 					<argLine>-Dfile.encoding=${project.build.sourceEncoding} -Xms1g -Xmx1g -Djava.util.logging.config.file=${project.basedir}/src/jul.properties ${ui.test.vmargs} ${os-jvm-flags}</argLine>
+					<providerHint>junit6</providerHint>
 				</configuration>
 			</plugin>
 		</plugins>
