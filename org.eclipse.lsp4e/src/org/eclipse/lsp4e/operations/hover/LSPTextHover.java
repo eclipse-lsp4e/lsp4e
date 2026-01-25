@@ -29,11 +29,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.commonmark.Extension;
-import org.commonmark.ext.gfm.tables.TablesExtension;
-import org.commonmark.node.Node;
-import org.commonmark.parser.Parser;
-import org.commonmark.renderer.html.HtmlRenderer;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.internal.text.html.BrowserInformationControl;
 import org.eclipse.jface.text.AbstractReusableInformationControlCreator;
@@ -53,6 +48,7 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.CancellationUtil;
 import org.eclipse.lsp4e.internal.IdentifierUtil;
+import org.eclipse.lsp4e.internal.MarkdownUtil;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
 import org.eclipse.lsp4j.MarkedString;
@@ -113,11 +109,7 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 					.collect(Collectors.joining("\n\n")) //$NON-NLS-1$
 					.trim();
 			if (!result.isEmpty()) {
-				List<Extension> extensions = List.of(TablesExtension.create());
-				Parser parser = Parser.builder().extensions(extensions).build();
-				Node document = parser.parse(result);
-				HtmlRenderer renderer = HtmlRenderer.builder().extensions(extensions).build();
-				return renderer.render(document);
+				return MarkdownUtil.renderToHtml(result);
 			} else {
 				return null;
 			}
