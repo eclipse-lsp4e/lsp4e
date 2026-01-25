@@ -979,7 +979,7 @@
             icon="icons/full/elcl16/alphab_sort_co.svg" />
       <image
             commandId="org.eclipse.lsp4e.toggleHideFieldsOutline"
-            icon="icons/full/elcl16/fields_co.png" />
+            icon="icons/full/elcl16/fields_co.svg" />
       <image
             commandId="org.eclipse.lsp4e.toggleLinkWithEditor"
             icon="icons/full/elcl16/link_to_editor.svg" />
