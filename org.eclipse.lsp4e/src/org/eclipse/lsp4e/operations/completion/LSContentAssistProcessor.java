@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
@@ -43,12 +44,15 @@ import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.contentassist.IContentAssistProcessor;
 import org.eclipse.jface.text.contentassist.IContextInformation;
 import org.eclipse.jface.text.contentassist.IContextInformationValidator;
+import org.eclipse.jface.util.IPropertyChangeListener;
+import org.eclipse.jface.util.PropertyChangeEvent;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.CancellationSupport;
 import org.eclipse.lsp4e.internal.CancellationUtil;
+import org.eclipse.lsp4e.ui.ContentAssistPreferencePage;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.CompletionItem;
@@ -66,6 +70,16 @@ import com.google.common.base.Functions;
 import com.google.common.base.Strings;
 
 public class LSContentAssistProcessor implements IContentAssistProcessor {
+	private final IPreferenceStore prefStore = LanguageServerPlugin.getDefault().getPreferenceStore();
+	private boolean invokeAfterSemicolon = prefStore.getBoolean(ContentAssistPreferencePage.INVOKE_AFTER_SEMICOLON_ENABLED);
+	private final IPropertyChangeListener contentAssistPrefsListener = (final PropertyChangeEvent event) -> {
+		final var newValue = event.getNewValue();
+		if (newValue != null) {
+			if (event.getProperty() == ContentAssistPreferencePage.INVOKE_AFTER_SEMICOLON_ENABLED) {
+				invokeAfterSemicolon = Boolean.parseBoolean(newValue.toString());
+			}
+		}
+	};
 
 	private static final ICompletionProposal[] NO_COMPLETION_PROPOSALS = new ICompletionProposal[0];
 	private static final long TRIGGERS_TIMEOUT = 50;
@@ -105,6 +119,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 		this.completionCancellationSupport = new CancellationSupport();
 		this.triggerCharsCancellationSupport = new CancellationSupport();
 		this.incompleteAsCompletionItem = incompleteAsCompletionItem;
+		prefStore.addPropertyChangeListener(contentAssistPrefsListener);
 	}
 
 	private final Comparator<LSCompletionProposal> proposalComparator = new LSCompletionProposalComparator();
@@ -123,6 +138,18 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 
 		initiateLanguageServers(document);
 		CompletionParams param;
+
+		if (!invokeAfterSemicolon && document.getLength() > 0) {
+			int positionCharacterOffset = offset > 0 ? offset-1 : offset;
+			try {
+				var trigChar = document.get(positionCharacterOffset, 1);
+				if (";".equals(trigChar)) { //$NON-NLS-1$
+					return NO_COMPLETION_PROPOSALS;
+				}
+			} catch (BadLocationException e) {
+				LanguageServerPlugin.logError(e);
+			}
+		}
 
 		try {
 			param = LSPEclipseUtils.toCompletionParams(uri, offset, document, this.completionTriggerChars);
