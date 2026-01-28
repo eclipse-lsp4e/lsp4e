@@ -181,10 +181,11 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			this.errorMessage = createErrorMessage(offset, e);
 			return createErrorProposal(offset, e);
 		} catch (InterruptedException e) {
-			LanguageServerPlugin.logError(e);
-			this.errorMessage = createErrorMessage(offset, e);
-			Thread.currentThread().interrupt();
-			return createErrorProposal(offset, e);
+			// The current thread has been interrupted by the AsyncCompletionProposalPopup#cancelFutures to
+			// indicate that we can stop computing results, because they won't be used anymore.
+			// Forward cancellation to LS and return dummy result
+			completionCancellationSupport.cancel();
+			return NO_COMPLETION_PROPOSALS;
 		} catch (CancellationException e) {
 			// return the elements already collected, if any
 		}
