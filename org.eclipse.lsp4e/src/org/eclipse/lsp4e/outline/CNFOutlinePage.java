@@ -89,7 +89,7 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 		if (document != null) {
 			outlineViewer.setInput(new OutlineViewerInput(document, wrapper, textEditor));
 		}
-		outlineViewer.setSorter(new CommonViewerSorter());
+		outlineViewer.setComparator(new CommonViewerSorter());
 		outlineViewer.getLabelProvider().addListener(this);
 		final var textEditor = this.textEditor;
 		if (textEditor != null) {

@@ -13,6 +13,7 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.resource.ImageRegistry;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
@@ -133,6 +134,11 @@ public class DSPPlugin extends AbstractUIPlugin {
 			}
 		}
 		getDefault().getLog().log(new Status(severity, PLUGIN_ID, 0, message, thr));
+	}
+
+	@Override
+	protected void initializeImageRegistry(ImageRegistry registry) {
+		DSPImages.initialize(registry);
 	}
 
 }
