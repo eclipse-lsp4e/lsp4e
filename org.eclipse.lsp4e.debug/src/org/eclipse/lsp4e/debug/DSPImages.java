@@ -13,74 +13,58 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.debug;
 
-import java.net.MalformedURLException;
 import java.net.URL;
 
+import org.eclipse.core.runtime.FileLocator;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.ImageRegistry;
 import org.eclipse.swt.graphics.Image;
+import org.osgi.framework.Bundle;
 
 public final class DSPImages {
 	private DSPImages() {
 		// private constructor to avoid instances, requested by sonar
 	}
 
-	private static final String NAME_PREFIX = DSPPlugin.PLUGIN_ID + '.';
-	private static final int NAME_PREFIX_LENGTH = NAME_PREFIX.length();
+	private static @Nullable ImageRegistry imageRegistry;
+	private static final String ICONS_PATH = "$nl$/icons/"; //$NON-NLS-1$
+	private static final String VIEWS = ICONS_PATH + "view16/";
 
-	// The plugin registry
-	private static ImageRegistry imageRegistry = new ImageRegistry();
+	public static final String IMG_VIEW_DEBUGGER_TAB = "IMG_DEBUGGER_TAB"; //$NON-NLS-1$
 
-	// Subdirectory (under the package containing this class) where 16 color images
-	// are
-	private static URL fgIconBaseURL;
-	static {
-		fgIconBaseURL = Platform.getBundle(DSPPlugin.PLUGIN_ID).getEntry("/icons/"); //$NON-NLS-1$
+	public static void initialize(ImageRegistry registry) {
+		imageRegistry = registry;
+		declareRegistryImage(IMG_VIEW_DEBUGGER_TAB, VIEWS + "debugger_tab.svg");
 	}
 
-	private static final String T_TABS = "view16/"; //$NON-NLS-1$
-	@SuppressWarnings("unused") // none yet, leave for the future
-	private static final String T_OBJS = "obj16/"; //$NON-NLS-1$
-
-	public static final String IMG_VIEW_DEBUGGER_TAB = NAME_PREFIX + "debugger_tab.svg"; //$NON-NLS-1$
-
-	public static final ImageDescriptor DESC_TAB_DEBUGGER = createManaged(T_TABS, IMG_VIEW_DEBUGGER_TAB);
-
-	public static void initialize() {
-	}
-
-	private static ImageDescriptor createManaged(String prefix, String name) {
-		return createManaged(imageRegistry, prefix, name);
-	}
-
-	private static ImageDescriptor createManaged(ImageRegistry registry, String prefix, String name) {
-		ImageDescriptor result = ImageDescriptor
-				.createFromURL(makeIconFileURL(prefix, name.substring(NAME_PREFIX_LENGTH)));
-		registry.put(name, result);
-		return result;
+	private static void declareRegistryImage(String key, String path) {
+		ImageDescriptor desc = ImageDescriptor.getMissingImageDescriptor();
+		Bundle bundle = Platform.getBundle(DSPPlugin.PLUGIN_ID);
+		URL url = null;
+		if (bundle != null) {
+			url = FileLocator.find(bundle, new Path(path), null);
+			if (url != null) {
+				desc = ImageDescriptor.createFromURL(url);
+			}
+		}
+		getImageRegistry().put(key, desc);
 	}
 
 	public static @Nullable Image get(String key) {
-		return imageRegistry.get(key);
-	}
-
-	private static @Nullable URL makeIconFileURL(String prefix, String name) {
-		final var buffer = new StringBuilder(prefix);
-		buffer.append(name);
-		try {
-			return new URL(fgIconBaseURL, buffer.toString());
-		} catch (MalformedURLException e) {
-			DSPPlugin.logError(e);
-			return null;
-		}
+		return getImageRegistry().get(key);
 	}
 
 	/**
 	 * Helper method to access the image registry from the JavaPlugin class.
 	 */
 	static ImageRegistry getImageRegistry() {
+		ImageRegistry imageRegistry = DSPImages.imageRegistry;
+		if (imageRegistry == null) {
+			imageRegistry = DSPImages.imageRegistry = DSPPlugin.getDefault().getImageRegistry();
+		}
 		return imageRegistry;
 	}
 }

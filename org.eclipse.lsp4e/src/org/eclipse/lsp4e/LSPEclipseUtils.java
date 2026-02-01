@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -813,7 +812,7 @@ public final class LSPEclipseUtils {
 	protected static void openHttpLocationInBrowser(final String uri, IWorkbenchPage page) {
 		page.getWorkbenchWindow().getShell().getDisplay().asyncExec(() -> {
 			try {
-				final var url = new URL(uri);
+				final var parsed = new URI(uri);
 
 				IWorkbenchBrowserSupport browserSupport = page.getWorkbenchWindow().getWorkbench()
 						.getBrowserSupport();
@@ -826,8 +825,7 @@ public final class LSPEclipseUtils {
 				browserSupport
 						.createBrowser(IWorkbenchBrowserSupport.AS_EDITOR | IWorkbenchBrowserSupport.LOCATION_BAR
 								| IWorkbenchBrowserSupport.NAVIGATION_BAR, "lsp4e-symbols", browserName, uri) //$NON-NLS-1$
-						.openURL(url);
-
+						.openURL(parsed.toURL());
 			} catch (Exception e) {
 				LanguageServerPlugin.logError(e);
 			}
