@@ -329,7 +329,6 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
     public void testToUri_WindowsUNC() {
         File unc = new File("\\\\localhost\\c$\\Windows");
         URI uri = LSPEclipseUtils.toUri(unc);
-        System.err.println(uri.toString());
         assertTrue(uri.toString().startsWith("file://localhost/c$/Windows"));
 
 		File uncWithSpaces = new File("\\\\server-name\\shared folder\\dir with space");
@@ -338,6 +337,14 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 		// Ensure there is an authority and no malformed quadruple slashes
 		assertFalse(uriWithSpaces.toString().startsWith("file:////"));
+	}
+    
+	@Test
+	void testFileUriWithNonAsciiPath() throws Exception {
+		// File name contains a German Eszett and a Japanese Kana
+		String fileName = "foo ßア";
+		IFile targetFile = project.getFile(fileName);
+		assertEquals(fileName, Paths.get(LSPEclipseUtils.toUri(targetFile)).getFileName().toString());
 	}
 
 	@Test
