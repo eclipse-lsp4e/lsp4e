@@ -12,13 +12,15 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.files;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4j.FileSystemWatcher;
 import org.eclipse.lsp4j.WatchKind;
@@ -127,6 +129,15 @@ class FileSystemWatcherManagerTest {
 		assertNoMatchFile(deleteUri, WatchKind.Create);
 		assertNoMatchFile(deleteUri, WatchKind.Change);
 		assertMatchFile(deleteUri, WatchKind.Delete);
+	}
+	
+	@Test
+	void nonAsciiFile() {
+		registerWatchers("watcher-kind", List.of(
+				new FileSystemWatcher(Either.forLeft("*.txt"), null)));
+		// We use LSPEclipseUtils.toUri because this is also used to create the URI to check
+		URI createUri = LSPEclipseUtils.toUri(projectDir.resolve("fooß.txt").toFile());
+		assertMatchFile(createUri, WatchKind.Create);
 	}
 
 	@Test
