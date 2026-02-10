@@ -8,23 +8,36 @@
  *
  * Contributors:
  *  Michał Niewrzał (Rogue Wave Software Inc.) - initial implementation
+ *  Dietrich Travkin (Solunar GmbH) - add overlay images computation, dispose cached images
  *******************************************************************************/
 package org.eclipse.lsp4e.ui;
 
 import java.net.URL;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.resource.ImageRegistry;
+import org.eclipse.jface.viewers.DecorationOverlayIcon;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.SymbolKind;
+import org.eclipse.lsp4j.SymbolTag;
 import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
@@ -40,10 +53,26 @@ public final class LSPImages {
 	}
 
 	private static @Nullable ImageRegistry imageRegistry;
+
 	private static final Map<java.awt.Color, Image> colorToImageCache = new HashMap<>();
+
+	/**
+	 * <p>Cache for symbol images with various overlays and / or an underlay.</p>
+	 * <ul>
+	 * <li>Key: a combined key based on the element's kind (e.g. class or method)
+	 *      and a set of overlay image descriptors for the icon corners and the underlay,</li>
+	 * <li>Value: the base image with optional overlays and an optional underlay combined in one image.</li>
+	 * </ul>
+	 *
+	 * See {@link #getImageWithOverlays(SymbolKind, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor)};
+	 */
+	private static final Map<ImageWithOverlaysKey, Image> overlayImagesCache = new HashMap<>();
+
 	private static final String ICONS_PATH = "$nl$/icons/full/"; //$NON-NLS-1$
 	private static final String OBJECT = ICONS_PATH + "obj16/"; // basic colors - size 16x16 //$NON-NLS-1$
 	private static final String ACTION = ICONS_PATH + "elcl16/"; // basic colors - size 16x16 //$NON-NLS-1$
+	private static final String OVERLAY = ICONS_PATH + "ovr16/"; // basic colors - size 7x8 and 14x16 //$NON-NLS-1$
+
 	private static final Image EMPTY_IMAGE = new Image(UI.getDisplay(), 16, 16);
 
 	public static final String IMG_MODULE = "IMG_MODULE"; //$NON-NLS-1$
@@ -80,6 +109,31 @@ public final class LSPImages {
 
 	public static final String IMG_SUPERTYPE = "IMG_SUPERTYPE"; //$NON-NLS-1$
 	public static final String IMG_SUBTYPE = "IMG_SUBTYPE"; //$NON-NLS-1$
+
+	public static final String IMG_OVR_CONSTRUCTOR = "IMG_OVR_CONSTRUCTOR"; //$NON-NLS-1$
+	public static final String IMG_OVR_DEPRECATED = "IMG_OVR_DEPRECATED"; //$NON-NLS-1$
+	public static final String IMG_OVR_PRIVATE = "IMG_OVR_PRIVATE"; //$NON-NLS-1$
+	public static final String IMG_OVR_PACKAGE = "IMG_OVR_PACKAGE"; //$NON-NLS-1$
+	public static final String IMG_OVR_PROTECTED = "IMG_OVR_PROTECTED"; //$NON-NLS-1$
+	public static final String IMG_OVR_PUBLIC = "IMG_OVR_PUBLIC"; //$NON-NLS-1$
+	public static final String IMG_OVR_INTERNAL = "IMG_OVR_INTERNAL"; //$NON-NLS-1$
+	public static final String IMG_OVR_FILE_VIS = "IMG_OVR_FILE_VIS"; //$NON-NLS-1$
+	public static final String IMG_OVR_ABSTRACT = "IMG_OVR_ABSTRACT"; //$NON-NLS-1$
+	public static final String IMG_OVR_VIRTUAL = "IMG_OVR_VIRTUAL"; //$NON-NLS-1$
+	public static final String IMG_OVR_FINAL = "IMG_OVR_FINAL"; //$NON-NLS-1$
+	public static final String IMG_OVR_SEALED = "IMG_OVR_SEALED"; //$NON-NLS-1$
+	public static final String IMG_OVR_STATIC = "IMG_OVR_STATIC"; //$NON-NLS-1$
+	public static final String IMG_OVR_SYNC = "IMG_OVR_SYNC"; //$NON-NLS-1$
+	public static final String IMG_OVR_TRANSIENT = "IMG_OVR_TRANSIENT"; //$NON-NLS-1$
+	public static final String IMG_OVR_VOLATILE = "IMG_OVR_VOLATILE"; //$NON-NLS-1$
+	public static final String IMG_OVR_NULLABLE = "IMG_OVR_NULLABLE"; //$NON-NLS-1$
+	public static final String IMG_OVR_NON_NULL = "IMG_OVR_NON_NULL"; //$NON-NLS-1$
+	public static final String IMG_OVR_DECLARATION = "IMG_OVR_DECLARATION"; //$NON-NLS-1$
+	public static final String IMG_OVR_DEFINITION = "IMG_OVR_DEFINITION"; //$NON-NLS-1$
+	public static final String IMG_OVR_READ_ONLY = "IMG_OVR_READ_ONLY"; //$NON-NLS-1$
+	public static final String IMG_OVR_IMPLEMENT = "IMG_OVR_IMPLEMENT"; //$NON-NLS-1$
+	public static final String IMG_OVR_OVERRIDE = "IMG_OVR_OVERRIDE"; //$NON-NLS-1$
+
 
 	public static void initalize(ImageRegistry registry) {
 		imageRegistry = registry;
@@ -118,6 +172,30 @@ public final class LSPImages {
 		declareRegistryImage(IMG_SUPERTYPE, ACTION + "super_co.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SUBTYPE, ACTION + "sub_co.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_TERMINATE_CO, OBJECT + "terminate_co.svg"); //$NON-NLS-1$
+
+		declareRegistryImage(IMG_OVR_CONSTRUCTOR, OVERLAY + "constr_ovr.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_DEPRECATED, OVERLAY + "deprecated.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_PRIVATE, OVERLAY + "private_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_PACKAGE, OVERLAY + "package_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_PROTECTED, OVERLAY + "protected_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_PUBLIC, OVERLAY + "public_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_INTERNAL, OVERLAY + "internal_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_FILE_VIS, OVERLAY + "file_visable_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_ABSTRACT, OVERLAY + "abstract_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_VIRTUAL, OVERLAY + "virtual_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_FINAL, OVERLAY + "final_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_SEALED, OVERLAY + "sealed_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_STATIC, OVERLAY + "static_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_SYNC, OVERLAY + "synch_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_TRANSIENT, OVERLAY + "transient_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_VOLATILE, OVERLAY + "volatile_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_NULLABLE, OVERLAY + "nullable_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_NON_NULL, OVERLAY + "non_null_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_DECLARATION, OVERLAY + "declaration_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_DEFINITION, OVERLAY + "definition_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_READ_ONLY, OVERLAY + "read_only_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_IMPLEMENT, OVERLAY + "implement_co.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_OVR_OVERRIDE, OVERLAY + "override_co.svg"); //$NON-NLS-1$
 	}
 
 	private static void declareRegistryImage(String key, String path) {
@@ -132,6 +210,11 @@ public final class LSPImages {
 		}
 		getImageRegistry().put(key, desc);
 	}
+
+	private record ImageWithOverlaysKey(SymbolKind  symbolKind,
+			@Nullable ImageDescriptor overlayTopLeftDescriptor, @Nullable ImageDescriptor overlayTopRightDescriptor,
+			@Nullable ImageDescriptor overlayBottomLeftDescriptor, @Nullable ImageDescriptor overlayBottomRightDescriptor,
+			@Nullable ImageDescriptor underlayDescriptor) {}
 
 	/**
 	 * Returns the <code>Image</code> identified by the given key, or <code>null</code> if it does not exist.
@@ -240,6 +323,60 @@ public final class LSPImages {
 		};
 	}
 
+	public static @Nullable Image imageOverlayFromSymbolTag(SymbolTag symbolTag) {
+		return switch (symbolTag) {
+		case Deprecated -> getImage(IMG_OVR_DEPRECATED);
+		case Private -> getImage(IMG_OVR_PRIVATE);
+		case Package -> getImage(IMG_OVR_PACKAGE);
+		case Protected -> getImage(IMG_OVR_PROTECTED);
+		case Public -> getImage(IMG_OVR_PUBLIC);
+		case Internal -> getImage(IMG_OVR_INTERNAL);
+		case File -> getImage(IMG_OVR_FILE_VIS);
+		case Static -> getImage(IMG_OVR_STATIC);
+		case Abstract -> getImage(IMG_OVR_ABSTRACT);
+		case Final -> getImage(IMG_OVR_FINAL);
+		case Sealed -> getImage(IMG_OVR_SEALED);
+		case Transient -> getImage(IMG_OVR_TRANSIENT);
+		case Volatile -> getImage(IMG_OVR_VOLATILE);
+		case Synchronized -> getImage(IMG_OVR_SYNC);
+		case Virtual -> getImage(IMG_OVR_VIRTUAL);
+		case Nullable -> getImage(IMG_OVR_NULLABLE);
+		case NonNull -> getImage(IMG_OVR_NON_NULL);
+		case Declaration -> getImage(IMG_OVR_DECLARATION);
+		case Definition -> getImage(IMG_OVR_DEFINITION);
+		case ReadOnly -> getImage(IMG_OVR_READ_ONLY);
+		case Overrides -> getImage(IMG_OVR_OVERRIDE);
+		case Implements -> getImage(IMG_OVR_IMPLEMENT);
+		};
+	}
+
+	public static @Nullable ImageDescriptor imageDescriptorOverlayFromSymbolTag(SymbolTag symbolTag) {
+		return switch (symbolTag) {
+		case Deprecated -> getImageDescriptor(IMG_OVR_DEPRECATED);
+		case Private -> getImageDescriptor(IMG_OVR_PRIVATE);
+		case Package -> getImageDescriptor(IMG_OVR_PACKAGE);
+		case Protected -> getImageDescriptor(IMG_OVR_PROTECTED);
+		case Public -> getImageDescriptor(IMG_OVR_PUBLIC);
+		case Internal -> getImageDescriptor(IMG_OVR_INTERNAL);
+		case File -> getImageDescriptor(IMG_OVR_FILE_VIS);
+		case Static -> getImageDescriptor(IMG_OVR_STATIC);
+		case Abstract -> getImageDescriptor(IMG_OVR_ABSTRACT);
+		case Final -> getImageDescriptor(IMG_OVR_FINAL);
+		case Sealed -> getImageDescriptor(IMG_OVR_SEALED);
+		case Transient -> getImageDescriptor(IMG_OVR_TRANSIENT);
+		case Volatile -> getImageDescriptor(IMG_OVR_VOLATILE);
+		case Synchronized -> getImageDescriptor(IMG_OVR_SYNC);
+		case Virtual -> getImageDescriptor(IMG_OVR_VIRTUAL);
+		case Nullable -> getImageDescriptor(IMG_OVR_NULLABLE);
+		case NonNull -> getImageDescriptor(IMG_OVR_NON_NULL);
+		case Declaration -> getImageDescriptor(IMG_OVR_DECLARATION);
+		case Definition -> getImageDescriptor(IMG_OVR_DEFINITION);
+		case ReadOnly -> getImageDescriptor(IMG_OVR_READ_ONLY);
+		case Overrides -> getImageDescriptor(IMG_OVR_OVERRIDE);
+		case Implements -> getImageDescriptor(IMG_OVR_IMPLEMENT);
+		};
+	}
+
 	private static @Nullable Image getImageForColor(CompletionItem completionItem) {
 		String hexValue = null;
 
@@ -273,5 +410,165 @@ public final class LSPImages {
 			gc.dispose();
 			return image;
 		});
+	}
+
+	private static final List<SymbolTag> VISIBILITY_PRECEDENCE = List.of(
+			SymbolTag.Public, SymbolTag.Protected, SymbolTag.Package, SymbolTag.Private,
+			SymbolTag.Internal, SymbolTag.File);
+
+	// Precedence for remaining symbol tags (without visibility tags and deprecation tag)
+	// In order to keep the number of overlay icons rather small in the UI, we do not show the following symbol tags:
+	// SymbolTag.Nullable, SymbolTag.NonNull, SymbolTag.Declaration, SymbolTag.Definition
+	private static final List<SymbolTag> ADDITIONAL_TAGS_PRECEDENCE = List.of(
+			SymbolTag.Static, SymbolTag.Final, SymbolTag.Abstract,
+			SymbolTag.Overrides, SymbolTag.Implements, SymbolTag.Virtual, SymbolTag.Sealed,
+			SymbolTag.Synchronized, SymbolTag.Transient, SymbolTag.Volatile,
+			SymbolTag.ReadOnly);
+
+	private static Optional<SymbolTag> getHighestPrecedenceVisibilitySymbolTag(List<SymbolTag> symbolTags) {
+		// TODO Log a warning if we find more than one visibility tag?
+		return symbolTags.stream()
+				.filter(tag -> VISIBILITY_PRECEDENCE.contains(tag))
+				.min(Comparator.comparing(VISIBILITY_PRECEDENCE::indexOf));
+	}
+
+	private static List<SymbolTag> getAdditionalSymbolTagsSorted(List<SymbolTag> symbolTags) {
+		return symbolTags.stream()
+				.filter(tag -> ADDITIONAL_TAGS_PRECEDENCE.contains(tag))
+				.sorted(Comparator.comparing(ADDITIONAL_TAGS_PRECEDENCE::indexOf))
+				.collect(Collectors.toList());
+	}
+
+	private static @Nullable ImageDescriptor getOverlayForVisibility(List<SymbolTag> symbolTags) {
+		Optional<SymbolTag> visibilityTag = getHighestPrecedenceVisibilitySymbolTag(symbolTags);
+
+		if (visibilityTag.isEmpty()) {
+			return null;
+		}
+
+		return LSPImages.imageDescriptorOverlayFromSymbolTag(visibilityTag.get());
+	}
+
+	private static @Nullable ImageDescriptor getOverlayForMarkerSeverity(int severity) {
+		return switch(severity) {
+			case IMarker.SEVERITY_ERROR   -> LSPImages.getSharedImageDescriptor(ISharedImages.IMG_DEC_FIELD_ERROR);
+			case IMarker.SEVERITY_WARNING -> LSPImages.getSharedImageDescriptor(ISharedImages.IMG_DEC_FIELD_WARNING);
+			default -> null;
+		};
+	}
+
+	private static @Nullable ImageDescriptor getUnderlayForDeprecation(boolean deprecated) {
+		if (!deprecated) {
+			return null;
+		}
+		return LSPImages.imageDescriptorOverlayFromSymbolTag(SymbolTag.Deprecated);
+	}
+
+	private static @Nullable Image getImageWithOverlays(SymbolKind symbolKind,
+			@Nullable ImageDescriptor topLeftOverlayDescriptor, @Nullable ImageDescriptor topRightOverlayDescriptor,
+			@Nullable ImageDescriptor bottomLeftOverlayDescriptor, @Nullable ImageDescriptor bottomRightOverlayDescriptor,
+			@Nullable ImageDescriptor underlayImageDescriptor) {
+		Image baseImage = LSPImages.imageFromSymbolKind(symbolKind);
+
+		if (baseImage == null) {
+			return null;
+		}
+
+		// array index: 0 = top left, 1 = top right, 2 = bottom left, 3 = bottom right, 4 = underlay
+		// see IDecoration.TOP_LEFT ... IDecoration.BOTTOM_RIGHT, IDecoration.UNDERLAY
+		@Nullable ImageDescriptor[] overlays = {
+				topLeftOverlayDescriptor, topRightOverlayDescriptor,
+				bottomLeftOverlayDescriptor, bottomRightOverlayDescriptor,
+				underlayImageDescriptor};
+
+		long numOverlays = Arrays.stream(overlays)
+				.filter(Objects::nonNull)
+				.count();
+		if (numOverlays == 0L) {
+			return baseImage;
+		}
+
+		ImageWithOverlaysKey key = new ImageWithOverlaysKey(symbolKind,
+				topLeftOverlayDescriptor, topRightOverlayDescriptor,
+				bottomLeftOverlayDescriptor, bottomRightOverlayDescriptor, underlayImageDescriptor);
+
+		return overlayImagesCache.computeIfAbsent(key,
+				k -> new DecorationOverlayIcon(baseImage, overlays).createImage());
+	}
+
+	/**
+	 * Returns an image for the given arguments.
+	 *
+	 * @param symbolKind the kind of symbol
+	 * @param symbolTags the symbol tags
+	 * @return a new or cached image for the given symbol kind with overlay icons computed for the given arguments.
+	 *
+	 * @see #getImageFor(SymbolKind, List, boolean, int)
+	 */
+	public static @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags) {
+		return getImageFor(symbolKind, symbolTags, false, -1);
+	}
+
+	/**
+	 * Returns an image for the given arguments.
+	 * Uses caching for all combinations of a symbol kind and a set of overlays.
+	 * Deprecation is shown if the <em>deprecated</em> parameter is <code>true</code>
+	 * or {@link SymbolTag#Deprecated} is in the set of symbol tags.
+	 *
+	 * @param symbolKind the kind of symbol
+	 * @param symbolTags the symbol tags
+	 * @param deprecated whether to add a deprecation overlay icon even if there is no {@link SymbolTag#Deprecated} in the tags.
+	 * @param severity one of -1, {@link IMarker#SEVERITY_WARNING}, and {@link IMarker#SEVERITY_ERROR}. -1 indicates no overlay icon.
+	 * @return a new or cached image for the given symbol kind with overlay icons computed for the given arguments.
+	 */
+	public static @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags,
+			boolean deprecated, int severity) {
+
+		if (symbolKind == null) {
+			return EMPTY_IMAGE;
+		}
+
+		if (symbolTags == null) {
+			symbolTags = Collections.emptyList();
+		}
+
+		ImageDescriptor severityImageDescriptor = getOverlayForMarkerSeverity(severity);
+		ImageDescriptor visibilityImageDescriptor = getOverlayForVisibility(symbolTags);
+		ImageDescriptor deprecatedImageDescriptor = getUnderlayForDeprecation(deprecated || SymbolsUtil.isDeprecated(symbolTags));
+
+		List<SymbolTag> additionalTags = getAdditionalSymbolTagsSorted(symbolTags);
+
+		// We place the visibility overlay icon on the lower right corner, similar to JDT.
+		// The top left and top right corners remain for additional symbol tags (besides visibility, severity, deprecation)
+		ImageDescriptor topLeftOverlayDescriptor = null;
+		ImageDescriptor topRightOverlayDescriptor = null;
+		ImageDescriptor bottomLeftOverlayDescriptor = severityImageDescriptor;
+		ImageDescriptor bottomRightOverlayDescriptor = visibilityImageDescriptor;
+		ImageDescriptor underlayDescriptor = deprecatedImageDescriptor;
+
+		// TODO Use visibility-representing document symbol icons for fields and methods (similar to JDT) so that we can visualize one more symbol tag
+
+		if (!additionalTags.isEmpty()) {
+			topLeftOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(0));
+
+			if (additionalTags.size() > 1 && !SymbolKind.Constructor.equals(symbolKind)) {
+				// constructor base image has a built-in overlay in the top right corner,
+				// in this case we omit the second symbol tag's overlay icon
+				topRightOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(1));
+			}
+		}
+
+		return getImageWithOverlays(symbolKind, topLeftOverlayDescriptor, topRightOverlayDescriptor,
+				bottomLeftOverlayDescriptor, bottomRightOverlayDescriptor, underlayDescriptor);
+	}
+
+	public static final void dispose() {
+		Stream.concat(
+				colorToImageCache.values().stream(),
+				overlayImagesCache.values().stream())
+			.filter(Objects::nonNull)
+			.forEach(Image::dispose);
+		overlayImagesCache.clear();
+		colorToImageCache.clear();
 	}
 }

@@ -8,19 +8,19 @@
  *
  * Contributors:
  *  Mickael Istria (Red Hat Inc.) - initial implementation
+ *  Dietrich Travkin (SOLUNAR GmbH) - Add overlay icons for new symbol tags
  *******************************************************************************/
 package org.eclipse.lsp4e.outline;
 
-import static org.eclipse.lsp4e.LSPEclipseUtils.findResourceFor;
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNullable;
+import static org.eclipse.lsp4e.LSPEclipseUtils.*;
 
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
@@ -35,9 +35,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
-import org.eclipse.jface.viewers.DecorationOverlayIcon;
 import org.eclipse.jface.viewers.DelegatingStyledCellLabelProvider.IStyledLabelProvider;
-import org.eclipse.jface.viewers.IDecoration;
 import org.eclipse.jface.viewers.ILabelProviderListener;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.LabelProviderChangedEvent;
@@ -45,6 +43,7 @@ import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.StyleUtil;
+import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
 import org.eclipse.lsp4e.ui.LSPImages;
 import org.eclipse.lsp4e.ui.Messages;
@@ -87,11 +86,7 @@ public class SymbolsLabelProvider extends LabelProvider
 			LanguageServerPlugin.logError(ex);
 		}
 	};
-	/*
-	 * key: initial object image
-	 * value: array of images decorated with marker for severity (index + 1)
-	 */
-	private final Map<Image, Image[]> overlays = new HashMap<>();
+
 	private final Map<Object /*URI|String*/, IResource> resourceCache = new HashMap<>();
 
 	private final boolean showLocation;
@@ -103,7 +98,7 @@ public class SymbolsLabelProvider extends LabelProvider
 				.getBoolean(CNFOutlinePage.SHOW_KIND_PREFERENCE, false));
 	}
 
-	public SymbolsLabelProvider(boolean showLocation, boolean showKind) {
+	public SymbolsLabelProvider(final boolean showLocation, final boolean showKind) {
 		this.showLocation = showLocation;
 		this.showKind = showKind;
 		InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID).addPreferenceChangeListener(this);
@@ -114,14 +109,16 @@ public class SymbolsLabelProvider extends LabelProvider
 	public void dispose() {
 		ResourcesPlugin.getWorkspace().removeResourceChangeListener(listener);
 		InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID).removePreferenceChangeListener(this);
-		overlays.values().stream().flatMap(Arrays::stream).filter(Objects::nonNull).forEach(Image::dispose);
-		overlays.clear();
 		super.dispose();
 	}
 
 	@Override
-	public @Nullable Image getImage(@Nullable Object element) {
-		if (element == null) {
+	public @Nullable Image getImage(final @Nullable Object element) {
+		// If needed, we could use more overlays like in org.eclipse.jdt.ui.JavaElementImageDescriptor,
+		// but this would demand more space in various views.
+		// See guidelines, Section "Icon Overlays": https://www.eclipse.org/articles/Article-UI-Guidelines/Contents.html
+
+		if (element == null){
 			return null;
 		}
 		if (element instanceof PendingUpdateAdapter) {
@@ -130,29 +127,53 @@ public class SymbolsLabelProvider extends LabelProvider
 		if (element instanceof Throwable) {
 			return LSPImages.getSharedImage(ISharedImages.IMG_OBJS_ERROR_TSK);
 		}
+
+		var actualElement = element;
 		if (element instanceof Either<?, ?> either) {
-			element = either.get();
+			actualElement = either.get();
+		}
+		SymbolKind symbolKind = null;
+		List<SymbolTag> symbolTags = Collections.emptyList();
+		boolean deprecated = false;
+		if (actualElement instanceof SymbolInformation info) {
+			symbolKind = SymbolsUtil.getKind(info);
+			symbolTags = SymbolsUtil.getSymbolTags(info);
+			deprecated = SymbolsUtil.isDeprecated(info);
+		} else if (actualElement instanceof WorkspaceSymbol symbol) {
+			symbolKind = SymbolsUtil.getKind(symbol);
+			symbolTags = SymbolsUtil.getSymbolTags(symbol);
+			deprecated = SymbolsUtil.isDeprecated(symbol);
+		} else if (actualElement instanceof DocumentSymbol symbol) {
+			symbolKind = SymbolsUtil.getKind(symbol);
+			symbolTags = SymbolsUtil.getSymbolTags(symbol);
+			deprecated = SymbolsUtil.isDeprecated(symbol);
+		} else if (actualElement instanceof DocumentSymbolWithURI symbolWithURI) {
+			symbolKind = SymbolsUtil.getKind(symbolWithURI);
+			symbolTags = SymbolsUtil.getSymbolTags(symbolWithURI);
+			deprecated = SymbolsUtil.isDeprecated(symbolWithURI);
 		}
 
-		Image image = null;
+		if (actualElement != null && symbolKind != null) {
+			return LSPImages.getImageFor(symbolKind, symbolTags, deprecated, getMaxSeverity(actualElement));
+		}
+
+		return null;
+	}
+
+	private int getMaxSeverity(final Object element) {
 		IResource file = null;
 		if (element instanceof SymbolInformation info) {
-			image = LSPImages.imageFromSymbolKind(info.getKind());
 			file = resourceCache.computeIfAbsent(info.getLocation().getUri(), uri -> findResourceFor((String) uri));
 		} else if (element instanceof WorkspaceSymbol symbol) {
-			image = LSPImages.imageFromSymbolKind(symbol.getKind());
 			file = resourceCache.computeIfAbsent(getUri(symbol), uri -> findResourceFor((String) uri));
-		} else if (element instanceof DocumentSymbol symbol) {
-			image = LSPImages.imageFromSymbolKind(symbol.getKind());
 		} else if (element instanceof DocumentSymbolWithURI symbolWithURI) {
-			image = LSPImages.imageFromSymbolKind(symbolWithURI.symbol.getKind());
 			file = resourceCache.computeIfAbsent(symbolWithURI.uri, uri -> findResourceFor((URI) uri));
 		}
 
 		/*
 		 * Implementation node: for problem decoration, maybe consider using a ILabelDecorator/IDelayedLabelDecorator?
 		 */
-		if (file != null && image != null) {
+		if (file != null) {
 			Range range = null;
 			if (element instanceof SymbolInformation symbol) {
 				range = symbol.getLocation().getRange();
@@ -163,6 +184,7 @@ public class SymbolsLabelProvider extends LabelProvider
 			} else if (element instanceof DocumentSymbolWithURI symbolWithURI) {
 				range = symbolWithURI.symbol.getRange();
 			}
+
 			if (range != null) {
 				try {
 					// use existing documents only to calculate the severity
@@ -171,20 +193,17 @@ public class SymbolsLabelProvider extends LabelProvider
 					IDocument doc = LSPEclipseUtils.getExistingDocument(file);
 
 					if (doc != null) {
-						int maxSeverity = getMaxSeverity(file, doc, range);
-						if (maxSeverity > IMarker.SEVERITY_INFO) {
-							return getOverlay(image, maxSeverity);
-						}
+						return getMaxSeverity(file, doc, range);
 					}
 				} catch (CoreException | BadLocationException e) {
 					LanguageServerPlugin.logError(e);
 				}
 			}
 		}
-		return image;
+		return -1;
 	}
 
-	protected int getMaxSeverity(IResource resource, IDocument doc, Range range)
+	protected int getMaxSeverity(final IResource resource, final IDocument doc, final Range range)
 			throws CoreException, BadLocationException {
 		if (!severities.containsKey(resource)) {
 			refreshMarkersByLine(resource);
@@ -207,7 +226,7 @@ public class SymbolsLabelProvider extends LabelProvider
 				.orElse(-1);
 	}
 
-	private void refreshMarkersByLine(IResource resource) throws CoreException {
+	private void refreshMarkersByLine(final IResource resource) throws CoreException {
 		RangeMap<Integer, Integer> rangeMap = TreeRangeMap.create();
 		Arrays.stream(resource.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_ZERO))
 			.filter(marker -> marker.getAttribute(IMarker.SEVERITY, -1) > IMarker.SEVERITY_INFO)
@@ -228,31 +247,13 @@ public class SymbolsLabelProvider extends LabelProvider
 		severities.put(resource, rangeMap);
 	}
 
-	private Image getOverlay(Image res, int maxSeverity) {
-		if (maxSeverity != 1 && maxSeverity != 2) {
-			throw new IllegalArgumentException("Severity " + maxSeverity + " not supported."); //$NON-NLS-1$ //$NON-NLS-2$
-		}
-		Image[] currentOverlays = this.overlays.computeIfAbsent(res, key -> new Image [2]);
-		if (castNullable(currentOverlays[maxSeverity - 1]) == null) {
-			String overlayId = null;
-			if (maxSeverity == IMarker.SEVERITY_ERROR) {
-				overlayId = ISharedImages.IMG_DEC_FIELD_ERROR;
-			} else if (maxSeverity == IMarker.SEVERITY_WARNING) {
-				overlayId = ISharedImages.IMG_DEC_FIELD_WARNING;
-			}
-			currentOverlays[maxSeverity - 1] = new DecorationOverlayIcon(res,
-					LSPImages.getSharedImageDescriptor(overlayId), IDecoration.BOTTOM_LEFT).createImage();
-		}
-		return currentOverlays[maxSeverity - 1];
-	}
-
 	@Override
-	public String getText(Object element) {
+	public String getText(final Object element) {
 		return getStyledText(element).getString();
 	}
 
 	@Override
-	public StyledString getStyledText(@Nullable Object element) {
+	public StyledString getStyledText(final @Nullable Object element) {
 
 		if (element instanceof PendingUpdateAdapter) {
 			return new StyledString(Messages.outline_computingSymbols);
@@ -268,44 +269,46 @@ public class SymbolsLabelProvider extends LabelProvider
 		if (element == null){
 			return res;
 		}
+
+		var actualElement = element;
 		if (element instanceof Either<?, ?> either) {
-			element = either.get();
+			actualElement = either.get();
 		}
 		String name = null;
 		SymbolKind kind = null;
 		String detail = null;
 		URI location = null;
 		boolean deprecated = false;
-		if (element instanceof SymbolInformation symbolInformation) {
+		if (actualElement instanceof SymbolInformation symbolInformation) {
 			name = symbolInformation.getName();
 			kind = symbolInformation.getKind();
-			deprecated = isDeprecated(symbolInformation.getTags()) || symbolInformation.getDeprecated() != null && symbolInformation.getDeprecated();
+			deprecated = SymbolsUtil.isDeprecated(symbolInformation);
 			try {
 				location = URI.create(symbolInformation.getLocation().getUri());
 			} catch (IllegalArgumentException e) {
 				LanguageServerPlugin.logError("Invalid URI: " + symbolInformation.getLocation().getUri(), e); //$NON-NLS-1$
 			}
-		} else if (element instanceof WorkspaceSymbol workspaceSymbol) {
+		} else if (actualElement instanceof WorkspaceSymbol workspaceSymbol) {
 			name = workspaceSymbol.getName();
 			kind = workspaceSymbol.getKind();
 			String rawUri = getUri(workspaceSymbol);
-			deprecated = isDeprecated(workspaceSymbol.getTags());
+			deprecated = SymbolsUtil.isDeprecated(workspaceSymbol);
 			try {
 				location = URI.create(rawUri);
 			} catch (IllegalArgumentException e) {
 				LanguageServerPlugin.logError("Invalid URI: " + rawUri, e); //$NON-NLS-1$
 			}
-		} else if (element instanceof DocumentSymbol documentSymbol) {
+		} else if (actualElement instanceof DocumentSymbol documentSymbol) {
 			name = documentSymbol.getName();
 			kind = documentSymbol.getKind();
 			detail = documentSymbol.getDetail();
-			deprecated = isDeprecated(documentSymbol.getTags()) || documentSymbol.getDeprecated() != null && documentSymbol.getDeprecated();
-		} else if (element instanceof DocumentSymbolWithURI symbolWithURI) {
+			deprecated = SymbolsUtil.isDeprecated(documentSymbol);
+		} else if (actualElement instanceof DocumentSymbolWithURI symbolWithURI) {
 			name = symbolWithURI.symbol.getName();
 			kind = symbolWithURI.symbol.getKind();
 			detail = symbolWithURI.symbol.getDetail();
 			location = symbolWithURI.uri;
-			deprecated = isDeprecated(symbolWithURI.symbol.getTags()) || symbolWithURI.symbol.getDeprecated() != null && symbolWithURI.symbol.getDeprecated();
+			deprecated = SymbolsUtil.isDeprecated(symbolWithURI);
 		}
 		if (name != null) {
 			if (deprecated) {
@@ -332,13 +335,6 @@ public class SymbolsLabelProvider extends LabelProvider
 		return res;
 	}
 
-	private boolean isDeprecated(@Nullable List<SymbolTag> tags) {
-		if(tags != null){
-			return tags.contains(SymbolTag.Deprecated);
-		}
-		return false;
-	}
-
 	@Override
 	public void restoreState(final IMemento aMemento) {
 	}
@@ -357,7 +353,7 @@ public class SymbolsLabelProvider extends LabelProvider
 	}
 
 	@Override
-	public void preferenceChange(PreferenceChangeEvent event) {
+	public void preferenceChange(final PreferenceChangeEvent event) {
 		if (event.getKey().equals(CNFOutlinePage.SHOW_KIND_PREFERENCE)) {
 			this.showKind = Boolean.parseBoolean(String.valueOf(event.getNewValue()));
 			for (Object listener : this.getListeners()) {
@@ -368,7 +364,7 @@ public class SymbolsLabelProvider extends LabelProvider
 		}
 	}
 
-	private static String getUri(WorkspaceSymbol symbol) {
+	private static String getUri(final WorkspaceSymbol symbol) {
 		return symbol.getLocation().map(Location::getUri, WorkspaceSymbolLocation::getUri);
 	}
 

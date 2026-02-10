@@ -29,7 +29,7 @@ public class CallHierarchyLabelProvider extends LabelProvider implements IStyled
 	public @Nullable Image getImage(final @Nullable Object element) {
 		if (element instanceof CallHierarchyViewTreeNode treeNode) {
 			CallHierarchyItem callContainer = treeNode.getCallContainer();
-			Image res = LSPImages.imageFromSymbolKind(callContainer.getKind());
+			Image res = LSPImages.getImageFor(callContainer.getKind(), callContainer.getTags());
 			if (res != null) {
 				return res;
 			}
