@@ -95,16 +95,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="22.627417"
-     inkscape:cx="-4.4857086"
-     inkscape:cy="3.0935922"
+     inkscape:zoom="36.76"
+     inkscape:cx="8.0930359"
+     inkscape:cy="3.2508161"
      inkscape:document-units="px"
      inkscape:current-layer="g4953"
      showgrid="true"
      inkscape:window-width="2560"
-     inkscape:window-height="1353"
+     inkscape:window-height="1382"
      inkscape:window-x="0"
-     inkscape:window-y="31"
+     inkscape:window-y="58"
      inkscape:window-maximized="0"
      showguides="true"
      inkscape:guide-bbox="true"
@@ -152,9 +152,10 @@
        transform="translate(-13.081475,-10.429825)">
       <g
          id="g3773"
-         transform="matrix(0.7602768,0,0,0.76026187,0.45356165,249.47416)">
+         transform="matrix(0.74287572,0,0,0.74286112,0.82269545,267.82604)"
+         style="stroke-width:1.34613341;stroke-dasharray:none">
         <rect
-           style="color:#000000;font-style:normal;font-weight:normal;font-size:13.5892px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;display:inline;overflow:visible;visibility:visible;fill:url(#linearGradient3779);fill-opacity:1;fill-rule:nonzero;stroke:#b28d22;stroke-width:1.1415;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;enable-background:accumulate"
+           style="color:#000000;font-style:normal;font-weight:normal;font-size:13.5892px;line-height:125%;font-family:Sans;letter-spacing:0px;word-spacing:0px;display:inline;overflow:visible;visibility:visible;fill:url(#linearGradient3779);fill-opacity:1;fill-rule:nonzero;stroke:#b28d22;stroke-width:1.34613341;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;enable-background:accumulate"
            id="rect4880"
            width="6.7224092"
            height="6.3510451"
