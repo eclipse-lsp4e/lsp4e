@@ -55,15 +55,15 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="39.36"
-     inkscape:cx="3.8744919"
-     inkscape:cy="5.3607724"
+     inkscape:cx="3.4679878"
+     inkscape:cy="5.3734756"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
      showgrid="true"
      inkscape:window-width="2560"
-     inkscape:window-height="1353"
+     inkscape:window-height="1382"
      inkscape:window-x="0"
-     inkscape:window-y="31"
+     inkscape:window-y="58"
      inkscape:window-maximized="0"
      inkscape:showpageshadow="0"
      inkscape:pagecheckerboard="false"
@@ -110,7 +110,7 @@
     </g>
     <path
        sodipodi:type="star"
-       style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:url(#linearGradient4844);fill-opacity:1;fill-rule:nonzero;stroke:#5b0d7e;stroke-width:0.473659;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;enable-background:accumulate"
+       style="color:#000000;display:inline;overflow:visible;visibility:visible;fill:url(#linearGradient4844);fill-opacity:1;fill-rule:nonzero;stroke:#5b0d7e;stroke-width:0.816146;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker:none;enable-background:accumulate"
        id="path3971"
        sodipodi:sides="3"
        sodipodi:cx="4.640388"
@@ -123,8 +123,8 @@
        inkscape:rounded="0"
        inkscape:randomized="0"
        d="m 4.6403881,-9.4591022 1.1687457,2.0243272 1.1687458,2.0243272 -2.3374916,0 -2.3374917,-1e-7 1.1687459,-2.0243271 z"
-       transform="matrix(0.64178384,-1.1024499,1.1002319,0.62998912,7.9502146,1048.7665)"
-       inkscape:transform-center-y="0.85023105"
-       inkscape:transform-center-x="-0.0077844967" />
+       transform="matrix(0.57938821,-0.99526724,0.99326492,0.56874019,7.5244052,1047.939)"
+       inkscape:transform-center-y="0.7675311"
+       inkscape:transform-center-x="-0.0070277347" />
   </g>
 </svg>
