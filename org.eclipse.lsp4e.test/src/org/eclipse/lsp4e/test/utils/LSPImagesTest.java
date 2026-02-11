@@ -13,7 +13,11 @@ package org.eclipse.lsp4e.test.utils;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.List;
+
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.resource.ImageDescriptor;
+import org.eclipse.lsp4e.ui.AbstractLsp4eLabelProvider;
 import org.eclipse.lsp4e.ui.LSPImages;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
@@ -42,6 +46,29 @@ public class LSPImagesTest {
 		
 		assertNotNull(descriptor);
 		assertNotNull(img);
+	}
+
+	private static class TestLabelProvider extends AbstractLsp4eLabelProvider {
+		// increase method visibility for the following test
+		@Override
+		public @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags) {
+			return super.getImageFor(symbolKind, symbolTags);
+		}
+	}
+	
+	// Deprecated is used to test the case where no visibility tag is available, that should default to the standard symbol icon
+	@ParameterizedTest
+	@EnumSource(value=SymbolTag.class, mode=Mode.INCLUDE, names= { "Private", "Package", "Protected", "Public",
+			"Internal", "File", "Deprecated"})
+	public void testVisibilityOverlayImagesForFieldsAndMethodsAvailable(SymbolTag tag) {
+		var symbolTags = List.of(tag);
+		TestLabelProvider labelProvider = new TestLabelProvider();
+		
+		Image fieldImage = labelProvider.getImageFor(SymbolKind.Field, symbolTags);
+		Image methodImage = labelProvider.getImageFor(SymbolKind.Method, symbolTags);
+		
+		assertNotNull(fieldImage);
+		assertNotNull(methodImage);
 	}
 	
 	@ParameterizedTest

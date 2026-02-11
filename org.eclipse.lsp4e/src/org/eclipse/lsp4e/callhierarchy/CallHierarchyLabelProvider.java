@@ -14,22 +14,21 @@ package org.eclipse.lsp4e.callhierarchy;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.viewers.DelegatingStyledCellLabelProvider.IStyledLabelProvider;
-import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.StyledString;
-import org.eclipse.lsp4e.ui.LSPImages;
+import org.eclipse.lsp4e.ui.AbstractLsp4eLabelProvider;
 import org.eclipse.lsp4j.CallHierarchyItem;
 import org.eclipse.swt.graphics.Image;
 
 /**
  * Label provider for the call hierarchy tree view.
  */
-public class CallHierarchyLabelProvider extends LabelProvider implements IStyledLabelProvider {
+public class CallHierarchyLabelProvider extends AbstractLsp4eLabelProvider implements IStyledLabelProvider {
 
 	@Override
 	public @Nullable Image getImage(final @Nullable Object element) {
 		if (element instanceof CallHierarchyViewTreeNode treeNode) {
 			CallHierarchyItem callContainer = treeNode.getCallContainer();
-			Image res = LSPImages.getImageFor(callContainer.getKind(), callContainer.getTags());
+			Image res = getImageFor(callContainer.getKind(), callContainer.getTags());
 			if (res != null) {
 				return res;
 			}

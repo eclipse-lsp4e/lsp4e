@@ -15,6 +15,7 @@ package org.eclipse.lsp4e.outline;
 import static org.eclipse.lsp4e.LSPEclipseUtils.*;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -37,7 +38,6 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.viewers.DelegatingStyledCellLabelProvider.IStyledLabelProvider;
 import org.eclipse.jface.viewers.ILabelProviderListener;
-import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.LabelProviderChangedEvent;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -45,6 +45,7 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.StyleUtil;
 import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
+import org.eclipse.lsp4e.ui.AbstractLsp4eLabelProvider;
 import org.eclipse.lsp4e.ui.LSPImages;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.DocumentSymbol;
@@ -67,7 +68,7 @@ import org.eclipse.ui.progress.PendingUpdateAdapter;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 
-public class SymbolsLabelProvider extends LabelProvider
+public class SymbolsLabelProvider extends AbstractLsp4eLabelProvider
 		implements ICommonLabelProvider, IStyledLabelProvider, IPreferenceChangeListener {
 
 	private final Map<IResource, RangeMap<Integer, Integer>> severities = new HashMap<>();
@@ -153,8 +154,15 @@ public class SymbolsLabelProvider extends LabelProvider
 			deprecated = SymbolsUtil.isDeprecated(symbolWithURI);
 		}
 
+		if (deprecated && !symbolTags.contains(SymbolTag.Deprecated)) {
+			var adaptedTags = new ArrayList<SymbolTag>(symbolTags.size() + 1);
+			adaptedTags.addAll(symbolTags);
+			adaptedTags.add(SymbolTag.Deprecated);
+			symbolTags = adaptedTags;
+		}
+
 		if (actualElement != null && symbolKind != null) {
-			return LSPImages.getImageFor(symbolKind, symbolTags, deprecated, getMaxSeverity(actualElement));
+			return getImageFor(symbolKind, symbolTags, getMaxSeverity(actualElement));
 		}
 
 		return null;
