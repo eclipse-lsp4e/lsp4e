@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1354,21 +1353,8 @@ public final class LSPEclipseUtils {
 	}
 
 	public static URI toUri(File file) {
-		// URI scheme specified by language server protocol and LSP
-		try {
-			final var path = file.getAbsoluteFile().toURI().getPath();
-			if (path.startsWith("//")) { // UNC path like //localhost/c$/Windows/ //$NON-NLS-1$
-				// split: authority = "localhost", absPath = "/c$/Windows/"
-				final int slash = path.indexOf('/', 2);
-				final String authority = slash > 2 ? path.substring(2, slash) : path.substring(2);
-				final String absPath = slash > 2 ? path.substring(slash) : "/"; //$NON-NLS-1$
-				return new URI(FILE_SCHEME, authority, absPath, null);
-			}
-			return new URI(FILE_SCHEME, "", path, null); //$NON-NLS-1$
-		} catch (URISyntaxException e) {
-			LanguageServerPlugin.logError(e);
-			return file.getAbsoluteFile().toURI();
-		}
+		// Perform one round-trip to make sure all non-ASCII characters are properly encoded.
+		return URI.create((file.toPath().toUri()).toASCIIString());
 	}
 
 	public static @Nullable IFile getFile(@Nullable IDocument document) {
