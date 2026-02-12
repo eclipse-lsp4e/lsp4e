@@ -132,9 +132,9 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	/**
 	 * Determines an image key (identifier) for the given arguments that can be used with the image registry.
 	 * Instead of just determining the icon for a document symbol, the given optional visibility {@link SymbolTag}s
-	 * are considered, i.e. fields and methods get different symbol icons depending on their visibility.
+	 * are considered, i.e. fields and methods (incl. constructors) get different symbol icons depending on their visibility.
 	 *
-	 * @param kind a document symbol's kind, e.g. field, method, class, property
+	 * @param kind a document symbol's kind, e.g. field, method, constructor, class, property
 	 * @param symbolTags a document symbol's {@link SymbolTag}s, only visibility tags are considered
 	 * @return an image's key (identifier) for the use with the image registry
 	 *
@@ -161,7 +161,7 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 				case File -> LSPImages.IMG_FIELD_VIS_FILE;
 				default -> LSPImages.IMG_FIELD;
 			};
-		} else if (kind == SymbolKind.Method) {
+		} else if (kind == SymbolKind.Method || kind == SymbolKind.Constructor) {
 			return switch (visibility) {
 				case Private -> LSPImages.IMG_METHOD_VIS_PRIVATE;
 				case Package -> LSPImages.IMG_METHOD_VIS_PACKAGE;
@@ -224,25 +224,37 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 		ImageDescriptor bottomRightOverlayDescriptor = null;
 		ImageDescriptor underlayDescriptor = deprecatedImageDescriptor;
 
+		// special case for a constructor with visibility tag => we need to add a "C" overlay to show it's a constructor
+		if (SymbolKind.Constructor == symbolKind
+				&& !baseImageKey.equals(LSPImages.imageKeyFromSymbolKind(symbolKind))) {
+			topRightOverlayDescriptor = LSPImages.getImageDescriptor(LSPImages.IMG_OVR_CONSTRUCTOR);
+		}
+
 		if (!additionalTags.isEmpty()) {
 			topLeftOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(0));
 
-			if (additionalTags.size() > 1 && !SymbolKind.Constructor.equals(symbolKind)) {
-				// constructor base image has a built-in overlay in the top right corner,
-				// in this case we omit the second symbol tag's overlay icon
-				topRightOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(1));
+			if (additionalTags.size() > 1) {
+				if (SymbolKind.Constructor == symbolKind) {
+					// a constructor has an overlay in the top right corner,
+					// in this case we place the second symbol tag's overlay icon at the lower right corner
+					bottomRightOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(1));
+				} else {
+					topRightOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(1));
+				}
 			}
 		}
 
 		if (SymbolKind.Field == symbolKind || SymbolKind.Method == symbolKind) {
-			// In this case the visibility is already expressed by the symbol icon, so we can display one more symbol tag
+			// In these cases the visibility is already expressed by the symbol icon, so we can display one more symbol tag
 			if (additionalTags.size() > 2) {
 				bottomRightOverlayDescriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(additionalTags.get(2));
 			}
-		} else {
+		} else if (SymbolKind.Constructor != symbolKind) {
 			// We place the visibility overlay icon on the lower right corner, similar to JDT.
 			// The top left and top right corners remain for additional symbol tags (besides visibility, severity, deprecation)
-			bottomRightOverlayDescriptor = getOverlayForVisibility(finalSymbolTags);;
+			// In case of constructors we already have a "C" for "constructor" in the upper right corner
+			// and have use the lower right corner for another additional symbol tag.
+			bottomRightOverlayDescriptor = getOverlayForVisibility(finalSymbolTags);
 		}
 
 		return LSPImages.getImageWithOverlays(baseImageKey, topLeftOverlayDescriptor, topRightOverlayDescriptor,

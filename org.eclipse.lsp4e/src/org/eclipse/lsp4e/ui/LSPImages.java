@@ -328,6 +328,7 @@ public final class LSPImages {
 	 * @see #getImage(String)
 	 * @see #getImageDescriptor(String)
 	 * @see #getImageWithOverlays(String, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor)
+	 * @see AbstractLsp4eLabelProvider#getImageKeyFromSymbolKindWithVisibility(SymbolKind, java.util.List)
 	 */
 	public static String imageKeyFromSymbolKind(SymbolKind kind) {
 		return switch (kind) {
@@ -485,6 +486,7 @@ public final class LSPImages {
 	 * @return returns a new or cached image built from the given arguments.
 	 *
 	 * @see #imageKeyFromSymbolKind(SymbolKind)
+	 * @see AbstractLsp4eLabelProvider#getImageKeyFromSymbolKindWithVisibility(SymbolKind, java.util.List)
 	 */
 	public static @Nullable Image getImageWithOverlays(String baseImageKey,
 			@Nullable ImageDescriptor topLeftOverlayDescriptor, @Nullable ImageDescriptor topRightOverlayDescriptor,
