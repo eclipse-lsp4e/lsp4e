@@ -185,4 +185,12 @@ public class SymbolsUtil {
 		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.ReadOnly);
 	}
 
+	public static boolean isOverrides(List<SymbolTag> tags) {
+		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Overrides);
+	}
+
+	public static boolean isImplements(List<SymbolTag> tags) {
+		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Implements);
+	}
+
 }
