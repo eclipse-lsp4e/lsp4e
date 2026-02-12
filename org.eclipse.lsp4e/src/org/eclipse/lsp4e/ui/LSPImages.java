@@ -283,6 +283,18 @@ public final class LSPImages {
 		return PlatformUI.getWorkbench().getSharedImages().getImageDescriptor(imageId);
 	}
 
+	/**
+	 * Returns an image representing the given symbol kind. Does not consider the document symbol's visibility
+	 * (given by {@link SymbolTag}s).
+	 *
+	 * @param kind a document symbol's kind
+	 * @return an image representing the given symbol kind or <code>null</code>
+	 *
+	 * @see #getImageDescriptor(String)
+	 * @see AbstractLsp4eLabelProvider#getImage(Object)
+	 * @see AbstractLsp4eLabelProvider#getImageFor(SymbolKind, java.util.List)
+	 * @see AbstractLsp4eLabelProvider#getImageFor(SymbolKind, java.util.List, int)
+	 */
 	public static @Nullable Image imageFromSymbolKind(@Nullable SymbolKind kind) {
 		if (kind == null) {
 			return EMPTY_IMAGE;
@@ -305,6 +317,18 @@ public final class LSPImages {
 		return getImageDescriptor(imgKey);
 	}
 
+	/**
+	 * Returns an image identifier (key) that can be used with the image registry or in {@link #getImage(String)} and
+	 * {@link #getImageDescriptor(String)} to retrieve the image representing the given document symbol kind.
+	 * Does not consider any visibility details given in a document symbol's {@link SymbolTag}s.
+	 *
+	 * @param kind a document symbol's kind
+	 * @return an image identifier (key) representing the given symbol kind's corresponding image
+	 *
+	 * @see #getImage(String)
+	 * @see #getImageDescriptor(String)
+	 * @see #getImageWithOverlays(String, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor)
+	 */
 	public static String imageKeyFromSymbolKind(SymbolKind kind) {
 		return switch (kind) {
 		case Array -> IMG_ARRAY;
@@ -367,6 +391,15 @@ public final class LSPImages {
 		};
 	}
 
+	/**
+	 * Returns an overlay icon ({@link Image}) representing the given symbol tag,
+	 * e.g. a document symbol's visibility "private" or the symbol being "static" or "final".
+	 *
+	 * @param symbolTag a document symbol's tag to be represented as an overlay icon
+	 * @return the overlay icon corresponding to the given tag or <code>null</code> if the image cannot be found
+	 *
+	 * @see #imageDescriptorOverlayFromSymbolTag(SymbolTag)
+	 */
 	public static @Nullable Image imageOverlayFromSymbolTag(SymbolTag symbolTag) {
 		String imgKey = imageOverlayKeyFromSymbolTag(symbolTag);
 		return getImage(imgKey);
@@ -439,6 +472,20 @@ public final class LSPImages {
 		});
 	}
 
+	/**
+	 * Returns a new or cached image built from the given arguments.
+	 * The image is a combination of a base image with optional overlay and underlay icons.
+	 *
+	 * @param baseImageKey the image identifier given by e.g. {@link #imageKeyFromSymbolKind(SymbolKind)}
+	 * @param topLeftOverlayDescriptor the overlay icon descriptor for the upper left corner of the base icon
+	 * @param topRightOverlayDescriptor the overlay icon descriptor for the upper right corner of the base icon
+	 * @param bottomLeftOverlayDescriptor the overlay icon descriptor for the lower left corner of the base icon
+	 * @param bottomRightOverlayDescriptor the overlay icon descriptor for the lower right corner of the base icon
+	 * @param underlayImageDescriptor the underlay icon descriptor for being drawn behind the the base icon
+	 * @return returns a new or cached image built from the given arguments.
+	 *
+	 * @see #imageKeyFromSymbolKind(SymbolKind)
+	 */
 	public static @Nullable Image getImageWithOverlays(String baseImageKey,
 			@Nullable ImageDescriptor topLeftOverlayDescriptor, @Nullable ImageDescriptor topRightOverlayDescriptor,
 			@Nullable ImageDescriptor bottomLeftOverlayDescriptor, @Nullable ImageDescriptor bottomRightOverlayDescriptor,
