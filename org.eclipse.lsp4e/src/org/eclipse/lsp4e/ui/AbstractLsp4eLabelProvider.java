@@ -1,3 +1,14 @@
+/*******************************************************************************
+ * Copyright (c) 2024 Advantest GmbH and others.
+ * This program and the accompanying materials are made
+ * available under the terms of the Eclipse Public License 2.0
+ * which is available at https://www.eclipse.org/legal/epl-2.0/
+ *
+ * SPDX-License-Identifier: EPL-2.0
+ *
+ * Contributors:
+ *  Dietrich Travkin (Solunar GmbH) - initial implementation
+ *******************************************************************************/
 package org.eclipse.lsp4e.ui;
 
 import java.util.Collections;
@@ -21,7 +32,7 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	/**
 	 * Returns an overlay icon {@link ImageDescriptor} for the given severity.
 	 *
-	 * @param severity one of {@link IMarker.SEVERITY_ERROR} or {@link IMarker.SEVERITY_WARNING}
+	 * @param severity one of <code>IMarker.SEVERITY_ERROR</code> or <code>IMarker.SEVERITY_WARNING</code>
 	 * @return image descriptor for a warning or an error, or <code>null</code> in all other cases
 	 */
 	protected @Nullable ImageDescriptor getOverlayForMarkerSeverity(int severity) {
@@ -61,7 +72,8 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	 * Returns a list of {@link SymbolTag}s excluding visibility and deprecation tags with decreasing precedence.
 	 * May be overridden by subclasses to change the overlay icons shown in addition to visibility and deprecation.
 	 * The default implementation also excludes the following tags:
-	 * {@link SymbolTag.Nullable}, {@link SymbolTag.NonNull}, {@link SymbolTag.Declaration}, {@link SymbolTag.Definition}
+	 * <code>SymbolTag.Nullable</code>, <code>SymbolTag.NonNull</code>,
+	 * <code>SymbolTag.Declaration</code>, <code>SymbolTag.Definition</code>
 	 *
 	 * @return a list of {@link SymbolTag}s without visibility and deprecation tags
 	 */
