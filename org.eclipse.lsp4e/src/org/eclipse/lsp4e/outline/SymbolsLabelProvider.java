@@ -12,7 +12,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.outline;
 
-import static org.eclipse.lsp4e.LSPEclipseUtils.*;
+import static org.eclipse.lsp4e.LSPEclipseUtils.findResourceFor;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -38,6 +38,7 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.viewers.DelegatingStyledCellLabelProvider.IStyledLabelProvider;
 import org.eclipse.jface.viewers.ILabelProviderListener;
+import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.LabelProviderChangedEvent;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -45,9 +46,9 @@ import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.StyleUtil;
 import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
-import org.eclipse.lsp4e.ui.AbstractLsp4eLabelProvider;
 import org.eclipse.lsp4e.ui.LSPImages;
 import org.eclipse.lsp4e.ui.Messages;
+import org.eclipse.lsp4e.ui.SymbolIconProvider;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Range;
@@ -68,8 +69,10 @@ import org.eclipse.ui.progress.PendingUpdateAdapter;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 
-public class SymbolsLabelProvider extends AbstractLsp4eLabelProvider
+public class SymbolsLabelProvider extends LabelProvider
 		implements ICommonLabelProvider, IStyledLabelProvider, IPreferenceChangeListener {
+
+	private final SymbolIconProvider symbolIconProvider;
 
 	private final Map<IResource, RangeMap<Integer, Integer>> severities = new HashMap<>();
 	private final IResourceChangeListener listener = e -> {
@@ -100,8 +103,13 @@ public class SymbolsLabelProvider extends AbstractLsp4eLabelProvider
 	}
 
 	public SymbolsLabelProvider(final boolean showLocation, final boolean showKind) {
+		this(showLocation, showKind, new SymbolIconProvider());
+	}
+
+	public SymbolsLabelProvider(final boolean showLocation, final boolean showKind, SymbolIconProvider symbolIconProvider) {
 		this.showLocation = showLocation;
 		this.showKind = showKind;
+		this.symbolIconProvider = symbolIconProvider;
 		InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID).addPreferenceChangeListener(this);
 		ResourcesPlugin.getWorkspace().addResourceChangeListener(listener);
 	}
@@ -162,7 +170,7 @@ public class SymbolsLabelProvider extends AbstractLsp4eLabelProvider
 		}
 
 		if (actualElement != null && symbolKind != null) {
-			return getImageFor(symbolKind, symbolTags, getMaxSeverity(actualElement));
+			return symbolIconProvider.getImageFor(symbolKind, symbolTags, getMaxSeverity(actualElement));
 		}
 
 		return null;

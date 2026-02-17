@@ -27,7 +27,12 @@ import org.eclipse.lsp4j.SymbolTag;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.ISharedImages;
 
-public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
+
+/**
+ * Customizable class for creating document symbol icons with overlays depending on the symbol's
+ * {@link SymbolKind} and {@link SymbolTag}s. This class is meant to be used with {@link LabelProvider}s.
+ */
+public class SymbolIconProvider {
 
 	/**
 	 * Returns an overlay icon {@link ImageDescriptor} for the given severity.
@@ -189,7 +194,7 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	 *
 	 * @see #getImageFor(SymbolKind, List, int)
 	 */
-	protected @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags) {
+	public @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags) {
 		return getImageFor(symbolKind, symbolTags, -1);
 	}
 
@@ -206,7 +211,7 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	 *
 	 * @see #getImageFor(SymbolKind, List)
 	 */
-	protected @Nullable Image getImageFor(final @Nullable SymbolKind symbolKind,
+	public @Nullable Image getImageFor(final @Nullable SymbolKind symbolKind,
 			final @Nullable List<SymbolTag> symbolTags, int severity) {
 
 		if (symbolKind == null) {
