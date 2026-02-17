@@ -15,7 +15,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.jdt.annotation.Nullable;
@@ -63,7 +62,7 @@ public class SymbolIconProvider {
 
 	private static final List<SymbolTag> VISIBILITY_PRECEDENCE = List.of(
 			SymbolTag.Public, SymbolTag.Protected, SymbolTag.Package,
-			SymbolTag.Internal, SymbolTag.File, SymbolTag.Private);;
+			SymbolTag.Internal, SymbolTag.File, SymbolTag.Private);
 
 	/**
 	 * Returns a list of visibility {@link SymbolTag}s with decreasing precedence.
@@ -107,7 +106,7 @@ public class SymbolIconProvider {
 	protected final Optional<SymbolTag> getHighestPrecedenceVisibilitySymbolTag(List<SymbolTag> symbolTags) {
 		final var precedenceList = getVisibilityPrecedence();
 		return symbolTags.stream()
-				.filter(tag -> precedenceList.contains(tag))
+				.filter(precedenceList::contains)
 				.min(Comparator.comparing(precedenceList::indexOf));
 	}
 
@@ -123,9 +122,9 @@ public class SymbolIconProvider {
 	protected final List<SymbolTag> getAdditionalSymbolTagsSorted(List<SymbolTag> symbolTags) {
 		final var precedenceList = getAdditionalTagsPrecedence();
 		return symbolTags.stream()
-				.filter(tag -> precedenceList.contains(tag))
+				.filter(precedenceList::contains)
 				.sorted(Comparator.comparing(precedenceList::indexOf))
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 	private @Nullable ImageDescriptor getOverlayForVisibility(List<SymbolTag> symbolTags) {
