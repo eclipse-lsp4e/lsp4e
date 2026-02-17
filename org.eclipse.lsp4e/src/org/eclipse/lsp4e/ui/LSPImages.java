@@ -290,10 +290,10 @@ public final class LSPImages {
 	 * @param kind a document symbol's kind
 	 * @return an image representing the given symbol kind or <code>null</code>
 	 *
+	 * @see #getImage(String))
 	 * @see #getImageDescriptor(String)
-	 * @see AbstractLsp4eLabelProvider#getImage(Object)
-	 * @see AbstractLsp4eLabelProvider#getImageFor(SymbolKind, java.util.List)
-	 * @see AbstractLsp4eLabelProvider#getImageFor(SymbolKind, java.util.List, int)
+	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List)
+	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List, int)
 	 */
 	public static @Nullable Image imageFromSymbolKind(@Nullable SymbolKind kind) {
 		if (kind == null) {
@@ -328,7 +328,7 @@ public final class LSPImages {
 	 * @see #getImage(String)
 	 * @see #getImageDescriptor(String)
 	 * @see #getImageWithOverlays(String, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor, ImageDescriptor)
-	 * @see AbstractLsp4eLabelProvider#getImageKeyFromSymbolKindWithVisibility(SymbolKind, java.util.List)
+	 * @see SymbolIconProvider#getImageKeyFromSymbolKindWithVisibility(SymbolKind, java.util.List)
 	 */
 	public static String imageKeyFromSymbolKind(SymbolKind kind) {
 		return switch (kind) {
@@ -486,7 +486,7 @@ public final class LSPImages {
 	 * @return returns a new or cached image built from the given arguments.
 	 *
 	 * @see #imageKeyFromSymbolKind(SymbolKind)
-	 * @see AbstractLsp4eLabelProvider#getImageKeyFromSymbolKindWithVisibility(SymbolKind, java.util.List)
+	 * @see SymbolIconProvider#getImageKeyFromSymbolKindWithVisibility(SymbolKind, java.util.List)
 	 */
 	public static @Nullable Image getImageWithOverlays(String baseImageKey,
 			@Nullable ImageDescriptor topLeftOverlayDescriptor, @Nullable ImageDescriptor topRightOverlayDescriptor,
