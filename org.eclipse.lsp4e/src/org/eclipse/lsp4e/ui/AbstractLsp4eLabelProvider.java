@@ -56,6 +56,10 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 		return LSPImages.imageDescriptorOverlayFromSymbolTag(SymbolTag.Deprecated);
 	}
 
+	private static final List<SymbolTag> VISIBILITY_PRECEDENCE = List.of(
+			SymbolTag.Public, SymbolTag.Protected, SymbolTag.Package,
+			SymbolTag.Internal, SymbolTag.File, SymbolTag.Private);;
+
 	/**
 	 * Returns a list of visibility {@link SymbolTag}s with decreasing precedence.
 	 * May be overridden by subclasses to change the visibility overlay icons shown.
@@ -63,10 +67,16 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	 * @return a list of visibility {@link SymbolTag}s
 	 */
 	protected List<SymbolTag> getVisibilityPrecedence() {
-		return List.of(
-				SymbolTag.Public, SymbolTag.Protected, SymbolTag.Package,
-				SymbolTag.Internal, SymbolTag.File, SymbolTag.Private);
+		return VISIBILITY_PRECEDENCE;
 	}
+
+	// In order to keep the number of overlay icons rather small in the UI, we do not show the following symbol tags:
+	// SymbolTag.Nullable, SymbolTag.NonNull, SymbolTag.Declaration, SymbolTag.Definition
+	private static final List<SymbolTag> ADDITIONAL_TAGS_PRECEDENCE = List.of(
+			SymbolTag.Static, SymbolTag.Final, SymbolTag.Abstract,
+			SymbolTag.Overrides, SymbolTag.Implements, SymbolTag.Virtual, SymbolTag.Sealed,
+			SymbolTag.Synchronized, SymbolTag.Transient, SymbolTag.Volatile,
+			SymbolTag.ReadOnly);
 
 	/**
 	 * Returns a list of {@link SymbolTag}s excluding visibility and deprecation tags with decreasing precedence.
@@ -78,13 +88,7 @@ public abstract class AbstractLsp4eLabelProvider extends LabelProvider {
 	 * @return a list of {@link SymbolTag}s without visibility and deprecation tags
 	 */
 	protected List<SymbolTag> getAdditionalTagsPrecedence() {
-		// In order to keep the number of overlay icons rather small in the UI, we do not show the following symbol tags:
-		// SymbolTag.Nullable, SymbolTag.NonNull, SymbolTag.Declaration, SymbolTag.Definition
-		return List.of(
-				SymbolTag.Static, SymbolTag.Final, SymbolTag.Abstract,
-				SymbolTag.Overrides, SymbolTag.Implements, SymbolTag.Virtual, SymbolTag.Sealed,
-				SymbolTag.Synchronized, SymbolTag.Transient, SymbolTag.Volatile,
-				SymbolTag.ReadOnly);
+		return ADDITIONAL_TAGS_PRECEDENCE;
 	}
 
 	/**
