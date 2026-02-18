@@ -51,6 +51,8 @@ import java.util.function.UnaryOperator;
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.IFileBuffer;
 import org.eclipse.core.filebuffers.IFileBufferListener;
+import org.eclipse.core.filebuffers.ITextFileBufferManager;
+import org.eclipse.core.filebuffers.LocationKind;
 import org.eclipse.core.filesystem.URIUtil;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
@@ -74,6 +76,7 @@ import org.eclipse.core.runtime.SubMonitor;
 import org.eclipse.core.runtime.content.IContentType;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LanguageServersRegistry.LanguageServerDefinition;
 import org.eclipse.lsp4e.client.DefaultLanguageClient;
@@ -92,6 +95,7 @@ import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
+import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentFormattingOptions;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
 import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
@@ -326,6 +330,8 @@ public class LanguageServerWrapper {
 				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(errorsThreadNameFormat).build());
 
 		this.fileSystemWatcherManager = new FileSystemWatcherManager(initialProject);
+		// Read preference to determine whether to enable the workspace resource fallback for this server.
+		this.resourceFallbackEnabled = isNonBufferedFileListenerEnabled();
 	}
 
 	void stopDispatcher() {
@@ -514,6 +520,13 @@ public class LanguageServerWrapper {
 						}
 					});
 					FileBuffers.getTextFileBufferManager().addFileBufferListener(fileBufferListener);
+					// Register a workspace-level fallback listener to catch resource events for
+					// files not backed by buffers, if enabled for this server
+					if (resourceFallbackEnabled) {
+						ResourcesPlugin.getWorkspace().addResourceChangeListener(resourceFallbackListener,
+								IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_DELETE
+										| IResourceChangeEvent.PRE_CLOSE);
+					}
 					castNonNull(initializeFuture).thenRunAsync(() -> {
 						processErrorStream(castNonNull(context.lspStreamProvider), l -> LanguageServerPlugin.getDefault().getLog().error(l), e -> {throw new UncheckedIOException(e);});
 					}, errorProcessor);
@@ -755,6 +768,8 @@ public class LanguageServerWrapper {
 		}
 
 		FileBuffers.getTextFileBufferManager().removeFileBufferListener(fileBufferListener);
+		ResourcesPlugin.getWorkspace().removeResourceChangeListener(resourceFallbackListener);
+
 	}
 
 	public @Nullable CompletableFuture<LanguageServerWrapper> connect(@Nullable IDocument document, IFile file) {
@@ -1640,4 +1655,145 @@ public class LanguageServerWrapper {
 		return message != null ? message : "No exception message available: " + throwable.getClass().getSimpleName(); //$NON-NLS-1$
 	}
 
+	// Fallback workspace listener to catch resource-level events for files that are
+	// not backed by file buffers
+	private final IResourceChangeListener resourceFallbackListener = new ResourceFallbackListener();
+
+	// Allow disabling the workspace resource fallback per language server via a preference
+	// Preference key: org.eclipse.lsp4e.resourceFallback.enabled (boolean). Default: false
+	private final boolean resourceFallbackEnabled;
+
+	/**
+	 * Listener that translates workspace resource changes into LSP file-level
+	 * events for files that are not backed by file buffers(Ex. Xtext Documents) and
+	 * also handles disconnecting documents on file deletion/move/close events.
+	 */
+	private final class ResourceFallbackListener implements IResourceChangeListener {
+
+		@Override
+		public void resourceChanged(IResourceChangeEvent event) {
+			// Handle PRE_DELETE / PRE_CLOSE that carry the resource directly
+			handlePreChangeEvent(event);
+
+			// For POST_CHANGE examine the delta for file-level removals/moves/replacements
+			// and content changes
+			handlePostChangeEvent(event);
+		}
+
+		private void handlePostChangeEvent(IResourceChangeEvent event) {
+			if (event.getType() != IResourceChangeEvent.POST_CHANGE || event.getDelta() == null) {
+				return;
+			}
+			try {
+				event.getDelta().accept(delta -> {
+					IResource r = delta.getResource();
+					if (r.getType() != IResource.FILE) {
+						return true; // continue visiting
+					}
+
+					// If a text file buffer exists for this file, skip resource fallback handling
+					IFile file = (IFile) r;
+					ITextFileBufferManager mgr = FileBuffers.getTextFileBufferManager();
+					if (mgr != null && mgr.getTextFileBuffer(file.getFullPath(), LocationKind.IFILE) != null) {
+						return false; // skip this file
+					}
+
+					int kind = delta.getKind();
+					int flags = delta.getFlags();
+
+					// Content change (save/replace) -> attempt to notify documentSaved
+					if (kind != IResourceDelta.CHANGED || (flags & IResourceDelta.CONTENT) == 0) {
+						return false; // in this visitor: stop visiting this subtree
+					}
+
+					URI uri = LSPEclipseUtils.toUri(file);
+					if (uri == null) {
+						return false; // skip this file if URI can't be determined
+					}
+
+					DocumentContentSynchronizer dcs;
+					// Guard read to avoid concurrent-modification races with writers that
+					// synchronize on connectedDocuments
+					synchronized (connectedDocuments) {
+						dcs = connectedDocuments.get(uri);
+					}
+					if (dcs == null) {
+						return false;
+					}
+					// Mirror buffer.dirtyStateChanged(..., false) -> documentSaved
+					final var identifier = LSPEclipseUtils.toTextDocumentIdentifier(uri);
+					final var params = new DidSaveTextDocumentParams(identifier, dcs.getDocument().get());
+					// send didSave notification via wrapper to keep ordering
+					LanguageServerWrapper.this.sendNotification(ls -> ls.getTextDocumentService().didSave(params));
+
+					// Moved/Removed/Replacement -> disconnect equivalent to
+					// underlyingFileMoved/underlyingFileDeleted
+					if (kind == IResourceDelta.REMOVED || (kind == IResourceDelta.CHANGED
+							&& ((flags & IResourceDelta.MOVED_FROM) != 0 || (flags & IResourceDelta.MOVED_TO) != 0
+									|| (flags & IResourceDelta.REPLACED) != 0))) {
+						uri = LSPEclipseUtils.toUri(file);
+						if (uri == null) {
+							return false; // skip this file if URI can't be determined
+						}
+						boolean wasConnected;
+						// Guard the connected check with the same lock used for mutations
+						synchronized (connectedDocuments) {
+							wasConnected = connectedDocuments.containsKey(uri);
+						}
+						if (wasConnected) {
+							disconnectTextFileBuffer(uri);
+							disconnect(uri);
+						}
+					}
+					return false; // no need to recurse into children of a file
+				});
+			} catch (CoreException e) {
+				LanguageServerPlugin.logError(e);
+			}
+		}
+
+		private void handlePreChangeEvent(IResourceChangeEvent event) {
+			if (event.getType() != IResourceChangeEvent.PRE_DELETE
+					&& event.getType() != IResourceChangeEvent.PRE_CLOSE) {
+				return;
+			}
+			IResource res = event.getResource();
+			if (!(res instanceof IFile)) {
+				return;
+			}
+
+			// If a file buffer exists for this file, let buffer listener handle it
+			IFile file = (IFile) res;
+			ITextFileBufferManager mgr = FileBuffers.getTextFileBufferManager();
+			if (mgr != null && mgr.getTextFileBuffer(file.getFullPath(), LocationKind.IFILE) != null) {
+				return;
+			}
+
+			URI uri = LSPEclipseUtils.toUri(file);
+			if (uri == null) {
+				return;
+			}
+			DocumentContentSynchronizer dcs;
+			boolean wasConnected;
+			// Read guarded by the same lock used elsewhere when mutating
+			// connectedDocuments.
+			synchronized (connectedDocuments) {
+				dcs = connectedDocuments.get(uri);
+				wasConnected = connectedDocuments.containsKey(uri);
+			}
+			if (dcs != null) {
+				// Mirror buffer.stateChanging -> documentAboutToBeSaved
+				dcs.documentAboutToBeSaved();
+			}
+			if (wasConnected) {
+				disconnectTextFileBuffer(uri);
+				disconnect(uri);
+			}
+		}
+	}
+
+	private boolean isNonBufferedFileListenerEnabled() {
+		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		return store.getBoolean("org.eclipse.lsp4e.resourceFallback.enabled"); //$NON-NLS-1$
+	}
 }

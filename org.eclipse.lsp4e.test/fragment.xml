@@ -288,4 +288,12 @@
             contentType="org.eclipse.lsp4e.test.content-type.tm">
       </presentationReconciler>
    </extension>
+     <extension
+           point="org.eclipse.ui.editors">
+        <editor
+              id="org.eclipse.lsp4e.test.edit.nonBufferEditor"
+              name="Non Buffer Editor"
+              class="org.eclipse.lsp4e.test.edit.NonBufferEditor">
+        </editor>
+     </extension>
 </fragment>

@@ -79,6 +79,7 @@ import org.eclipse.core.runtime.content.IContentTypeManager;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.dialogs.MessageDialog;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextOperationTarget;
@@ -412,6 +413,9 @@ public final class LSPEclipseUtils {
 			return toUri(path.toFile());
 		} else if (buffer != null && buffer.getFileStore() != null) {
 			return buffer.getFileStore().toURI();
+		}
+		if (isNonBufferedFileHandlingEnabled()) {
+			return Adapters.adapt(document, URI.class, true);
 		}
 		return null;
 	}
@@ -1357,7 +1361,12 @@ public final class LSPEclipseUtils {
 
 	public static @Nullable IFile getFile(@Nullable IDocument document) {
 		IPath path = toPath(document);
-		return getFile(path);
+		IFile file = getFile(path);
+		//if we cannot determine file via buffer manager then try to adapt from document.
+		if (file == null && isNonBufferedFileHandlingEnabled()) {
+			file = Adapters.adapt(document, IFile.class, true);
+		}
+		return file;
 	}
 
 	/**
@@ -1629,5 +1638,10 @@ public final class LSPEclipseUtils {
 	public static boolean isReadOnly(final IResource resource) {
 		ResourceAttributes attributes = resource.getResourceAttributes();
 		return attributes != null && attributes.isReadOnly();
+	}
+
+	private static boolean isNonBufferedFileHandlingEnabled() {
+		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		return store.getBoolean("org.eclipse.lsp4e.resourceFallback.enabled"); //$NON-NLS-1$
 	}
 }
