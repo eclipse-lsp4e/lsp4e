@@ -36,6 +36,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -92,6 +93,7 @@ import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
+import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentFormattingOptions;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
 import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
@@ -134,6 +136,10 @@ import com.google.gson.JsonObject;
 
 public class LanguageServerWrapper {
 
+	// Debounce map: records last time a file buffer listener handled an event for a given URI.
+	private final ConcurrentHashMap<URI, Long> bufferEventTimestamps = new ConcurrentHashMap<>();
+	private static final long BUFFER_EVENT_DEBOUNCE_MS = 1000L; // 1 second
+
 	private final IFileBufferListener fileBufferListener = new LSFileBufferListener();
 
 	private final class LSFileBufferListener extends FileBufferListenerAdapter {
@@ -142,6 +148,7 @@ public class LanguageServerWrapper {
 		public void bufferDisposed(IFileBuffer buffer) {
 			final var uri = LSPEclipseUtils.toUri(buffer);
 			if (uri != null) {
+				bufferEventTimestamps.put(uri, System.currentTimeMillis());
 				disconnect(uri);
 			}
 		}
@@ -151,6 +158,10 @@ public class LanguageServerWrapper {
 			if (buffer.isDirty()) {
 				DocumentContentSynchronizer documentListener = connectedDocuments.get(LSPEclipseUtils.toUri(buffer));
 				if (documentListener != null) {
+					final var uri = LSPEclipseUtils.toUri(buffer);
+					if (uri != null) {
+						bufferEventTimestamps.put(uri, System.currentTimeMillis());
+					}
 					documentListener.documentAboutToBeSaved();
 				}
 			}
@@ -163,6 +174,10 @@ public class LanguageServerWrapper {
 			}
 			DocumentContentSynchronizer documentListener = connectedDocuments.get(LSPEclipseUtils.toUri(buffer));
 			if (documentListener != null) {
+				final var uri = LSPEclipseUtils.toUri(buffer);
+				if (uri != null) {
+					bufferEventTimestamps.put(uri, System.currentTimeMillis());
+				}
 				documentListener.documentSaved(buffer);
 			}
 		}
@@ -177,6 +192,7 @@ public class LanguageServerWrapper {
 			if (documentListener == null) {
 				return;
 			}
+			bufferEventTimestamps.put(oldUri, System.currentTimeMillis());
 			LSPEclipseUtils.disconnectFromFileBuffer(buffer.getLocation());
 			/*
 			 * This below is not working (will leak file buffer), because the client that connected the document
@@ -205,6 +221,7 @@ public class LanguageServerWrapper {
 			if (oldUri == null) {
 				return;
 			}
+			bufferEventTimestamps.put(oldUri, System.currentTimeMillis());
 			if (!isConnectedTo(oldUri)) {
 				return;
 			}
@@ -285,6 +302,109 @@ public class LanguageServerWrapper {
 
 	private final FileSystemWatcherManager fileSystemWatcherManager;
 	private final WatchedFilesListener watchedFilesListener = new WatchedFilesListener();
+
+	// Fallback workspace listener to catch resource-level events for files that are not backed by file buffers
+	private final IResourceChangeListener resourceFallbackListener = new ResourceFallbackListener();
+
+	private final class ResourceFallbackListener implements IResourceChangeListener {
+
+		@Override
+		public void resourceChanged(IResourceChangeEvent event) {
+			// Handle PRE_DELETE / PRE_CLOSE that carry the resource directly
+			if (event.getType() == IResourceChangeEvent.PRE_DELETE
+					|| event.getType() == IResourceChangeEvent.PRE_CLOSE) {
+				IResource res = event.getResource();
+				if (res instanceof IFile file) {
+					URI uri = LSPEclipseUtils.toUri(file);
+					if (uri != null) {
+						// If buffer listener recently handled this URI, skip to avoid duplicate handling
+						Long last = bufferEventTimestamps.get(uri);
+						if (last != null && System.currentTimeMillis() - last < BUFFER_EVENT_DEBOUNCE_MS) {
+							// skip duplicate workspace handling
+							return;
+						}
+						DocumentContentSynchronizer dcs = connectedDocuments.get(uri);
+						if (dcs != null) {
+							// Mirror buffer.stateChanging -> documentAboutToBeSaved
+							try {
+								dcs.documentAboutToBeSaved();
+							} catch (Exception e) {
+								LanguageServerPlugin.logError(e);
+							}
+						}
+						if (isConnectedTo(uri)) {
+							LanguageServerPlugin.logInfo("Workspace PRE_DELETE/PRE_CLOSE disconnect for: " + uri); //$NON-NLS-1$
+							disconnectTextFileBuffer(uri);
+							disconnect(uri);
+						}
+					}
+				}
+				return;
+			}
+
+			// For POST_CHANGE examine the delta for file-level removals/moves/replacements and content changes
+			if (event.getType() != IResourceChangeEvent.POST_CHANGE || event.getDelta() == null) {
+				return;
+			}
+			try {
+				event.getDelta().accept(delta -> {
+					IResource r = delta.getResource();
+					if (r.getType() != IResource.FILE) {
+						return true; // continue visiting
+					}
+					IFile file = (IFile) r;
+					int kind = delta.getKind();
+					int flags = delta.getFlags();
+
+					// Content change (save/replace) -> attempt to notify documentSaved
+					if (kind == IResourceDelta.CHANGED && (flags & IResourceDelta.CONTENT) != 0) {
+						URI uri = LSPEclipseUtils.toUri(file);
+						if (uri != null) {
+							// If buffer listener recently handled this URI, skip to avoid duplicate handling
+							Long last = bufferEventTimestamps.get(uri);
+							if (last != null && System.currentTimeMillis() - last < BUFFER_EVENT_DEBOUNCE_MS) {
+								return false; // skip this file
+							}
+							DocumentContentSynchronizer dcs = connectedDocuments.get(uri);
+							if (dcs != null) {
+								try {
+									// Mirror buffer.dirtyStateChanged(..., false) -> documentSaved
+									final var identifier = LSPEclipseUtils.toTextDocumentIdentifier(uri);
+									final var params = new DidSaveTextDocumentParams(identifier, dcs.getDocument().get());
+									// send didSave notification via wrapper to keep ordering
+									LanguageServerWrapper.this.sendNotification(ls -> ls.getTextDocumentService().didSave(params));
+								} catch (Exception e) {
+									LanguageServerPlugin.logError(e);
+								}
+							}
+						}
+					}
+
+					// Moved/Removed/Replacement -> disconnect equivalent to underlyingFileMoved/underlyingFileDeleted
+					if (kind == IResourceDelta.REMOVED
+						|| (kind == IResourceDelta.CHANGED && ((flags & IResourceDelta.MOVED_FROM) != 0
+							|| (flags & IResourceDelta.MOVED_TO) != 0
+							|| (flags & IResourceDelta.REPLACED) != 0))) {
+						URI uri = LSPEclipseUtils.toUri(file);
+						if (uri != null && isConnectedTo(uri)) {
+							// If buffer listener recently handled this URI, skip to avoid duplicate handling
+							Long last = bufferEventTimestamps.get(uri);
+							if (last != null && System.currentTimeMillis() - last < BUFFER_EVENT_DEBOUNCE_MS) {
+								return false;
+							}
+							LanguageServerPlugin.logInfo("Workspace resource change disconnect for: " + uri); //$NON-NLS-1$
+							disconnectTextFileBuffer(uri);
+							disconnect(uri);
+						}
+					}
+
+					return false; // no need to recurse into children of a file
+				});
+			} catch (CoreException e) {
+				LanguageServerPlugin.logError(e);
+			}
+		}
+	}
 
 	/* Backwards compatible constructor */
 	public LanguageServerWrapper(IProject project, LanguageServerDefinition serverDefinition) {
@@ -514,6 +634,11 @@ public class LanguageServerWrapper {
 						}
 					});
 					FileBuffers.getTextFileBufferManager().addFileBufferListener(fileBufferListener);
+					// Register a workspace-level fallback listener to catch resource events for
+					// files not backed by buffers
+					ResourcesPlugin.getWorkspace().addResourceChangeListener(resourceFallbackListener,
+							IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_DELETE
+									| IResourceChangeEvent.PRE_CLOSE);
 					castNonNull(initializeFuture).thenRunAsync(() -> {
 						processErrorStream(castNonNull(context.lspStreamProvider), l -> LanguageServerPlugin.getDefault().getLog().error(l), e -> {throw new UncheckedIOException(e);});
 					}, errorProcessor);
@@ -755,6 +880,8 @@ public class LanguageServerWrapper {
 		}
 
 		FileBuffers.getTextFileBufferManager().removeFileBufferListener(fileBufferListener);
+		ResourcesPlugin.getWorkspace().removeResourceChangeListener(resourceFallbackListener);
+
 	}
 
 	public @Nullable CompletableFuture<LanguageServerWrapper> connect(@Nullable IDocument document, IFile file) {
@@ -894,6 +1021,10 @@ public class LanguageServerWrapper {
 			documentListener.getDocument().removePrenotifiedDocumentListener(documentListener);
 			documentListener.documentClosed();
 			disconnectTextFileBuffer(uri);
+		}
+		// Clean up debounce map entry to avoid unbounded growth and avoid stale skips
+		if (uri != null) {
+			bufferEventTimestamps.remove(uri);
 		}
 		if (this.connectedDocuments.isEmpty()) {
 			if (this.serverDefinition.lastDocumentDisconnectedTimeout != 0) {
