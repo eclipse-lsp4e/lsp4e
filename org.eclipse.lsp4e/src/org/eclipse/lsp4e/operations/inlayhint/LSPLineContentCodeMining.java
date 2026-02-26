@@ -26,6 +26,8 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.command.CommandExecutor;
+import org.eclipse.lsp4e.internal.NullSafetyHelper;
+import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.ExecuteCommandParams;
 import org.eclipse.lsp4j.InlayHint;
@@ -111,7 +113,7 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 		Either<Boolean, InlayHintRegistrationOptions> inlayProvider = capabilities.getInlayHintProvider();
 		if (inlayProvider != null && inlayProvider.isRight()) {
 			InlayHintRegistrationOptions options = inlayProvider.getRight();
-			return options.getResolveProvider() != null && options.getResolveProvider().booleanValue();
+			return Boolean.TRUE.equals(options.getResolveProvider());
 		}
 		return false;
 	}
@@ -134,35 +136,67 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 
 	@Override
 	public final @Nullable Consumer<MouseEvent> getAction() {
-		return inlayHint.getLabel().map(l -> null, this::labelPartAction);
+		List<InlayHintLabelPart> parts = inlayHint.getLabel().map(l -> null, r -> r);
+		boolean hasPartWithCommand = parts != null
+				&& parts.stream().map(InlayHintLabelPart::getCommand).anyMatch(Objects::nonNull);
+		boolean hasTextEdits = inlayHint.getTextEdits() != null && !inlayHint.getTextEdits().isEmpty();
+
+		if (!(hasPartWithCommand || hasTextEdits)) {
+			// Neither command nor text edits -> no action
+			return null;
+		}
+
+		return evt -> {
+			/*
+			 * LSP does not define if commands or text edits take precedence. So for the
+			 * sake of backwards compatibility, we first check for commands and then for
+			 * text edits
+			 */
+			if (hasPartWithCommand && handlePartWithCommand(evt, NullSafetyHelper.castNonNull(parts))) {
+				return;
+			}
+			if (hasTextEdits) {
+				// Apply text edits
+				try {
+					LSPEclipseUtils.applyEdits(document, inlayHint.getTextEdits());
+					// The text of the inlay hint is integrated into the document.
+					// To avoid a brief moment where both the inserted text and the inlay hint are
+					// rendered, we set an empty label for the hint.
+					setLabel(""); //$NON-NLS-1$
+				} catch (BadLocationException e) {
+					// Location to modify document was no longer valid -> Ignore
+				}
+			}
+		};
 	}
 
-	private @Nullable Consumer<MouseEvent> labelPartAction(List<InlayHintLabelPart> labelParts) {
-		String title = getLabel();
-		if (title != null && !title.isEmpty()
-				&& labelParts.stream().map(InlayHintLabelPart::getCommand).anyMatch(Objects::nonNull)) {
-			return me -> findLabelPart(me, labelParts) //
-					.map(InlayHintLabelPart::getCommand) //
-					.filter(Objects::nonNull) //
-					.ifPresent(command -> {
-						ServerCapabilities serverCapabilities = wrapper.getServerCapabilities();
-						ExecuteCommandOptions provider = serverCapabilities == null ? null
-								: serverCapabilities.getExecuteCommandProvider();
-						String commandId = command.getCommand();
-						if (provider != null && provider.getCommands().contains(commandId)) {
-							LanguageServers.forDocument(document).computeAll((w, ls) -> {
-								if (w == wrapper) {
-									return ls.getWorkspaceService().executeCommand(
-											new ExecuteCommandParams(commandId, command.getArguments()));
-								}
-								return CompletableFuture.completedFuture(null);
-							});
-						} else {
-							CommandExecutor.executeCommandClientSide(command, document);
-						}
-					});
+	/**
+	 * Returns true if the mouse event hit a label part with a command.
+	 */
+	private boolean handlePartWithCommand(MouseEvent evt, List<InlayHintLabelPart> parts) {
+		// Figure out if the user clicked on a specific label part which has a command
+		Optional<InlayHintLabelPart> clickedPart = findLabelPart(evt, NullSafetyHelper.castNonNull(parts));
+		Optional<Command> commandOpt = clickedPart.map(InlayHintLabelPart::getCommand);
+		if (commandOpt.isPresent()) {
+			Command command = commandOpt.get();
+			ServerCapabilities serverCapabilities = wrapper.getServerCapabilities();
+			ExecuteCommandOptions provider = serverCapabilities == null ? null
+					: serverCapabilities.getExecuteCommandProvider();
+			String commandId = command.getCommand();
+			if (provider != null && provider.getCommands().contains(commandId)) {
+				LanguageServers.forDocument(document).computeAll((w, ls) -> {
+					if (w == wrapper) {
+						return ls.getWorkspaceService()
+								.executeCommand(new ExecuteCommandParams(commandId, command.getArguments()));
+					}
+					return CompletableFuture.completedFuture(null);
+				});
+			} else {
+				CommandExecutor.executeCommandClientSide(command, document);
+			}
+			return true;
 		}
-		return null;
+		return false;
 	}
 
 	private Optional<InlayHintLabelPart> findLabelPart(MouseEvent me, List<InlayHintLabelPart> labelParts) {

@@ -34,6 +34,9 @@ import org.eclipse.lsp4j.ExecuteCommandParams;
 import org.eclipse.lsp4j.InlayHint;
 import org.eclipse.lsp4j.InlayHintLabelPart;
 import org.eclipse.lsp4j.Position;
+import org.eclipse.lsp4j.Range;
+import org.eclipse.lsp4j.TextEdit;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.widgets.Display;
@@ -75,6 +78,29 @@ public class LSPLineContentCodeMiningTest extends AbstractTestWithProject {
 
 		assertEquals(MockLanguageServer.SUPPORTED_COMMAND_ID, executedCommand.getCommand());
 		assertEquals(command.getArguments(), executedCommand.getArguments());
+	}
+	
+	@Test
+	void inlayHintWithTextEdit() throws Exception {
+		IFile file = TestUtils.createUniqueTestFile(project, "lspt", "x = [1, 2]");
+		ITextViewer textViewer = TestUtils.openTextViewer(file);
+		IDocument document = textViewer.getDocument();
+
+		final var provider = new InlayHintProvider();
+
+		// Create inlayhint with text edit
+		InlayHint inlayHint = new InlayHint(new Position(0, 0), Either.forLeft(": list[int]"));
+		inlayHint.setTextEdits(List.of(new TextEdit(new Range(new Position(0, 1), new Position(0, 1)), ": list[int]")));
+
+		// Simulate user clicking on inlayhint
+		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrapper(project,
+				LanguageServersRegistry.getInstance().getDefinition(MOCK_SERVER_ID));
+		final var sut = new LSPLineContentCodeMining(inlayHint, document, wrapper, provider);
+		MouseEvent mouseEvent = createMouseEvent();
+		sut.getAction().accept(mouseEvent);
+
+		// Text edit should be applied.
+		assertEquals("x: list[int] = [1, 2]", document.get());
 	}
 
 	private static InlayHintLabelPart createInlayLabelPart(String text, String commandID) {
