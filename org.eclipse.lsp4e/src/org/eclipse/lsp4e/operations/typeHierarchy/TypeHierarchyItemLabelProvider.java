@@ -12,11 +12,21 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.viewers.DelegatingStyledCellLabelProvider.IStyledLabelProvider;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.jface.viewers.StyledString;
-import org.eclipse.lsp4e.ui.LSPImages;
+import org.eclipse.lsp4e.ui.SymbolIconProvider;
 import org.eclipse.lsp4j.TypeHierarchyItem;
 import org.eclipse.swt.graphics.Image;
 
 public class TypeHierarchyItemLabelProvider extends LabelProvider implements IStyledLabelProvider {
+
+	private final SymbolIconProvider symbolIconProvider;
+
+	public TypeHierarchyItemLabelProvider() {
+		this(new SymbolIconProvider());
+	}
+
+	public TypeHierarchyItemLabelProvider(SymbolIconProvider symbolIconProvider) {
+		this.symbolIconProvider = symbolIconProvider;
+	}
 
 	@Override
 	public String getText(Object element) {
@@ -29,7 +39,7 @@ public class TypeHierarchyItemLabelProvider extends LabelProvider implements ISt
 	@Override
 	public @Nullable Image getImage(@Nullable Object element) {
 		if (element instanceof TypeHierarchyItem item) {
-			return LSPImages.imageFromSymbolKind(item.getKind());
+			return symbolIconProvider.getImageFor(item.getKind(), item.getTags());
 		}
 		return element == null ? null : super.getImage(element);
 	}
