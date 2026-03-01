@@ -15,7 +15,6 @@ package org.eclipse.lsp4e.test.utils;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -101,20 +100,20 @@ public class TestUtils {
 		return List.of(page.getEditorReferences());
 	}
 
-	public static IEditorPart openExternalFileInEditor(File file) throws PartInitException {
+	public static IEditorPart openExternalFileInEditor(Path file) throws PartInitException {
 		IWorkbenchWindow workbenchWindow = UI.getActiveWindow();
 		IWorkbenchPage page = workbenchWindow.getActivePage();
-		IEditorPart part = IDE.openEditor(page, file.toURI(), "org.eclipse.ui.genericeditor.GenericEditor", false);
+		IEditorPart part = IDE.openEditor(page, file.toUri(), "org.eclipse.ui.genericeditor.GenericEditor", false);
 		if (part != null) {
 			part.setFocus();
 		}
 		return part;
 	}
 
-	public static IEditorPart openExternalFileOnFileStore(File file) throws PartInitException {
+	public static IEditorPart openExternalFileOnFileStore(Path file) throws PartInitException {
 		IWorkbenchWindow workbenchWindow = UI.getActiveWindow();
 		IWorkbenchPage page = workbenchWindow.getActivePage();
-		IFileStore fileStore = EFS.getLocalFileSystem().getStore(file.toURI());
+		IFileStore fileStore = EFS.getLocalFileSystem().getStore(file.toUri());
 		IEditorPart part = IDE.openEditorOnFileStore(page, fileStore);
 		if (part != null) {
 			part.setFocus();

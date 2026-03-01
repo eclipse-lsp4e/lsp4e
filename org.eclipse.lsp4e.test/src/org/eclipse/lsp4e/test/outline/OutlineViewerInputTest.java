@@ -62,7 +62,7 @@ public class OutlineViewerInputTest extends AbstractTestWithProject {
 		var tempFile = Files.writeString(tempDir.resolve("externalTest.lspt"), "external file content for testing absolute paths");
 
 		// Open the external file in an editor
-		var editor = (ITextEditor) TestUtils.openExternalFileInEditor(tempFile.toFile());
+		var editor = (ITextEditor) TestUtils.openExternalFileInEditor(tempFile);
 		var document = LSPEclipseUtils.getDocument(editor);
 
 		// Create OutlineViewerInput and verify documentURI
