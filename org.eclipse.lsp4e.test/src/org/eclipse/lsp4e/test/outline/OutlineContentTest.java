@@ -60,7 +60,7 @@ public class OutlineContentTest extends AbstractTestWithProject {
 
 		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
 
-		final var editor = (ITextEditor) TestUtils.openExternalFileInEditor(testFile.toFile());
+		final var editor = (ITextEditor) TestUtils.openExternalFileInEditor(testFile);
 
 		final var outlinePage = (CNFOutlinePage) new EditorToOutlineAdapterFactory().getAdapter(editor, IContentOutlinePage.class);
 		final var shell = new Shell(editor.getEditorSite().getWorkbenchWindow().getShell());
@@ -90,7 +90,7 @@ public class OutlineContentTest extends AbstractTestWithProject {
 
 		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
 
-		final var editor = (ITextEditor) TestUtils.openExternalFileOnFileStore(testFile.toFile());
+		final var editor = (ITextEditor) TestUtils.openExternalFileOnFileStore(testFile);
 
 		final var outlinePage = (CNFOutlinePage) new EditorToOutlineAdapterFactory().getAdapter(editor, IContentOutlinePage.class);
 		final var shell = new Shell(editor.getEditorSite().getWorkbenchWindow().getShell());
