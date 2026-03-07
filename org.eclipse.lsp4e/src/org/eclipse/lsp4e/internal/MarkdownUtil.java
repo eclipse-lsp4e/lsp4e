@@ -27,7 +27,7 @@ public class MarkdownUtil {
 	private static final List<Extension> EXTENSIONS = List.of(TablesExtension.create());
 
 	/**
-	 * Singleton instance, as both classes are thread-safe, see
+	 * Singleton instances, as both classes are thread-safe, see
 	 * https://github.com/commonmark/commonmark-java?tab=readme-ov-file#thread-safety
 	 */
 	private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).build();

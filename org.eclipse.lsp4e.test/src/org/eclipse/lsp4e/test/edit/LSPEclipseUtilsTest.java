@@ -13,8 +13,12 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.edit;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assumptions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -31,6 +35,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.eclipse.core.filesystem.EFS;
 import org.eclipse.core.resources.IFile;
@@ -40,6 +45,7 @@ import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -50,6 +56,8 @@ import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.CompletionTriggerKind;
 import org.eclipse.lsp4j.CreateFile;
 import org.eclipse.lsp4j.Location;
+import org.eclipse.lsp4j.MarkupContent;
+import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.RenameFile;
@@ -71,6 +79,9 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
@@ -612,4 +623,19 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		Range actual = LSPEclipseUtils.parseRange("file:///a/b");
 		assertNull(actual);
 	}
+
+	public static Stream<Arguments> getHtmlDocString() {
+		return Stream.of( //
+				Arguments.of(Either.forLeft(null), null), //
+				Arguments.of(Either.forLeft("test"), "<p>test</p>"), //
+				Arguments.of(Either.forRight(new MarkupContent(MarkupKind.MARKDOWN, "# hi!")), "<h1>hi!</h1>\n") //
+		);
+	}
+
+	@ParameterizedTest
+	@MethodSource
+	void getHtmlDocString(Either<@Nullable String, MarkupContent> arg, String expected) throws Exception {
+		assertEquals(expected, LSPEclipseUtils.getHtmlDocString(arg));
+	}
+
 }

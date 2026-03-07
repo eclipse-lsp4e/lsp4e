@@ -21,7 +21,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -48,9 +48,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.commonmark.node.Node;
-import org.commonmark.parser.Parser;
-import org.commonmark.renderer.html.HtmlRenderer;
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.IFileBuffer;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -92,6 +89,7 @@ import org.eclipse.jface.text.TextSelection;
 import org.eclipse.jface.viewers.ISelectionProvider;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.DocumentInputStream;
+import org.eclipse.lsp4e.internal.MarkdownUtil;
 import org.eclipse.lsp4e.internal.ResourceForUriCache;
 import org.eclipse.lsp4e.refactoring.CreateFileChange;
 import org.eclipse.lsp4e.refactoring.DeleteExternalFile;
@@ -1493,10 +1491,7 @@ public final class LSPEclipseUtils {
 				String kind = markupContent.getKind();
 				if (MARKDOWN.equalsIgnoreCase(kind) || MD.equalsIgnoreCase(kind)) {
 					try {
-						Parser parser = Parser.builder().build();
-						Node document = parser.parse(text);
-						HtmlRenderer renderer = HtmlRenderer.builder().build();
-						return renderer.render(document);
+						return MarkdownUtil.renderToHtml(text);
 					} catch (Exception e) {
 						LanguageServerPlugin.logError(e);
 						return htmlParagraph(text);
