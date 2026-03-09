@@ -91,6 +91,7 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		b.addProgressListener(
 				ProgressListener.completedAdapter(event -> updateBrowserSize((Browser) event.getSource())));
 		b.setJavascriptEnabled(true);
+		this.addLocationListener(HYPER_LINK_LISTENER);
 	}
 
 	private void updateBrowserSize(final Browser browser) {
@@ -268,7 +269,6 @@ public class FocusableBrowserInformationControl extends BrowserInformationContro
 		return parent -> {
 			if (BrowserInformationControl.isAvailable(parent)) {
 				final var res = new FocusableBrowserInformationControl(parent, JFaceResources.DEFAULT_FONT, true);
-				res.addLocationListener(HYPER_LINK_LISTENER);
 				return res;
 			} else {
 				return new DefaultInformationControl(parent);
