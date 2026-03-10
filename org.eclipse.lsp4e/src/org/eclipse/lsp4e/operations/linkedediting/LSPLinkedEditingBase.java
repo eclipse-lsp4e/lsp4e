@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import org.eclipse.core.runtime.preferences.AbstractPreferenceInitializer;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences.IPreferenceChangeListener;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences.PreferenceChangeEvent;
@@ -33,14 +34,24 @@ import org.eclipse.lsp4j.TextDocumentPositionParams;
 
 public class LSPLinkedEditingBase implements IPreferenceChangeListener {
 	public static final String LINKED_EDITING_PREFERENCE = "org.eclipse.ui.genericeditor.linkedediting"; //$NON-NLS-1$
+	private static final boolean LINKED_EDITING_ACTIVE_DEFAULT = true;
 
 	private @Nullable CompletableFuture<List<LinkedEditingRanges>> request;
 	protected boolean fEnabled;
 
+	public static final class PreferenceInitializer extends AbstractPreferenceInitializer {
+		@Override
+		public void initializeDefaultPreferences() {
+			final var store = LanguageServerPlugin.getDefault().getPreferenceStore();
+			store.setDefault(LINKED_EDITING_PREFERENCE, LINKED_EDITING_ACTIVE_DEFAULT);
+		}
+	}
+
 	protected void install() {
-		IEclipsePreferences preferences = InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID);
-		preferences.addPreferenceChangeListener(this);
-		this.fEnabled = preferences.getBoolean(LINKED_EDITING_PREFERENCE, true);
+		IEclipsePreferences instanceScopePreferences = InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID);
+		instanceScopePreferences.addPreferenceChangeListener(this);
+
+		this.fEnabled = LanguageServerPlugin.getDefault().getPreferenceStore().getBoolean(LINKED_EDITING_PREFERENCE);
 	}
 
 	protected void uninstall() {

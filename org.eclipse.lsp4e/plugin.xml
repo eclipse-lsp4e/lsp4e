@@ -142,6 +142,9 @@
 
    <extension point="org.eclipse.core.runtime.preferences">
       <initializer class="org.eclipse.lsp4e.ui.FoldingPreferencePage$PreferenceInitializer"/>
+      <initializer
+            class="org.eclipse.lsp4e.operations.linkedediting.LSPLinkedEditingBase$PreferenceInitializer">
+      </initializer>
    </extension>
 
    <extension point="org.eclipse.ui.genericeditor.foldingReconcilers">
