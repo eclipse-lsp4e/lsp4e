@@ -13,7 +13,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.outline;
 
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.*;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNullable;
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
 import java.util.ArrayList;
 
@@ -52,7 +53,7 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.navigator.CommonViewer;
-import org.eclipse.ui.navigator.CommonViewerSorter;
+import org.eclipse.ui.navigator.CommonViewerComparator;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 
@@ -89,7 +90,7 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 		if (document != null) {
 			outlineViewer.setInput(new OutlineViewerInput(document, wrapper, textEditor));
 		}
-		outlineViewer.setComparator(new CommonViewerSorter());
+		outlineViewer.setComparator(new CommonViewerComparator());
 		outlineViewer.getLabelProvider().addListener(this);
 		final var textEditor = this.textEditor;
 		if (textEditor != null) {
