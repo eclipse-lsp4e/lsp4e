@@ -164,7 +164,7 @@ jobs:
 
 
     - name: "Build with Maven 🔨"
-      uses: nick-fields/retry@v3
+      uses: nick-fields/retry@v4
       with:
         max_attempts: 3
         timeout_minutes: 10
