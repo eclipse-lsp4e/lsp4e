@@ -413,7 +413,7 @@ public final class LSPEclipseUtils {
 		} else if (buffer != null && buffer.getFileStore() != null) {
 			return buffer.getFileStore().toURI();
 		}
-		return null;
+		return Adapters.adapt(document, URI.class, true);
 	}
 
 	private static @Nullable IPath toPath(@Nullable IFileBuffer buffer) {
@@ -1357,7 +1357,12 @@ public final class LSPEclipseUtils {
 
 	public static @Nullable IFile getFile(@Nullable IDocument document) {
 		IPath path = toPath(document);
-		return getFile(path);
+		IFile file = getFile(path);
+		//if we cannot determine file via buffer manager then try to adapt from document.
+		if (file == null) {
+			file = Adapters.adapt(document, IFile.class, true);
+		}
+		return file;
 	}
 
 	/**
