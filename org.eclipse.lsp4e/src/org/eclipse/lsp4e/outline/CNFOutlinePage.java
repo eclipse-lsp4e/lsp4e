@@ -40,6 +40,7 @@ import org.eclipse.jface.viewers.SelectionChangedEvent;
 import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.TreeViewer;
+import org.eclipse.jface.viewers.ViewerComparator;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
@@ -54,6 +55,7 @@ import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.navigator.CommonViewer;
 import org.eclipse.ui.navigator.CommonViewerComparator;
+import org.eclipse.ui.navigator.CommonViewerSorter;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 
@@ -75,6 +77,9 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 
 	private final LanguageServerWrapper wrapper;
 
+	@Nullable
+	private static Boolean canUseCommonViewerComparator;
+
 	public CNFOutlinePage(LanguageServerWrapper wrapper, @Nullable ITextEditor textEditor) {
 		preferences = InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID);
 		preferences.addPreferenceChangeListener(this);
@@ -90,7 +95,7 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 		if (document != null) {
 			outlineViewer.setInput(new OutlineViewerInput(document, wrapper, textEditor));
 		}
-		outlineViewer.setComparator(new CommonViewerComparator());
+		outlineViewer.setComparator(createComparator());
 		outlineViewer.getLabelProvider().addListener(this);
 		final var textEditor = this.textEditor;
 		if (textEditor != null) {
@@ -121,6 +126,63 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 				editorSelectionChangedListener = new EditorSelectionChangedListener();
 				editorSelectionChangedListener.install(textEditorViewer.getSelectionProvider());
 			}
+		}
+	}
+
+	/**
+	 * Try to be compatible with older Eclipse versions (before 4.39) where
+	 * CommonViewerComparator is not available.
+	 *
+	 * @return comparator for the outline
+	 */
+	private static ViewerComparator createComparator() {
+		if (checkIfCommonViewerComparatorAvailable()) {
+			return Eclipse439PlusComparator.create();
+		}
+		return EclipseBefore439Comparator.create();
+	}
+
+	private static boolean checkIfCommonViewerComparatorAvailable() {
+		if(canUseCommonViewerComparator != null) {
+			return canUseCommonViewerComparator.booleanValue();
+		}
+		try {
+			Class.forName("org.eclipse.ui.navigator.CommonViewerComparator"); //$NON-NLS-1$
+			canUseCommonViewerComparator = Boolean.TRUE;
+			return true;
+		} catch (ClassNotFoundException e) {
+			canUseCommonViewerComparator = Boolean.FALSE;
+			return false;
+		}
+	}
+
+	/**
+	 * Compatible with modern Eclipse versions (4.39 and later) where
+	 * CommonViewerComparator is available.
+	 * <p>
+	 * This is extracted to an extra class to avoid classloading issues on older Eclipse versions where
+	 * the CommonViewerComparator class is not available. If we try to load a class referencing
+	 * CommonViewerComparator on an older Eclipse version, it will result in a ClassNotFoundException.
+	 *
+	 * @return comparator for the outline
+	 */
+	private static final class Eclipse439PlusComparator {
+		static ViewerComparator create() {
+			return new CommonViewerComparator();
+		}
+	}
+
+	/**
+	 * Compatible with older Eclipse versions (before 4.39) where
+	 * CommonViewerComparator is not available.
+	 * <p>
+	 * This is extracted to an extra class to avoid classloading issues
+	 *
+	 * @return comparator for the outline
+	 */
+	private static final class EclipseBefore439Comparator {
+		static ViewerComparator create() {
+			return new CommonViewerSorter();
 		}
 	}
 
