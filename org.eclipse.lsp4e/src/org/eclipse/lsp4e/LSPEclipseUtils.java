@@ -1642,6 +1642,6 @@ public final class LSPEclipseUtils {
 
 	private static boolean isNonBufferedFileHandlingEnabled() {
 		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		return store.getBoolean("org.eclipse.lsp4e.resourceFallback.enabled"); //$NON-NLS-1$
+		return store.getBoolean(LanguageServerWrapper.LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY);
 	}
 }
