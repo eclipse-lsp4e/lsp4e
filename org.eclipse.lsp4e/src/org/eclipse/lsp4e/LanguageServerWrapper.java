@@ -87,6 +87,7 @@ import org.eclipse.lsp4e.internal.JsonUtil;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
 import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
+import org.eclipse.lsp4e.ui.LanguageServerPreferencePage;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.ClientInfo;
@@ -1794,6 +1795,6 @@ public class LanguageServerWrapper {
 
 	private boolean isNonBufferedFileListenerEnabled() {
 		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		return store.getBoolean("org.eclipse.lsp4e.resourceFallback.enabled"); //$NON-NLS-1$
+		return store.getBoolean(LanguageServerPreferencePage.LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY);
 	}
 }

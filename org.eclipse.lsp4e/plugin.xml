@@ -145,9 +145,7 @@
       <initializer
             class="org.eclipse.lsp4e.operations.linkedediting.LSPLinkedEditingBase$PreferenceInitializer">
       </initializer>
-      <initializer
-            class="org.eclipse.lsp4e.operations.rename.LSPInlineRenameLinkedMode$PreferenceInitializer">
-      </initializer>
+      <initializer class="org.eclipse.lsp4e.ui.LanguageServerPreferencePage$PreferenceInitializer"/>
    </extension>
 
    <extension point="org.eclipse.ui.genericeditor.foldingReconcilers">

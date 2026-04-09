@@ -95,6 +95,7 @@ import org.eclipse.lsp4e.internal.ResourceForUriCache;
 import org.eclipse.lsp4e.refactoring.CreateFileChange;
 import org.eclipse.lsp4e.refactoring.DeleteExternalFile;
 import org.eclipse.lsp4e.refactoring.LSPTextChange;
+import org.eclipse.lsp4e.ui.LanguageServerPreferencePage;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.CallHierarchyPrepareParams;
@@ -1642,6 +1643,6 @@ public final class LSPEclipseUtils {
 
 	private static boolean isNonBufferedFileHandlingEnabled() {
 		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		return store.getBoolean("org.eclipse.lsp4e.resourceFallback.enabled"); //$NON-NLS-1$
+		return store.getBoolean(LanguageServerPreferencePage.LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY);
 	}
 }
