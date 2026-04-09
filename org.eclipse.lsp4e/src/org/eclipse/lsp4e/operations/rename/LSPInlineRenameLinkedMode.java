@@ -27,7 +27,7 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
-import org.eclipse.core.runtime.preferences.InstanceScope;
+import org.eclipse.core.runtime.preferences.AbstractPreferenceInitializer;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
@@ -71,6 +71,15 @@ import org.eclipse.ui.texteditor.link.EditorLinkedModeUI;
 public final class LSPInlineRenameLinkedMode {
 
 	private static final String INLINE_RENAME_PREFERENCE = "org.eclipse.lsp4e.inlineRename"; //$NON-NLS-1$
+	private static final boolean INLINE_RENAME_ACTIVE_DEFAULT = true;
+
+	public static final class PreferenceInitializer extends AbstractPreferenceInitializer {
+		@Override
+		public void initializeDefaultPreferences() {
+			final var store = LanguageServerPlugin.getDefault().getPreferenceStore();
+			store.setDefault(INLINE_RENAME_PREFERENCE, INLINE_RENAME_ACTIVE_DEFAULT);
+		}
+	}
 
 	static boolean start(final IDocument document, final ITextViewer viewer, final int offset, final Shell shell) {
 		if (!isInlineRenameEnabled()) {
@@ -121,8 +130,7 @@ public final class LSPInlineRenameLinkedMode {
 	}
 
 	private static boolean isInlineRenameEnabled() {
-		final var prefs = InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID);
-		return prefs.getBoolean(INLINE_RENAME_PREFERENCE, true);
+		return LanguageServerPlugin.getDefault().getPreferenceStore().getBoolean(INLINE_RENAME_PREFERENCE);
 	}
 
 	private static @Nullable RefactoringStatus runPrepareRename(final LSPRenameProcessor processor) {
