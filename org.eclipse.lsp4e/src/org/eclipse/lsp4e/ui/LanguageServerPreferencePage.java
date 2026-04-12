@@ -19,7 +19,9 @@ import java.util.List;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.action.Action;
 import org.eclipse.jface.dialogs.IDialogConstants;
+import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.layout.GridDataFactory;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.preference.PreferencePage;
 import org.eclipse.jface.viewers.ArrayContentProvider;
 import org.eclipse.jface.viewers.CheckboxTableViewer;
@@ -33,6 +35,8 @@ import org.eclipse.jface.viewers.Viewer;
 import org.eclipse.jface.viewers.ViewerComparator;
 import org.eclipse.lsp4e.ContentTypeToLSPLaunchConfigEntry;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
+import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServersRegistry;
 import org.eclipse.lsp4e.enablement.EnablementTester;
 import org.eclipse.swt.SWT;
@@ -56,6 +60,7 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 	private final LanguageServersRegistry registry = LanguageServersRegistry.getInstance();
 	private List<ContentTypeToLSPLaunchConfigEntry> workingCopy = lateNonNull();
 	private Button removeButton = lateNonNull();
+	private Button resourceFallbackCheckbox = lateNonNull();
 	private CheckboxTableViewer checkboxViewer = lateNonNull();
 	private TableViewer viewer = lateNonNull();
 	private final SelectionAdapter contentTypeLinkListener;
@@ -174,6 +179,15 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		viewer.addSelectionChangedListener(event -> updateButtons());
 		viewer.setInput(workingCopy);
 		updateButtons();
+
+		// non-buffered file handling for Xtext like editors.
+		resourceFallbackCheckbox = new Button(res, SWT.CHECK);
+		GridDataFactory.swtDefaults().align(SWT.FILL, SWT.CENTER).span(2, 1).applyTo(resourceFallbackCheckbox);
+		resourceFallbackCheckbox.setText(Messages.non_buffered_file_support);
+		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		boolean enabled = store.getBoolean(LanguageServerWrapper.LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY);
+		resourceFallbackCheckbox.setSelection(enabled);
+
 		return res;
 	}
 
@@ -296,6 +310,17 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		this.registry.setAssociations(this.workingCopy);
 		final var enableDisableLSJob = new EnableDisableLSJob(changedDefinitions, getEditors());
 		enableDisableLSJob.schedule();
+
+		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		boolean oldValue = store.getBoolean(LanguageServerWrapper.LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY);
+		boolean newValue = resourceFallbackCheckbox.getSelection();
+		store.setValue(LanguageServerWrapper.LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY, newValue);
+		if (oldValue != newValue) {
+			var shell = getShell();
+			String title = Messages.PreferencesPage_nonBufferedFileSupportRestartTitle;
+			String msg = Messages.PreferencesPage_nonBufferedFileSupportWarningMessage;
+			MessageDialog.openWarning(shell, title, msg);
+		}
 		return super.performOk();
 	}
 

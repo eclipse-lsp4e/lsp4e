@@ -1663,6 +1663,8 @@ public class LanguageServerWrapper {
 	// Preference key: org.eclipse.lsp4e.resourceFallback.enabled (boolean). Default: false
 	private final boolean resourceFallbackEnabled;
 
+	public static final String LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY = "org.eclipse.lsp4e.resourceFallback.enabled"; //$NON-NLS-1$
+
 	/**
 	 * Listener that translates workspace resource changes into LSP file-level
 	 * events for files that are not backed by file buffers(Ex. Xtext Documents) and
@@ -1794,6 +1796,6 @@ public class LanguageServerWrapper {
 
 	private boolean isNonBufferedFileListenerEnabled() {
 		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		return store.getBoolean("org.eclipse.lsp4e.resourceFallback.enabled"); //$NON-NLS-1$
+		return store.getBoolean(LSP4E_RESOURCE_FALLBACK_ENABLED_PREF_KEY);
 	}
 }
