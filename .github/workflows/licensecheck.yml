@@ -91,7 +91,7 @@ jobs:
           ~/.m2/repository/.cache/tycho
           ~/.m2/repository/.meta/p2-artifacts.properties
           ~/.m2/repository/p2
-        key: ${{ runner.os }}-${{ runner.arch }}-repo-tycho-${{ hashFiles('target-platforms/target-platform-latest/target-platform-latest.target') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-repo-tycho-${{ hashFiles('target-platforms/oldest.target') }}
 
 
     - name: Dash License check  # see https://github.com/eclipse/dash-licenses

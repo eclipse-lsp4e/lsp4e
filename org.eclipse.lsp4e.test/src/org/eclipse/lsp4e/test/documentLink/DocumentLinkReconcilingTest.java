@@ -37,6 +37,7 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 
 public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	
@@ -188,6 +189,9 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	@DisabledIfSystemProperty(named = "lsp4e.targetPlatform", matches = "oldest", disabledReason = """
+			Fails on oldest target platform.
+			Note: this will only work when called from Maven or when setting the propery explicitly.""")
 	public void testClippedDocumentLinkReconciling() throws Exception {
 		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
 		

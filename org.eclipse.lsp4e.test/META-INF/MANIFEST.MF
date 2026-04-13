@@ -2,7 +2,7 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Tests for language server bundle (Incubation)
 Bundle-SymbolicName: org.eclipse.lsp4e.test;singleton:=true
-Bundle-Version: 0.16.9.qualifier
+Bundle-Version: 0.16.10.qualifier
 Fragment-Host: org.eclipse.lsp4e
 Bundle-Vendor: Eclipse LSP4E
 Bundle-RequiredExecutionEnvironment: JavaSE-21
@@ -30,8 +30,8 @@ Require-Bundle: org.eclipse.core.runtime,
  org.eclipse.e4.ui.workbench,
  org.eclipse.tm4e.ui,
  org.eclipse.core.filesystem,
- junit-jupiter-api;bundle-version="[6.0.1,7.0.0)",
- junit-jupiter-params;bundle-version="[6.0.1,7.0.0)",
+ junit-jupiter-api;bundle-version="[5.12.2,6.0.0)",
+ junit-jupiter-params;bundle-version="[5.12.2,6.0.0)",
  org.hamcrest,
  org.opentest4j
 Automatic-Module-Name: org.eclipse.lsp4e.test

@@ -16,6 +16,7 @@ package org.eclipse.lsp4e.outline;
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNullable;
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 
 import org.eclipse.core.runtime.Adapters;
@@ -54,7 +55,6 @@ import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.navigator.CommonViewer;
-import org.eclipse.ui.navigator.CommonViewerComparator;
 import org.eclipse.ui.navigator.CommonViewerSorter;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
@@ -77,8 +77,8 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 
 	private final LanguageServerWrapper wrapper;
 
-	@Nullable
-	private static Boolean canUseCommonViewerComparator;
+	private static @Nullable Class<?> comparatorClass = null;
+	private static boolean checkedForComparatorClass = false;
 
 	public CNFOutlinePage(LanguageServerWrapper wrapper, @Nullable ITextEditor textEditor) {
 		preferences = InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID);
@@ -95,7 +95,7 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 		if (document != null) {
 			outlineViewer.setInput(new OutlineViewerInput(document, wrapper, textEditor));
 		}
-		outlineViewer.setComparator(createComparator());
+		configureSorterOrComparator(outlineViewer);
 		outlineViewer.getLabelProvider().addListener(this);
 		final var textEditor = this.textEditor;
 		if (textEditor != null) {
@@ -130,60 +130,34 @@ public class CNFOutlinePage implements IContentOutlinePage, ILabelProviderListen
 	}
 
 	/**
-	 * Try to be compatible with older Eclipse versions (before 4.39) where
-	 * CommonViewerComparator is not available.
-	 *
-	 * @return comparator for the outline
+	 * Workaround for a Bug in Eclipse 4.39:
+	 * Before 4.39, the CommonViewerSorter can be used.
+	 * Starting with 4.39, using the CommonViewerSorter breaks sorting,
+	 * so the newer CommonViewerComparator must be used.
+	 * Once our oldest Target Platform contains CommonViewerComparator, we can drop this workaround.
+	 * @param viewer The viewer to configure
 	 */
-	private static ViewerComparator createComparator() {
-		if (checkIfCommonViewerComparatorAvailable()) {
-			return Eclipse439PlusComparator.create();
+	private void configureSorterOrComparator(CommonViewer viewer) {
+		if (!checkedForComparatorClass) {
+			checkedForComparatorClass = true;
+			try {
+				comparatorClass = Class.forName("org.eclipse.ui.navigator.CommonViewerComparator"); //$NON-NLS-1$
+			} catch (ClassNotFoundException e) {
+				// Will trigger on < 4.39.
+			}
 		}
-		return EclipseBefore439Comparator.create();
-	}
 
-	private static boolean checkIfCommonViewerComparatorAvailable() {
-		if(canUseCommonViewerComparator != null) {
-			return canUseCommonViewerComparator.booleanValue();
+		if (comparatorClass != null) {
+			try {
+				ViewerComparator comparator = (ViewerComparator) comparatorClass.getDeclaredConstructor().newInstance();
+				viewer.setComparator(comparator);
+				return;
+			} catch (InstantiationException | IllegalAccessException | IllegalArgumentException
+					| InvocationTargetException | NoSuchMethodException | SecurityException e) {
+				// Fall-through
+			}
 		}
-		try {
-			Class.forName("org.eclipse.ui.navigator.CommonViewerComparator"); //$NON-NLS-1$
-			canUseCommonViewerComparator = Boolean.TRUE;
-			return true;
-		} catch (ClassNotFoundException e) {
-			canUseCommonViewerComparator = Boolean.FALSE;
-			return false;
-		}
-	}
-
-	/**
-	 * Compatible with modern Eclipse versions (4.39 and later) where
-	 * CommonViewerComparator is available.
-	 * <p>
-	 * This is extracted to an extra class to avoid classloading issues on older Eclipse versions where
-	 * the CommonViewerComparator class is not available. If we try to load a class referencing
-	 * CommonViewerComparator on an older Eclipse version, it will result in a ClassNotFoundException.
-	 *
-	 * @return comparator for the outline
-	 */
-	private static final class Eclipse439PlusComparator {
-		static ViewerComparator create() {
-			return new CommonViewerComparator();
-		}
-	}
-
-	/**
-	 * Compatible with older Eclipse versions (before 4.39) where
-	 * CommonViewerComparator is not available.
-	 * <p>
-	 * This is extracted to an extra class to avoid classloading issues
-	 *
-	 * @return comparator for the outline
-	 */
-	private static final class EclipseBefore439Comparator {
-		static ViewerComparator create() {
-			return new CommonViewerSorter();
-		}
+		viewer.setSorter(new CommonViewerSorter());
 	}
 
 	/**
