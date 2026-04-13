@@ -36,6 +36,7 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
@@ -188,6 +189,7 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	@Disabled("This test does not work on our oldest Target Platform")
 	public void testClippedDocumentLinkReconciling() throws Exception {
 		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
 		

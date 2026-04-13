@@ -52,7 +52,7 @@ Latest snapshot builds, for testing, can usually be found at `https://download.e
 1. _File > Open Projects from Filesystem..._ , select the path to the LSP4E Git repo and the relevant children projects you want to import
 1. Depending on the task you're planning to work on, multiple workflows are available to configure the [target-platform](https://help.eclipse.org/latest/topic/org.eclipse.pde.doc.user/concepts/target.htm?cp=4_1_5)
     * In many cases, this simplest workflow will be sufficient: Install latest LSP4E snapshot in your target-platform (can be your current IDE), or
-    * If you don't want to mix versions of LSP4E, open [target-platforms/target-platform-latest/target-platform-latest.target](target-platforms/target-platform-latest/target-platform-latest.target) from within Eclipse and click **Set as Active Target-Platform** in the top right corner.
+    * If you don't want to mix versions of LSP4E, open [target-platforms/latest.target](target-platforms/latest.target) from within Eclipse and click **Set as Active Target-Platform** in the top right corner.
 1. Open the project modules you want to work on (right-click > Open project) and their dependencies
 1. Happy coding! 🤗
 
