@@ -21,8 +21,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
+import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
+import org.eclipse.lsp4j.DocumentSymbol;
+import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.SymbolTag;
+import org.eclipse.lsp4j.WorkspaceSymbol;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.ISharedImages;
 
@@ -32,6 +36,30 @@ import org.eclipse.ui.ISharedImages;
  * {@link SymbolKind} and {@link SymbolTag}s. This class is meant to be used with {@link LabelProvider}s.
  */
 public class SymbolIconProvider {
+
+	/**
+	 * Returns a symbol's name if the given symbol is an instance of
+	 * {@link DocumentSymbol}, or {@link DocumentSymbolWithURI},
+	 * {@link SymbolInformation}, or {@link WorkspaceSymbol},
+	 * returns <code>null</code> otherwise.
+	 *
+	 * @param symbol the symbol to get the name for
+	 * @return the symbol's name or <code>null</code>.
+	 */
+	protected @Nullable String getName(Object symbol) {
+		String name = null;
+		if (symbol instanceof SymbolInformation info) {
+			name = info.getName();
+		} else if (symbol instanceof WorkspaceSymbol wpSymbol) {
+			name = wpSymbol.getName();
+		} else if (symbol instanceof DocumentSymbol docSymbol) {
+			name = docSymbol.getName();
+		} else if (symbol instanceof DocumentSymbolWithURI symbolWithURI) {
+			name = symbolWithURI.symbol.getName();
+		}
+
+		return name;
+	}
 
 	/**
 	 * Returns an overlay icon {@link ImageDescriptor} for the given severity.
@@ -154,6 +182,10 @@ public class SymbolIconProvider {
 		Optional<SymbolTag> visibilityTag = getHighestPrecedenceVisibilitySymbolTag(symbolTags);
 
 		if (visibilityTag.isEmpty()) {
+			if (kind == SymbolKind.Constructor) {
+				// we'll add a constructor overlay icon instead in #getOverlaysFor(...), this way, the overlays will be customizable
+				return LSPImages.IMG_METHOD;
+			}
 			return LSPImages.imageKeyFromSymbolKind(kind);
 		}
 
@@ -189,12 +221,14 @@ public class SymbolIconProvider {
 	 *
 	 * @param symbolKind the kind of symbol
 	 * @param symbolTags the symbol tags
+	 * @param symbol the symbol for which an image should be returned, may be used by subclasses to determine the image to return
 	 * @return a new or cached image for the given symbol kind with overlay icons computed for the given arguments.
 	 *
-	 * @see #getImageFor(SymbolKind, List, int)
+	 * @see #getImageFor(SymbolKind, List, int, Object)
 	 */
-	public @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags) {
-		return getImageFor(symbolKind, symbolTags, -1);
+	public @Nullable Image getImageFor(@Nullable SymbolKind symbolKind, @Nullable List<SymbolTag> symbolTags,
+			Object symbol) {
+		return getImageFor(symbolKind, symbolTags, -1, symbol);
 	}
 
 	/**
@@ -206,12 +240,13 @@ public class SymbolIconProvider {
 	 * @param symbolKind the kind of symbol
 	 * @param symbolTags the symbol tags
 	 * @param severity one of -1, {@link IMarker#SEVERITY_WARNING}, and {@link IMarker#SEVERITY_ERROR}. -1 indicates no overlay icon.
+	 * @param symbol the symbol for which an image should be returned, may be used by subclasses to determine the image to return
 	 * @return a new or cached image for the given symbol kind with overlay icons computed for the given arguments.
 	 *
-	 * @see #getImageFor(SymbolKind, List)
+	 * @see #getImageFor(SymbolKind, List, Object)
 	 */
 	public @Nullable Image getImageFor(final @Nullable SymbolKind symbolKind,
-			final @Nullable List<SymbolTag> symbolTags, int severity) {
+			final @Nullable List<SymbolTag> symbolTags, int severity, Object symbol) {
 
 		if (symbolKind == null) {
 			return LSPImages.imageFromSymbolKind(symbolKind);
@@ -221,10 +256,29 @@ public class SymbolIconProvider {
 
 		String baseImageKey = getImageKeyFromSymbolKindWithVisibility(symbolKind, finalSymbolTags);
 
-		ImageDescriptor severityImageDescriptor = getOverlayForMarkerSeverity(severity);
-		ImageDescriptor deprecatedImageDescriptor = getUnderlayForDeprecation(SymbolsUtil.isDeprecated(finalSymbolTags));
+		Overlays overlays = getOverlaysFor(symbolKind, finalSymbolTags, severity, symbol);
 
-		List<SymbolTag> additionalTags = getAdditionalSymbolTagsSorted(finalSymbolTags);
+		return LSPImages.getImageWithOverlays(baseImageKey, overlays.topLeft, overlays.topRight,
+				overlays.bottomLeft, overlays.bottomRight, overlays.underlay);
+	}
+
+	/**
+	 * Determines the overlay icons to be shown for a symbol with the given arguments.
+	 * Sub-classes may override this method to customize the overlay icons.
+	 *
+	 * @param symbolKind the symbol kind, e.g. field, method, constructor, class, property
+	 * @param symbolTags the symbol tags, e.g. visibility tags, deprecation tag, static tag, final tag
+	 * @param severity the severity of the most severe marker associated with the symbol, or -1 if no marker is associated with the symbol
+	 * @param symbol the original symbol, i.e. an instance of {@link DocumentSymbol}, {@link DocumentSymbolWithURI}, {@link SymbolInformation}, or {@link WorkspaceSymbol}
+	 * @return The overlay icons to display for the given symbol
+	 */
+	protected Overlays getOverlaysFor(final SymbolKind symbolKind,
+			final List<SymbolTag> symbolTags, int severity, Object symbol) {
+
+		ImageDescriptor severityImageDescriptor = getOverlayForMarkerSeverity(severity);
+		ImageDescriptor deprecatedImageDescriptor = getUnderlayForDeprecation(SymbolsUtil.isDeprecated(symbolTags));
+
+		List<SymbolTag> additionalTags = getAdditionalSymbolTagsSorted(symbolTags);
 
 		ImageDescriptor topLeftOverlayDescriptor = null;
 		ImageDescriptor topRightOverlayDescriptor = null;
@@ -233,8 +287,7 @@ public class SymbolIconProvider {
 		ImageDescriptor underlayDescriptor = deprecatedImageDescriptor;
 
 		// special case for a constructor with visibility tag => we need to add a "C" overlay to show it's a constructor
-		if (SymbolKind.Constructor == symbolKind
-				&& !baseImageKey.equals(LSPImages.imageKeyFromSymbolKind(symbolKind))) {
+		if (SymbolKind.Constructor == symbolKind) {
 			topRightOverlayDescriptor = LSPImages.getImageDescriptor(LSPImages.IMG_OVR_CONSTRUCTOR);
 		}
 
@@ -262,11 +315,29 @@ public class SymbolIconProvider {
 			// The top left and top right corners remain for additional symbol tags (besides visibility, severity, deprecation)
 			// In case of constructors we already have a "C" for "constructor" in the upper right corner
 			// and have use the lower right corner for another additional symbol tag.
-			bottomRightOverlayDescriptor = getOverlayForVisibility(finalSymbolTags);
+			bottomRightOverlayDescriptor = getOverlayForVisibility(symbolTags);
 		}
 
-		return LSPImages.getImageWithOverlays(baseImageKey, topLeftOverlayDescriptor, topRightOverlayDescriptor,
-				bottomLeftOverlayDescriptor, bottomRightOverlayDescriptor, underlayDescriptor);
+		return new Overlays(topLeftOverlayDescriptor, topRightOverlayDescriptor, bottomLeftOverlayDescriptor,
+				bottomRightOverlayDescriptor, underlayDescriptor);
+	}
+
+	public static final class Overlays {
+		public final @Nullable ImageDescriptor topLeft;
+		public final @Nullable ImageDescriptor topRight;
+		public final @Nullable ImageDescriptor bottomLeft;
+		public final @Nullable ImageDescriptor bottomRight;
+		public final @Nullable ImageDescriptor underlay;
+
+		public Overlays(@Nullable ImageDescriptor topLeft, @Nullable ImageDescriptor topRight,
+				@Nullable ImageDescriptor bottomLeft, @Nullable ImageDescriptor bottomRight,
+				@Nullable ImageDescriptor underlay) {
+			this.topLeft = topLeft;
+			this.topRight = topRight;
+			this.bottomLeft = bottomLeft;
+			this.bottomRight = bottomRight;
+			this.underlay = underlay;
+		}
 	}
 
 }

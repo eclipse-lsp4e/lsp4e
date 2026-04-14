@@ -170,7 +170,7 @@ public class SymbolsLabelProvider extends LabelProvider
 		}
 
 		if (actualElement != null && symbolKind != null) {
-			return symbolIconProvider.getImageFor(symbolKind, symbolTags, getMaxSeverity(actualElement));
+			return symbolIconProvider.getImageFor(symbolKind, symbolTags, getMaxSeverity(actualElement), actualElement);
 		}
 
 		return null;

@@ -292,8 +292,8 @@ public final class LSPImages {
 	 *
 	 * @see #getImage(String))
 	 * @see #getImageDescriptor(String)
-	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List)
-	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List, int)
+	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List, Object)
+	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List, int, Object)
 	 */
 	public static @Nullable Image imageFromSymbolKind(@Nullable SymbolKind kind) {
 		if (kind == null) {
