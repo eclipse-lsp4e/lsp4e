@@ -22,10 +22,12 @@ import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.jface.viewers.LabelProvider;
 import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
+import org.eclipse.lsp4j.CallHierarchyItem;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.SymbolInformation;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.SymbolTag;
+import org.eclipse.lsp4j.TypeHierarchyItem;
 import org.eclipse.lsp4j.WorkspaceSymbol;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.ISharedImages;
@@ -41,6 +43,7 @@ public class SymbolIconProvider {
 	 * Returns a symbol's name if the given symbol is an instance of
 	 * {@link DocumentSymbol}, or {@link DocumentSymbolWithURI},
 	 * {@link SymbolInformation}, or {@link WorkspaceSymbol},
+	 * or {@link CallHierarchyItem}, or {@link TypeHierarchyItem},
 	 * returns <code>null</code> otherwise.
 	 *
 	 * @param symbol the symbol to get the name for
@@ -56,6 +59,10 @@ public class SymbolIconProvider {
 			name = docSymbol.getName();
 		} else if (symbol instanceof DocumentSymbolWithURI symbolWithURI) {
 			name = symbolWithURI.symbol.getName();
+		} else if (symbol instanceof CallHierarchyItem callHierItem) {
+			name = callHierItem.getName();
+		} else if (symbol instanceof TypeHierarchyItem typeHierItem) {
+			name = typeHierItem.getName();
 		}
 
 		return name;
@@ -88,7 +95,7 @@ public class SymbolIconProvider {
 		return LSPImages.imageDescriptorOverlayFromSymbolTag(SymbolTag.Deprecated);
 	}
 
-	private static final List<SymbolTag> VISIBILITY_PRECEDENCE = List.of(
+	protected static final List<SymbolTag> VISIBILITY_PRECEDENCE = List.of(
 			SymbolTag.Public, SymbolTag.Protected, SymbolTag.Package,
 			SymbolTag.Internal, SymbolTag.File, SymbolTag.Private);
 
@@ -104,7 +111,7 @@ public class SymbolIconProvider {
 
 	// In order to keep the number of overlay icons rather small in the UI, we do not show the following symbol tags:
 	// SymbolTag.Nullable, SymbolTag.NonNull, SymbolTag.Declaration, SymbolTag.Definition
-	private static final List<SymbolTag> ADDITIONAL_TAGS_PRECEDENCE = List.of(
+	protected static final List<SymbolTag> ADDITIONAL_TAGS_PRECEDENCE = List.of(
 			SymbolTag.Static, SymbolTag.Final, SymbolTag.Abstract,
 			SymbolTag.Overrides, SymbolTag.Implements, SymbolTag.Virtual, SymbolTag.Sealed,
 			SymbolTag.Synchronized, SymbolTag.Transient, SymbolTag.Volatile,
@@ -249,6 +256,7 @@ public class SymbolIconProvider {
 			final @Nullable List<SymbolTag> symbolTags, int severity, Object symbol) {
 
 		if (symbolKind == null) {
+			// return empty image
 			return LSPImages.imageFromSymbolKind(symbolKind);
 		}
 

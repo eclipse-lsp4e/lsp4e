@@ -45,6 +45,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.StyleUtil;
 import org.eclipse.lsp4e.operations.symbols.SymbolsUtil;
+import org.eclipse.lsp4e.operations.symbols.internal.SymbolIconProviderRegistry;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
 import org.eclipse.lsp4e.ui.LSPImages;
 import org.eclipse.lsp4e.ui.Messages;
@@ -71,8 +72,6 @@ import com.google.common.collect.TreeRangeMap;
 
 public class SymbolsLabelProvider extends LabelProvider
 		implements ICommonLabelProvider, IStyledLabelProvider, IPreferenceChangeListener {
-
-	private final SymbolIconProvider symbolIconProvider;
 
 	private final Map<IResource, RangeMap<Integer, Integer>> severities = new HashMap<>();
 	private final IResourceChangeListener listener = e -> {
@@ -103,13 +102,8 @@ public class SymbolsLabelProvider extends LabelProvider
 	}
 
 	public SymbolsLabelProvider(final boolean showLocation, final boolean showKind) {
-		this(showLocation, showKind, new SymbolIconProvider());
-	}
-
-	public SymbolsLabelProvider(final boolean showLocation, final boolean showKind, SymbolIconProvider symbolIconProvider) {
 		this.showLocation = showLocation;
 		this.showKind = showKind;
-		this.symbolIconProvider = symbolIconProvider;
 		InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID).addPreferenceChangeListener(this);
 		ResourcesPlugin.getWorkspace().addResourceChangeListener(listener);
 	}
@@ -170,6 +164,7 @@ public class SymbolsLabelProvider extends LabelProvider
 		}
 
 		if (actualElement != null && symbolKind != null) {
+			SymbolIconProvider symbolIconProvider = SymbolIconProviderRegistry.getSymbolIconProviderFor(actualElement);
 			return symbolIconProvider.getImageFor(symbolKind, symbolTags, getMaxSeverity(actualElement), actualElement);
 		}
 

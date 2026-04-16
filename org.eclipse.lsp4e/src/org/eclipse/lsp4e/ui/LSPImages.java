@@ -290,7 +290,7 @@ public final class LSPImages {
 	 * @param kind a document symbol's kind
 	 * @return an image representing the given symbol kind or <code>null</code>
 	 *
-	 * @see #getImage(String))
+	 * @see #getImage(String)
 	 * @see #getImageDescriptor(String)
 	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List, Object)
 	 * @see SymbolIconProvider#getImageFor(SymbolKind, java.util.List, int, Object)
