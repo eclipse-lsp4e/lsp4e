@@ -28,21 +28,21 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.EnumSource.Mode;
 
 public class LSPImagesTest {
-	
+
 	@ParameterizedTest
 	@EnumSource(SymbolKind.class)
 	public void testAllImagesForSymbolKindAvailable(SymbolKind kind) {
 		Image img = LSPImages.imageFromSymbolKind(kind);
-		
+
 		assertNotNull(img);
 	}
-	
+
 	@ParameterizedTest
 	@EnumSource(SymbolTag.class)
 	public void testAllOverlayImagesForSymbolTagAvailable(SymbolTag tag) {
 		ImageDescriptor descriptor = LSPImages.imageDescriptorOverlayFromSymbolTag(tag);
 		Image img = LSPImages.imageOverlayFromSymbolTag(tag);
-		
+
 		assertNotNull(descriptor);
 		assertNotNull(img);
 	}
@@ -54,22 +54,23 @@ public class LSPImagesTest {
 	public void testVisibilityOverlayImagesForFieldsAndMethodsAvailable(SymbolTag tag) {
 		var symbolTags = List.of(tag);
 		SymbolIconProvider labelProvider = new SymbolIconProvider();
-		
-		Image fieldImage = labelProvider.getImageFor(SymbolKind.Field, symbolTags);
-		Image methodImage = labelProvider.getImageFor(SymbolKind.Method, symbolTags);
-		
+
+		// we do not need a symbol for this test, so the last argument is null
+		Image fieldImage = labelProvider.getImageFor(SymbolKind.Field, symbolTags, null);
+		Image methodImage = labelProvider.getImageFor(SymbolKind.Method, symbolTags, null);
+
 		assertNotNull(fieldImage);
 		assertNotNull(methodImage);
 	}
-	
+
 	@ParameterizedTest
 	@EnumSource(value=CompletionItemKind.class, mode=Mode.EXCLUDE, names= { "Color", "Event", "Operator" })
 	public void testAllImagesForCompletionItemKindAvailable(CompletionItemKind kind) {
 		CompletionItem item = new CompletionItem();
 		item.setKind(kind);
-		
+
 		Image img = LSPImages.imageFromCompletionItem(item);
-		
+
 		assertNotNull(img);
 	}
 
