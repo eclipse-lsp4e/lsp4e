@@ -243,6 +243,9 @@ public final class LSPImages {
 	 * Returns the <code>Image</code> identified by the given key, or <code>null</code> if it does not exist.
 	 */
 	public static @Nullable Image getImage(String key) {
+		if (ISharedImages.IMG_OBJ_FILE.equals(key)) {
+			return getSharedImage(key);
+		}
 		return getImageRegistry().get(key);
 	}
 
@@ -250,6 +253,9 @@ public final class LSPImages {
 	 * Returns the <code>ImageDescriptor</code> identified by the given key, or <code>null</code> if it does not exist.
 	 */
 	public static @Nullable ImageDescriptor getImageDescriptor(String key) {
+		if (ISharedImages.IMG_OBJ_FILE.equals(key)) {
+			return getSharedImageDescriptor(key);
+		}
 		return getImageRegistry().getDescriptor(key);
 	}
 
@@ -266,7 +272,7 @@ public final class LSPImages {
 	 * @return the workbench's shared image for the , or null if not found
 	 */
 	public static @Nullable Image getSharedImage(@Nullable String imageId) {
-		if(imageId == null) {
+		if (imageId == null) {
 			return null;
 		}
 		return PlatformUI.getWorkbench().getSharedImages().getImage(imageId);
@@ -277,7 +283,7 @@ public final class LSPImages {
 	 * @return the workbench's shared image descriptor for the workbench, or null if not found
 	 */
 	public static @Nullable ImageDescriptor getSharedImageDescriptor(@Nullable String imageId) {
-		if(imageId == null) {
+		if (imageId == null) {
 			return null;
 		}
 		return PlatformUI.getWorkbench().getSharedImages().getImageDescriptor(imageId);
