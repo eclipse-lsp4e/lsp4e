@@ -282,6 +282,8 @@ public class SymbolIconProvider {
 	 */
 	protected Overlays getOverlaysFor(final SymbolKind symbolKind,
 			final List<SymbolTag> symbolTags, int severity, Object symbol) {
+		// The symbol parameter is intentionally added to the method signature in order to give subclasses
+		// a way to adapt the overlay icons depending on a symbol's properties.
 
 		ImageDescriptor severityImageDescriptor = getOverlayForMarkerSeverity(severity);
 		ImageDescriptor deprecatedImageDescriptor = getUnderlayForDeprecation(SymbolsUtil.isDeprecated(symbolTags));
