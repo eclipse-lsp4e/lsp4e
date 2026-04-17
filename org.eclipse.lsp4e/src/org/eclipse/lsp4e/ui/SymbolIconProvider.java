@@ -256,8 +256,7 @@ public class SymbolIconProvider {
 			final @Nullable List<SymbolTag> symbolTags, int severity, Object symbol) {
 
 		if (symbolKind == null) {
-			// return empty image
-			return LSPImages.imageFromSymbolKind(symbolKind);
+			return LSPImages.getEmptyImage();
 		}
 
 		final List<SymbolTag> finalSymbolTags = symbolTags != null ? symbolTags : Collections.emptyList();

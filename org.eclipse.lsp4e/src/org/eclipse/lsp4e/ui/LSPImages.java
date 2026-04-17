@@ -240,6 +240,15 @@ public final class LSPImages {
 			@Nullable ImageDescriptor underlayDescriptor) {}
 
 	/**
+	 * Returns an empty fallback image f(16x16 pixels).
+	 *
+	 * @return an empty 16x16 icon
+	 */
+	public static Image getEmptyImage() {
+		return EMPTY_IMAGE;
+	}
+
+	/**
 	 * Returns the <code>Image</code> identified by the given key, or <code>null</code> if it does not exist.
 	 */
 	public static @Nullable Image getImage(String key) {
@@ -303,7 +312,7 @@ public final class LSPImages {
 	 */
 	public static @Nullable Image imageFromSymbolKind(@Nullable SymbolKind kind) {
 		if (kind == null) {
-			return EMPTY_IMAGE;
+			return getEmptyImage();
 		}
 
 		String imgKey = imageKeyFromSymbolKind(kind);
