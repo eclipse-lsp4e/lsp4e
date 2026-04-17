@@ -23,7 +23,9 @@
          <attribute name="point" type="string" use="required">
             <annotation>
                <documentation>
-                  
+                  The fully qualified identifier of the extension point.
+
+This extension point offers client plug-ins options to adapt placement and selection of overlay icons for document symbols and other related elements.
                </documentation>
             </annotation>
          </attribute>
@@ -62,7 +64,7 @@
          <attribute name="class" type="string" use="required">
             <annotation>
                <documentation>
-                  
+                  The fully qualified name of the class implementing this symbol icon provider. The class must extend &lt;code&gt;org.eclipse.lsp4e.ui.SymbolIconProvider&lt;/code&gt;. Clients can override individual methods to customize overlay icons and their placement (top-left, top-right, bottom-left, bottom-right, underlay).
                </documentation>
                <appinfo>
                   <meta.attribute kind="java" basedOn="org.eclipse.lsp4e.ui.SymbolIconProvider:"/>
@@ -77,7 +79,7 @@
          <attribute name="contentTypeId" type="string" use="required">
             <annotation>
                <documentation>
-                  
+                  The unique identifier of a content type (as registered with the &lt;code&gt;org.eclipse.core.contenttype.contentTypes&lt;/code&gt; extension point) for which this icon provider should be used. The provider is also used for all derived content types that do not have a more specific provider registered.
                </documentation>
                <appinfo>
                   <meta.attribute kind="identifier" basedOn="org.eclipse.core.contenttype.contentTypes/content-type/@id"/>
@@ -92,7 +94,7 @@
          <meta.section type="since"/>
       </appinfo>
       <documentation>
-         [Enter the first release in which this extension point appears.]
+         0.19.10
       </documentation>
    </annotation>
 
@@ -119,7 +121,7 @@
          <meta.section type="implementation"/>
       </appinfo>
       <documentation>
-         [Enter information about supplied implementation of this extension point.]
+         LSP4E provides a default implementation via &lt;code&gt;org.eclipse.lsp4e.ui.SymbolIconProvider&lt;/code&gt;. It is used automatically for all content types that have no specific provider registered through this extension point. It renders symbol icons based on the LSP &lt;code&gt;SymbolKind&lt;/code&gt; and up to four overlay icons derived from &lt;code&gt;SymbolTag&lt;/code&gt;s (visibility, static/final/abstract/etc., marker severity) plus a deprecation underlay.
       </documentation>
    </annotation>
 
