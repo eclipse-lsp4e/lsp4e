@@ -57,6 +57,10 @@ public class LSPFormatter {
 		// can fall through to the next server (e.g. Vue LS after TS LS on .vue files).
 		long modificationStamp = DocumentUtil.getDocumentModificationStamp(document);
 		return executor.computeFirst((w, ls) -> w.getServerCapabilitiesAsync().thenCompose(capabilities -> {
+			if (capabilities == null) {
+				return CompletableFuture.completedFuture(null);
+			}
+
 			if (isDocumentRangeFormattingSupported(capabilities) && (textSelection.getLength() > 0 || !isDocumentFormattingSupported(capabilities))) {
 				return (CompletableFuture<@Nullable List<? extends TextEdit>>) ls.getTextDocumentService()
 						.rangeFormatting(rangeParams);

@@ -52,6 +52,9 @@ public class LSPCodeMining extends LineHeaderCodeMining {
 	@Override
 	protected CompletableFuture<@Nullable Void> doResolve(ITextViewer viewer, IProgressMonitor monitor) {
 		return languageServerWrapper.getServerCapabilitiesAsync().thenCompose(capabilities -> {
+			if (capabilities == null) {
+				return CompletableFuture.completedFuture(null);
+			}
 			final Boolean resolveProvider = capabilities.getCodeLensProvider().getResolveProvider();
 			if (resolveProvider == null || !resolveProvider) {
 				return CompletableFuture.completedFuture(null);

@@ -206,9 +206,9 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 	 * @param serverCapabilities
 	 */
 	@SuppressWarnings("unchecked")
-	public E withCapability(final Function<ServerCapabilities, Either<Boolean, ?>> serverCapabilities) {
+	public E withCapability(final @Nullable Function<ServerCapabilities, Either<Boolean, ?>> serverCapabilities) {
 		Assert.isLegal(this.filter == NO_FILTER);
-		this.filter = f -> LSPEclipseUtils.hasCapability(serverCapabilities.apply(f));
+		this.filter = f -> serverCapabilities != null && LSPEclipseUtils.hasCapability(serverCapabilities.apply(f));
 		return (E) this;
 	}
 
@@ -280,7 +280,7 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 		 */
 		private CompletableFuture<@Nullable LanguageServerWrapper> filter(LanguageServerWrapper wrapper) {
 			return wrapper.getServerCapabilitiesAsync() //
-					.thenApply(sc -> getFilter().test(sc) ? wrapper : null);
+					.thenApply(sc -> sc != null && getFilter().test(sc) ? wrapper : null);
 		}
 
 		@Override

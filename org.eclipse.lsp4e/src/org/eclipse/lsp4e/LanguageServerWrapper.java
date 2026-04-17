@@ -1079,17 +1079,14 @@ public class LanguageServerWrapper {
 		return res;
 	}
 
-	public CompletableFuture<InitializeResult> getInitializeResultAsync() {
-		return getInitializedServer().thenCompose(ls -> {
-			final var initializeResult = this.initializeResult;
-			if (initializeResult == null) {
-				// This can happen if the server shuts down immediately after initialization,
-				// but before this callback was invoked.
-				return CompletableFuture.failedFuture(
-						new IllegalStateException("initializeResult unexpectedly null after initialization")); //$NON-NLS-1$
-			}
-			return CompletableFuture.completedFuture(initializeResult);
-		});
+	/**
+	 * @return a {@link CompletableFuture} that provides the {@link InitializeResult}.
+	 * <p>
+	 * The {@link InitializeResult} will be {@code null} if the server shuts down
+	 * immediately after initialization or if it fails to start.
+	 */
+	public CompletableFuture<@Nullable InitializeResult> getInitializeResultAsync() {
+		return getInitializedServer().thenCompose(ls -> CompletableFuture.completedFuture(this.initializeResult));
 	}
 
 	/**
@@ -1116,17 +1113,14 @@ public class LanguageServerWrapper {
 		return this.serverCapabilities;
 	}
 
-	public CompletableFuture<ServerCapabilities> getServerCapabilitiesAsync() {
-		return getInitializedServer().thenCompose(ls -> {
-			final var serverCapabilities = this.serverCapabilities;
-			if (serverCapabilities == null) {
-				// This can happen if the server shuts down immediately after initialization,
-				// but before this callback was invoked.
-				return CompletableFuture.failedFuture(
-						new IllegalStateException("serverCapabilities unexpectedly null after initialization")); //$NON-NLS-1$
-			}
-			return CompletableFuture.completedFuture(serverCapabilities);
-		});
+	/**
+	 * @return a {@link CompletableFuture} that provides the {@link ServerCapabilities}.
+	 * <p>
+	 * The {@link ServerCapabilities} will be {@code null} if the server shuts down
+	 * immediately after initialization or if it fails to start.
+	 */
+	public CompletableFuture<@Nullable ServerCapabilities> getServerCapabilitiesAsync() {
+		return getInitializedServer().thenCompose(ls -> CompletableFuture.completedFuture(this.serverCapabilities));
 	}
 
 	public CompletableFuture<@Nullable ServerInfo> getServerInfoAsync() {

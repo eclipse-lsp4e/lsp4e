@@ -94,6 +94,7 @@ public class LanguageServiceAccessor {
 			this.wrapper = wrapper;
 		}
 
+		@Deprecated
 		public IDocument getDocument() {
 			return this.document;
 		}
@@ -103,22 +104,27 @@ public class LanguageServiceAccessor {
 		 *
 		 * @return the file URI
 		 */
+		@Deprecated
 		public URI getFileUri() {
 			return this.fileUri;
 		}
 
+		@Deprecated
 		public LanguageServerWrapper getLanguageServerWrapper() {
 			return wrapper;
 		}
 
+		@Deprecated
 		public int getVersion() {
 			return wrapper.getTextDocumentVersion(fileUri);
 		}
 
+		@Deprecated
 		public @Nullable ServerCapabilities getCapabilites() {
 			return this.wrapper.getServerCapabilities();
 		}
 
+		@Deprecated
 		public boolean isActive() {
 			return this.wrapper.isActive();
 		}
@@ -220,7 +226,7 @@ public class LanguageServiceAccessor {
 			final @Nullable Predicate<ServerCapabilities> capabilitiesPredicate) {
 		return capabilitiesPredicate == null //
 				? CompletableFuture.completedFuture(true) //
-				: wrapper.getServerCapabilitiesAsync().thenApply(capabilitiesPredicate::test);
+				: wrapper.getServerCapabilitiesAsync().thenApply(sC -> sC != null && capabilitiesPredicate.test(sC));
 	}
 
 	/**
