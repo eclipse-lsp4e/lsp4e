@@ -63,7 +63,7 @@ public class SymbolIconProviderRegistry {
 		IExtensionPoint extensionPoint = Platform.getExtensionRegistry().getExtensionPoint(EXTENSION_POINT_ID);
 
 		if (extensionPoint == null) {
-			Platform.getLog(getClass()).error("No extension point found for ID " + EXTENSION_POINT_ID); //$NON-NLS-1$
+			LanguageServerPlugin.logError("No extension point found for ID " + EXTENSION_POINT_ID); //$NON-NLS-1$
 			return;
 		}
 
@@ -79,7 +79,7 @@ public class SymbolIconProviderRegistry {
 				try {
 					iconProvider = (SymbolIconProvider) configurationElement.createExecutableExtension("class"); //$NON-NLS-1$
 				} catch (CoreException | ClassCastException e) {
-					Platform.getLog(getClass()).error("Failed instantiating class " + className, e); //$NON-NLS-1$
+					LanguageServerPlugin.logError("Failed instantiating class " + className, e); //$NON-NLS-1$
 					continue;
 				}
 
@@ -110,7 +110,7 @@ public class SymbolIconProviderRegistry {
 		try {
 			fileName = Path.of(uri.getPath()).getFileName().toString();
 		} catch (Exception e) {
-			Platform.getLog(getClass()).warn("Failed to parse file name from URI " + uri, e); //$NON-NLS-1$
+			LanguageServerPlugin.logWarning("Failed to parse file name from URI " + uri, e); //$NON-NLS-1$
 			return defaultIconProvider;
 		}
 
@@ -151,7 +151,7 @@ public class SymbolIconProviderRegistry {
 		try {
 			return URI.create(uri);
 		} catch (IllegalArgumentException e) {
-			Platform.getLog(getClass()).warn("Failed to parse URI " + uri, e); //$NON-NLS-1$
+			LanguageServerPlugin.logWarning("Failed to parse URI " + uri, e); //$NON-NLS-1$
 			return null;
 		}
 	}
