@@ -318,7 +318,7 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 		return languageServerWrapper.getServerCapabilitiesAsync().thenCompose(capabilities -> {
 			FormattingOptions formatOptions = LSPFormatter.getFormatOptions();
 			final var docId = new TextDocumentIdentifier(fileUri.toString());
-			if (LSPFormatter.isDocumentRangeFormattingSupported(capabilities)
+			if (capabilities != null && LSPFormatter.isDocumentRangeFormattingSupported(capabilities)
 					&& !(LSPFormatter.isDocumentFormattingSupported(capabilities) && textSelection.getLength() == 0)) {
 				try {
 					DocumentRangeFormattingParams rangeParams = LSPFormatter.getRangeFormattingParams(document,
