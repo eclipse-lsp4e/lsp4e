@@ -36,8 +36,6 @@ public class SymbolIconProviderRegistry {
 
 	private static final String EXTENSION_POINT_ID = LanguageServerPlugin.PLUGIN_ID + ".symbolIconsProvider"; //$NON-NLS-1$
 
-	private static SymbolIconProviderRegistry INSTANCE = null;
-
 	// default icon provider from LSP4E
 	private final SymbolIconProvider defaultIconProvider = new SymbolIconProvider();
 
@@ -48,11 +46,17 @@ public class SymbolIconProviderRegistry {
 		loadExtensions();
 	}
 
+	/**
+	 * Initialization-on-demand holder: the JVM guarantees that this nested class
+	 * is loaded and initialized exactly once, in a thread-safe manner, the first
+	 * time {@link #get()} is called.
+	 */
+	private static final class Holder {
+		static final SymbolIconProviderRegistry INSTANCE = new SymbolIconProviderRegistry();
+	}
+
 	private static SymbolIconProviderRegistry get() {
-		if (INSTANCE == null) {
-			INSTANCE = new SymbolIconProviderRegistry();
-		}
-		return INSTANCE;
+		return Holder.INSTANCE;
 	}
 
 	private void loadExtensions() {
