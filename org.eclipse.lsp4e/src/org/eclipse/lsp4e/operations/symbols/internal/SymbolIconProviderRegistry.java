@@ -99,7 +99,7 @@ public class SymbolIconProviderRegistry {
 	private SymbolIconProvider getIconProvider(Object symbol) {
 		URI uri = getUri(symbol);
 		if (uri == null) {
-			return null;
+			return defaultIconProvider;
 		}
 
 		String fileName = null;
@@ -107,7 +107,7 @@ public class SymbolIconProviderRegistry {
 			fileName = Path.of(uri.getPath()).getFileName().toString();
 		} catch (Exception e) {
 			Platform.getLog(getClass()).warn("Failed to parse file name from URI " + uri, e); //$NON-NLS-1$
-			return null;
+			return defaultIconProvider;
 		}
 
 		IContentType[] contentTypes = Platform.getContentTypeManager().findContentTypesFor(fileName);
