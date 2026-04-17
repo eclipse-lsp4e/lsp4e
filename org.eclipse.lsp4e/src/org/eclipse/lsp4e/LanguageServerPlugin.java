@@ -11,7 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.*;
 
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -89,6 +89,16 @@ public class LanguageServerPlugin extends AbstractUIPlugin {
 	@Override
 	protected void initializeImageRegistry(ImageRegistry registry) {
 		LSPImages.initalize(registry);
+	}
+
+	/**
+	 * Utility method to log errors.
+	 *
+	 * @param message
+	 *            User comprehensible message
+	 */
+	public static void logError(final String message) {
+		logError(message, null);
 	}
 
 	/**

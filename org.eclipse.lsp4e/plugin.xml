@@ -2,6 +2,7 @@
 <?eclipse version="3.4"?>
 <plugin>
    <extension-point id="languageServer" name="Language Server" schema="schema/languageServer.exsd" />
+   <extension-point id="symbolIconsProvider" name="Symbol Icons Provider" schema="schema/symbolIconsProvider.exsd"/>
 
    <!-- ===================================== -->
    <!-- Setup Text Doc To LS Connection       -->
