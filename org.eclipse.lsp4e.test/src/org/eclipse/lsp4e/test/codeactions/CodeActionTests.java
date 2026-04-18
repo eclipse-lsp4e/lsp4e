@@ -188,12 +188,9 @@ public class CodeActionTests extends AbstractTestWithProject {
 	@Test
 	public void testNoCodeActionOnReadOnlySource() throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
-		f.setResourceAttributes(new ResourceAttributes() {
-			@Override
-			public boolean isReadOnly() {
-				return true;
-			}
-		});
+		ResourceAttributes attrs = f.getResourceAttributes();
+		attrs.setReadOnly(true);
+		f.setResourceAttributes(attrs);
 
 		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
 		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));

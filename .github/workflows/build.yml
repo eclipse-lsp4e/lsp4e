@@ -71,6 +71,12 @@ jobs:
         - windows-latest
         # https://github.com/actions/partner-runner-images
         - ubuntu-24.04-arm
+        target-platform:
+        - oldest
+        - latest
+        include:
+        - os: ubuntu-latest
+          target-platform: staging
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
 
@@ -160,10 +166,11 @@ jobs:
           ~/.m2/repository/.cache/tycho
           ~/.m2/repository/.meta/p2-artifacts.properties
           ~/.m2/repository/p2
-        key: ${{ runner.os }}-${{ runner.arch }}-repo-tycho-${{ hashFiles('target-platforms/target-platform-latest/target-platform-latest.target') }}
+        key: ${{ runner.os }}-${{ runner.arch }}-repo-tycho-${{ hashFiles(format('target-platforms/{0}.target', matrix.target-platform)) }}
 
 
     - name: "Build with Maven 🔨"
+      continue-on-error: ${{ matrix.target-platform == 'staging' }}
       uses: nick-fields/retry@v4
       with:
         max_attempts: 3
@@ -195,6 +202,7 @@ jobs:
             --errors \
             --update-snapshots \
             --batch-mode \
+            -Dlsp4e.targetPlatform=${{ matrix.target-platform }} \
             --show-version \
             -Declipse.p2.mirrors=false \
             -Dsurefire.rerunFailingTestsCount=3 \
@@ -215,7 +223,7 @@ jobs:
 
     - name: "Upload: Repository Zip"
       uses: actions/upload-artifact@v7
-      if: runner.os == 'Linux'
+      if: runner.os == 'Linux' && matrix.target-platform == 'oldest'
       with:
         name: org.eclipse.lsp4e.repository-${{matrix.target-platform}}-${{matrix.os}}
         path: repository/target/org.eclipse.lsp4e.repository-*.zip
