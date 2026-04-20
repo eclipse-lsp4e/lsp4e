@@ -98,23 +98,7 @@ This extension point offers client plug-ins options to adapt placement and selec
       </documentation>
    </annotation>
 
-   <annotation>
-      <appinfo>
-         <meta.section type="examples"/>
-      </appinfo>
-      <documentation>
-         [Enter extension point usage example here.]
-      </documentation>
-   </annotation>
 
-   <annotation>
-      <appinfo>
-         <meta.section type="apiinfo"/>
-      </appinfo>
-      <documentation>
-         [Enter API information here.]
-      </documentation>
-   </annotation>
 
    <annotation>
       <appinfo>
