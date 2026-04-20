@@ -50,22 +50,15 @@ public class SymbolIconProvider {
 	 * @return the symbol's name or <code>null</code>.
 	 */
 	protected @Nullable String getName(Object symbol) {
-		String name = null;
-		if (symbol instanceof SymbolInformation info) {
-			name = info.getName();
-		} else if (symbol instanceof WorkspaceSymbol wpSymbol) {
-			name = wpSymbol.getName();
-		} else if (symbol instanceof DocumentSymbol docSymbol) {
-			name = docSymbol.getName();
-		} else if (symbol instanceof DocumentSymbolWithURI symbolWithURI) {
-			name = symbolWithURI.symbol.getName();
-		} else if (symbol instanceof CallHierarchyItem callHierItem) {
-			name = callHierItem.getName();
-		} else if (symbol instanceof TypeHierarchyItem typeHierItem) {
-			name = typeHierItem.getName();
-		}
-
-		return name;
+		return switch (symbol) {
+			case SymbolInformation info -> info.getName();
+			case WorkspaceSymbol wpSymbol -> wpSymbol.getName();
+			case DocumentSymbol docSymbol -> docSymbol.getName();
+			case DocumentSymbolWithURI symbolWithURI -> symbolWithURI.symbol.getName();
+			case CallHierarchyItem callHierItem -> callHierItem.getName();
+			case TypeHierarchyItem typeHierItem -> typeHierItem.getName();
+			default -> null;
+		};
 	}
 
 	/**

@@ -130,17 +130,14 @@ public class SymbolIconProviderRegistry {
 	}
 
 	private @Nullable URI getUri(Object symbol) {
-		if (symbol instanceof SymbolInformation info)
-			return toUri(info.getLocation().getUri());
-		if (symbol instanceof WorkspaceSymbol ws)
-			return toUri(ws.getLocation().map(Location::getUri, WorkspaceSymbolLocation::getUri));
-		if (symbol instanceof DocumentSymbolWithURI s)
-			return s.uri;
-		if (symbol instanceof TypeHierarchyItem item) // for subclasses handling TH
-			return toUri(item.getUri());
-		if (symbol instanceof CallHierarchyItem item) // for subclasses handling CH
-			return toUri(item.getUri());
-		return null; // plain DocumentSymbol — no URI
+		return switch (symbol) {
+			case SymbolInformation info -> toUri(info.getLocation().getUri());
+			case WorkspaceSymbol ws -> toUri(ws.getLocation().map(Location::getUri, WorkspaceSymbolLocation::getUri));
+			case DocumentSymbolWithURI s -> s.uri;
+			case TypeHierarchyItem item -> toUri(item.getUri());
+			case CallHierarchyItem item -> toUri(item.getUri());
+			default -> null; // plain DocumentSymbol — no URI
+		};
 	}
 
 	private @Nullable URI toUri(String uri) {
