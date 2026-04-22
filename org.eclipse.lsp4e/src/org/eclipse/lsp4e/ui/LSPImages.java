@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.eclipse.core.runtime.FileLocator;
@@ -66,7 +67,7 @@ public final class LSPImages {
 	private static final String ACTION = ICONS_PATH + "elcl16/"; // basic colors - size 16x16 //$NON-NLS-1$
 	private static final String OVERLAY = ICONS_PATH + "ovr16/"; // basic colors - size 7x8 and 14x16 //$NON-NLS-1$
 
-	private static final Image EMPTY_IMAGE = new Image(UI.getDisplay(), 16, 16);
+	private static @Nullable Image emptyImage;
 
 	public static final String IMG_MODULE = "IMG_MODULE"; //$NON-NLS-1$
 	public static final String IMG_NAMESPACE = "IMG_NAMESPACE"; //$NON-NLS-1$
@@ -240,12 +241,16 @@ public final class LSPImages {
 			@Nullable ImageDescriptor underlayDescriptor) {}
 
 	/**
-	 * Returns an empty fallback image f(16x16 pixels).
+	 * Returns an empty fallback image (16x16 pixels).
 	 *
 	 * @return an empty 16x16 icon
 	 */
 	public static Image getEmptyImage() {
-		return EMPTY_IMAGE;
+		Image img = emptyImage;
+		if (img == null) {
+			img = emptyImage = new Image(UI.getDisplay(), 16, 16);
+		}
+		return img;
 	}
 
 	/**
@@ -543,12 +548,14 @@ public final class LSPImages {
 	}
 
 	public static final void dispose() {
-		Stream.concat(
+		Stream.concat(Stream.concat(
 				colorToImageCache.values().stream(),
-				overlayImagesCache.values().stream())
+				overlayImagesCache.values().stream()
+				), Optional.ofNullable(emptyImage).stream())
 			.filter(Objects::nonNull)
 			.forEach(Image::dispose);
 		overlayImagesCache.clear();
 		colorToImageCache.clear();
+		emptyImage = null;
 	}
 }
