@@ -12,7 +12,6 @@
 package org.eclipse.lsp4e.operations.symbols.internal;
 
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,6 +21,7 @@ import org.eclipse.core.runtime.IExtensionPoint;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.content.IContentType;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
 import org.eclipse.lsp4e.ui.SymbolIconProvider;
@@ -106,11 +106,8 @@ public class SymbolIconProviderRegistry {
 			return defaultIconProvider;
 		}
 
-		String fileName = null;
-		try {
-			fileName = Path.of(uri.getPath()).getFileName().toString();
-		} catch (Exception e) {
-			LanguageServerPlugin.logWarning("Failed to parse file name from URI " + uri, e); //$NON-NLS-1$
+		String fileName = LSPEclipseUtils.getFileName(uri);
+		if (fileName == null) {
 			return defaultIconProvider;
 		}
 
@@ -146,8 +143,8 @@ public class SymbolIconProviderRegistry {
 		}
 
 		try {
-			return URI.create(uri);
-		} catch (IllegalArgumentException e) {
+			return LSPEclipseUtils.toUri(uri);
+		} catch (Exception e) {
 			LanguageServerPlugin.logWarning("Failed to parse URI " + uri, e); //$NON-NLS-1$
 			return null;
 		}

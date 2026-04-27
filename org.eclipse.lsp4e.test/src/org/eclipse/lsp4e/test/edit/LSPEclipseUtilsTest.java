@@ -13,6 +13,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.edit;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -81,6 +82,7 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 public class LSPEclipseUtilsTest extends AbstractTestWithProject {
@@ -636,6 +638,19 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	@MethodSource
 	void getHtmlDocString(Either<@Nullable String, MarkupContent> arg, String expected) throws Exception {
 		assertEquals(expected, LSPEclipseUtils.getHtmlDocString(arg));
+	}
+	
+	@ParameterizedTest
+	@CsvSource({
+		"file:///C:/Users/username/path/to/SomeDir/SomeType.hpp, SomeType.hpp",
+		"file:///home/username/path/to/SomeDir/SomeType.hpp, SomeType.hpp",
+		"file:///,"
+	})
+	void testReadingFileNameFromUri(String uriText, String expectedFileName) {
+		URI uri = URI.create(uriText);
+		
+		String actualFileName = assertDoesNotThrow(() -> LSPEclipseUtils.getFileName(uri));
+		assertEquals(expectedFileName, actualFileName);
 	}
 
 }

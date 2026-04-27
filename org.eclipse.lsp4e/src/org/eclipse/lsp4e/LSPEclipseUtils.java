@@ -431,6 +431,15 @@ public final class LSPEclipseUtils {
 		return toPath(toBuffer(document));
 	}
 
+	public static @Nullable String getFileName(URI uri) {
+		try {
+			return java.nio.file.Path.of(uri).getFileName().toString();
+		} catch (Exception e) {
+			LanguageServerPlugin.logWarning("Failed to parse file name from URI " + uri, e); //$NON-NLS-1$
+		}
+		return null;
+	}
+
 	public static int toEclipseMarkerSeverity(@Nullable DiagnosticSeverity lspSeverity) {
 		if (lspSeverity == null) {
 			// if severity is empty it is up to the client to interpret diagnostics
