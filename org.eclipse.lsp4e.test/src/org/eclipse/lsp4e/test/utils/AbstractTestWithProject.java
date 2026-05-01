@@ -15,6 +15,7 @@ import java.lang.reflect.Method;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
+import org.eclipse.core.resources.ResourceAttributes;
 import org.eclipse.core.runtime.CoreException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,17 @@ public abstract class AbstractTestWithProject extends AbstractTest {
 				if (!project.exists()) {
 					break;
 				}
+				project.open(null);
+				project.accept(r -> {
+					ResourceAttributes attrs = r.getResourceAttributes();
+					// At least one test creates a read-only resource.
+					// This leads to errors when trying to delete the project, so we make all files writable again.
+					if (attrs != null && attrs.isReadOnly()) {
+						attrs.setReadOnly(false);
+						r.setResourceAttributes(attrs);
+					}
+					return true;
+				});
 				project.close(null);
 				project.delete(IResource.FORCE | IResource.ALWAYS_DELETE_PROJECT_CONTENT, null);
 				break;

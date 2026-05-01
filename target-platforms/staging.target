@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?pde version="3.8"?>
+<target name="LSP4E Target-platform" sequenceNumber="1473749311">
+  <locations>
+    <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="true" type="InstallableUnit">
+      <unit id="org.eclipse.lsp4j" version="0.0.0"/>
+      <unit id="org.eclipse.lsp4j.jsonrpc" version="0.0.0"/>
+      <unit id="org.eclipse.lsp4j.debug" version="0.0.0"/>
+      <unit id="org.eclipse.lsp4j.jsonrpc.debug" version="0.0.0"/>
+      <unit id="com.google.gson" version="0.0.0"/>
+      <repository location="https://download.eclipse.org/lsp4j/updates/releases/1.0.0/"/>
+    </location>
+    <location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="true" type="InstallableUnit">
+      <unit id="org.eclipse.ui.tests.harness" version="0.0.0"/>
+      <unit id="org.eclipse.sdk.ide" version="0.0.0"/>
+      <repository location="https://download.eclipse.org/eclipse/updates/4.40-I-builds"/>
+    </location>
+    <location type="InstallableUnit" includeConfigurePhase="true" includeMode="planner" includeSource="true">
+      <repository location="https://download.eclipse.org/tools/orbit/simrel/orbit-aggregation/milestone/latest"/>
+      <unit id="org.commonmark" version="0.0.0"/>
+      <unit id="org.commonmark.ext-gfm-tables" version="0.0.0"/>
+      <unit id="com.google.guava" version="0.0.0"/>
+      <unit id="com.google.guava.failureaccess" version="0.0.0"/>
+    </location>
+    <location includeAllPlatforms="false" includeConfigurePhase="false" includeMode="planner" includeSource="true" type="InstallableUnit">
+      <unit id="org.eclipse.tm4e.feature.feature.group" version="0.0.0"/>
+      <repository location="https://download.eclipse.org/tm4e/releases/latest/"/>
+    </location>
+    <location includeDependencyDepth="none" includeSource="false" missingManifest="error" type="Maven">
+      <dependencies>
+        <dependency>
+          <!-- External Eclipse null Annotations, see https://github.com/vegardit/no-npe -->
+          <groupId>com.vegardit.no-npe</groupId>
+          <artifactId>no-npe-eea-all</artifactId>
+          <version>1.3.9</version>
+          <type>jar</type>
+        </dependency>
+      </dependencies>
+    </location>
+    </locations>
+  <targetJRE path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-21"/>
+</target>

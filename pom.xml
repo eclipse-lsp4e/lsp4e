@@ -15,6 +15,7 @@
 		<tycho.scmUrl>scm:git:https://github.com/eclipse-lsp4e/lsp4e.git</tycho.scmUrl>
 		<ui.test.vmargs></ui.test.vmargs>
 		<jgit.dirtyWorkingTree>error</jgit.dirtyWorkingTree>
+		<lsp4e.targetPlatform>oldest</lsp4e.targetPlatform>
 	</properties>
 
 	<organization>
@@ -75,7 +76,7 @@
 				<version>${tycho-version}</version>
 				<configuration>
 					<target>
-						<file>${maven.multiModuleProjectDirectory}/target-platforms/target-platform-latest/target-platform-latest.target</file>
+						<file>${maven.multiModuleProjectDirectory}/target-platforms/${lsp4e.targetPlatform}.target</file>
 					</target>
 					<environments>
 						<environment>

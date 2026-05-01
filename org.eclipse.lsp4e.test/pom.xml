@@ -38,12 +38,15 @@
 				<version>${tycho-version}</version>
 				<!-- https://tycho.eclipseprojects.io/doc/latest/tycho-surefire-plugin/test-mojo.html -->
 				<configuration>
+					<systemProperties>
+						<!-- Set a system property, so we can disable some JUnit tests based on the current target platform -->
+						<lsp4e.targetPlatform>${lsp4e.targetPlatform}</lsp4e.targetPlatform>
+					</systemProperties>
 					<trimStackTrace>false</trimStackTrace>
 					<useUIHarness>true</useUIHarness>
 					<useUIThread>true</useUIThread>
 					<forkedProcessTimeoutInSeconds>1200</forkedProcessTimeoutInSeconds>
 					<argLine>-Dfile.encoding=${project.build.sourceEncoding} -Xms1g -Xmx1g -Djava.util.logging.config.file=${project.basedir}/src/jul.properties ${ui.test.vmargs} ${os-jvm-flags}</argLine>
-					<providerHint>junit6</providerHint>
 				</configuration>
 			</plugin>
 		</plugins>
