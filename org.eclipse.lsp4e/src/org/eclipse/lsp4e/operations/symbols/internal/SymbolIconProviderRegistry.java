@@ -144,7 +144,7 @@ public class SymbolIconProviderRegistry {
 
 		try {
 			return LSPEclipseUtils.toUri(uri);
-		} catch (Exception e) {
+		} catch (IllegalArgumentException e) {
 			LanguageServerPlugin.logWarning("Failed to parse URI " + uri, e); //$NON-NLS-1$
 			return null;
 		}

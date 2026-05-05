@@ -1602,6 +1602,16 @@ public final class LSPEclipseUtils {
 		return null;
 	}
 
+	/**
+	 * Converts the given string to a {@link URI} if possible.
+	 * Ensures correct encoding in case of file URIs.
+	 *
+	 * @param uri a URI string
+	 * @return a URI instance for the given string
+	 * @throws IllegalArgumentException if the given string is not a valid URI (if it violates RFC 2396)
+	 * @throws NullPointerException if the given string is null
+	 * @see URI#create(String)
+	 */
 	public static URI toUri(String uri) {
 		URI initialUri = URI.create(uri);
 		return FILE_SCHEME.equals(initialUri.getScheme()) ? toUri(Path.fromPortableString(initialUri.getPath())) : initialUri;
