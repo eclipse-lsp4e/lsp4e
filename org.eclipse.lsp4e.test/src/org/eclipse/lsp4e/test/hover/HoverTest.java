@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Rogue Wave Software Inc. and others.
+ * Copyright (c) 2016, 2026 Rogue Wave Software Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -234,5 +234,56 @@ public class HoverTest extends AbstractTestWithProject {
 			}
 			shell.dispose();
 		}
+	}
+
+	@Test
+	public void testHoverRegionRefreshesForSameOffsetAfterCompletedRequest() throws Exception {
+		// Test for https://github.com/eclipse-lsp4e/lsp4e/issues/1514
+		// Verifies that getHoverRegion refreshes for the same offset after a completed
+		// request, instead of reusing the previous completed hover range indefinitely.
+		final var firstHover = new Hover(List.of(Either.forLeft("FirstValue")),
+				new Range(new Position(0, 0), new Position(0, 5)));
+		final var secondHover = new Hover(List.of(Either.forLeft("SecondValue")),
+				new Range(new Position(0, 6), new Position(0, 10)));
+
+		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
+		ITextViewer viewer = TestUtils.openTextViewer(file);
+
+		MockLanguageServer.INSTANCE.setHover(firstHover);
+		assertEquals(new Region(0, 5), hover.getHoverRegion(viewer, 2));
+
+		MockLanguageServer.INSTANCE.setHover(secondHover);
+		assertEquals(new Region(6, 4), hover.getHoverRegion(viewer, 2));
+	}
+
+	@Test
+	public void testHoverInfoRefreshesForSameOffsetAfterCompletedRequest() throws Exception {
+		// Test for https://github.com/eclipse-lsp4e/lsp4e/issues/1514
+		// Verifies that a second hover at the same offset recomputes the hover region
+		// and refreshes the hover content after the previous request completed.
+		final var firstHover = new Hover(List.of(Either.forLeft("FirstValue")),
+				new Range(new Position(0, 0), new Position(0, 5)));
+		final var secondHover = new Hover(List.of(Either.forLeft("SecondValue")),
+				new Range(new Position(0, 6), new Position(0, 10)));
+
+		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
+		ITextViewer viewer = TestUtils.openTextViewer(file);
+
+		MockLanguageServer.INSTANCE.setHover(firstHover);
+		Region firstRegion = (Region) hover.getHoverRegion(viewer, 2);
+		assertEquals(new Region(0, 5), firstRegion);
+
+		String firstHtml = hover.getHoverInfoFuture(viewer, firstRegion).get(2, TimeUnit.SECONDS);
+		assertNotNull(firstHtml);
+		assertTrue(firstHtml.contains("FirstValue"));
+
+		MockLanguageServer.INSTANCE.setHover(secondHover);
+		Region secondRegion = (Region) hover.getHoverRegion(viewer, 2);
+		assertEquals(new Region(6, 4), secondRegion);
+
+		String secondHtml = hover.getHoverInfoFuture(viewer, secondRegion).get(2, TimeUnit.SECONDS);
+		assertNotNull(secondHtml);
+		assertTrue(secondHtml.contains("SecondValue"));
+		assertTrue(!secondHtml.contains("FirstValue"));
 	}
 }

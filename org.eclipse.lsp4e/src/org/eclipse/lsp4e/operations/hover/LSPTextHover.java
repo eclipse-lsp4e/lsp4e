@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2023 Red Hat Inc. and others.
+ * Copyright (c) 2016, 2026 Red Hat Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -15,8 +15,6 @@
  *  Sebastian Thomschke (Vegard IT GmbH) - Prevent UI freezes through non-blocking hover rendering
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.hover;
-
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -98,10 +96,18 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 	}
 
 	public CompletableFuture<@Nullable String> getHoverInfoFuture(ITextViewer textViewer, IRegion hoverRegion) {
-		if (this.request == null || !textViewer.equals(this.lastViewer) || !hoverRegion.equals(this.lastRegion)) {
+		CompletableFuture<List<Hover>> locRequest = this.request;
+		if (locRequest == null || locRequest.isDone() || !textViewer.equals(this.lastViewer)
+				|| !hoverRegion.equals(this.lastRegion)) {
 			initiateHoverRequest(textViewer, hoverRegion.getOffset());
+			locRequest = this.request;
 		}
-		return castNonNull(request).thenApply(hoversList -> {
+
+		if (locRequest == null) {
+			return CompletableFuture.completedFuture(null);
+		}
+
+		return locRequest.thenApply(hoversList -> {
 			String result = hoversList.stream() //
 					.filter(Objects::nonNull) //
 					.map(LSPTextHover::getHoverString) //
@@ -110,9 +116,8 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 					.trim();
 			if (!result.isEmpty()) {
 				return MarkdownUtil.renderToHtml(result);
-			} else {
-				return null;
 			}
+			return null;
 		});
 	}
 
@@ -149,9 +154,12 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 	@Override
 	public @Nullable IRegion getHoverRegion(ITextViewer textViewer, int offset) {
 		final var lastRegion = this.lastRegion;
-		if (this.request == null || lastRegion == null || !textViewer.equals(this.lastViewer)
-				|| offset < lastRegion.getOffset() || offset > lastRegion.getOffset() + lastRegion.getLength()) {
+
+		CompletableFuture<List<Hover>> locRequest = this.request;
+		if (locRequest == null || locRequest.isDone() || lastRegion == null || !textViewer.equals(this.lastViewer)
+				|| offset < lastRegion.getOffset() || offset >= lastRegion.getOffset() + lastRegion.getLength()) {
 			initiateHoverRequest(textViewer, offset);
+			locRequest = this.request;
 		}
 
 		final IDocument document = textViewer.getDocument();
@@ -159,18 +167,27 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 			return null;
 		}
 
+		if (locRequest == null) {
+			return this.lastRegion = computeHeuristicRegion(document, offset);
+		}
+
 		try {
 			// Wait shortly for hover region result, fallback to heuristics if LS is laggy
-			Range range = castNonNull(this.request).get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream() //
+			List<Hover> hovers = locRequest.get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+
+			Range range = hovers.stream() //
 					.filter(Objects::nonNull) //
 					.map(Hover::getRange) //
 					.filter(Objects::nonNull) //
 					.reduce((first, second) -> second) //
-					.get();
-			int regionStartOffset = Math.max(0,
-					LSPEclipseUtils.toOffset(range.getStart(), document));
-			int regionEndOffset = Math.min(document.getLength(),
-					LSPEclipseUtils.toOffset(range.getEnd(), document));
+					.orElse(null);
+
+			if (range == null) {
+				return this.lastRegion = computeHeuristicRegion(document, offset);
+			}
+
+			int regionStartOffset = Math.max(0, LSPEclipseUtils.toOffset(range.getStart(), document));
+			int regionEndOffset = Math.min(document.getLength(), LSPEclipseUtils.toOffset(range.getEnd(), document));
 			return this.lastRegion = new Region(regionStartOffset, regionEndOffset - regionStartOffset);
 		} catch (ExecutionException | BadLocationException e) {
 			if (!CancellationUtil.isRequestCancelledException(e)) {
