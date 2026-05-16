@@ -49,6 +49,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.google.common.primitives.Chars;
 import org.eclipse.core.filebuffers.FileBuffers;
 import org.eclipse.core.filebuffers.IFileBuffer;
 import org.eclipse.core.filebuffers.ITextFileBuffer;
@@ -166,8 +167,6 @@ import org.eclipse.ui.part.FileEditorInput;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 import org.eclipse.ui.texteditor.IDocumentProvider;
 import org.eclipse.ui.texteditor.ITextEditor;
-
-import com.google.common.primitives.Chars;
 
 /**
  * Some utility methods to convert between Eclipse and LS-API types
@@ -1471,6 +1470,16 @@ public final class LSPEclipseUtils {
 		}
 
 		String fileName = getFileName(buffer);
+		if (contentTypes.isEmpty() && buffer == null && fileName == null) {
+			URI uri = Adapters.adapt(document, URI.class);
+			if (uri != null) {
+				String path = uri.getPath();
+				if (path.contains("/")) { //$NON-NLS-1$
+					path = path.substring(path.lastIndexOf('/') + 1);
+				}
+				fileName = path;
+			}
+		}
 		if (fileName != null) {
 			try (var contents = new DocumentInputStream(document)) {
 				contentTypes.addAll(List.of(Platform.getContentTypeManager().findContentTypesFor(contents, fileName)));

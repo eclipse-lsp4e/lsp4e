@@ -31,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.base.Functions;
+import com.google.common.base.Strings;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
@@ -63,9 +65,6 @@ import org.eclipse.lsp4j.jsonrpc.CancelChecker;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.ui.texteditor.ITextEditor;
-
-import com.google.common.base.Functions;
-import com.google.common.base.Strings;
 
 public class LSContentAssistProcessor implements IContentAssistProcessor {
 
@@ -113,11 +112,17 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 
 	@Override
 	public ICompletionProposal[] computeCompletionProposals(ITextViewer viewer, int offset) {
-		IDocument document = viewer.getDocument();
+		return computeCompletionProposals(viewer.getDocument(), offset);
+	}
+
+	/**
+	 * @noreference
+	 */
+	// TODO Don't make this available to clients other than LSP4e
+	public final ICompletionProposal[] computeCompletionProposals(@Nullable IDocument document, int offset) {
 		if (document == null) {
 			return NO_COMPLETION_PROPOSALS;
 		}
-
 		final @Nullable Character triggerChar;
 		final Position completionPosition;
 		try {
@@ -131,7 +136,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			return NO_COMPLETION_PROPOSALS;
 		}
 
-		URI uri = LSPEclipseUtils.toUri(document);
+		URI uri = LSPEclipseUtils.toUri(document);//TOOD requires store.setValue("org.eclipse.lsp4e.resourceFallback.enabled", true); for text block completions
 		if (uri == null) {
 			return NO_COMPLETION_PROPOSALS;
 		}
@@ -293,7 +298,10 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 
 	@Override
 	public IContextInformation @Nullable [] computeContextInformation(ITextViewer viewer, int offset) {
-		IDocument document = viewer.getDocument();
+		return computeContextInformation(viewer.getDocument(), offset);
+	}
+
+	public IContextInformation @Nullable [] computeContextInformation(@Nullable IDocument document, int offset) {
 		if (document == null) {
 			return new IContextInformation[] { /* TODO? show error in context information */ };
 		}
