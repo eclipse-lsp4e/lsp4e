@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
 import java.net.URI;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -432,12 +433,15 @@ public final class LSPEclipseUtils {
 	}
 
 	public static @Nullable String getFileName(URI uri) {
+		final java.nio.file.Path path;
 		try {
-			return java.nio.file.Path.of(uri).getFileName().toString();
-		} catch (Exception e) {
+			path = java.nio.file.Path.of(uri);
+		} catch (IllegalArgumentException | FileSystemNotFoundException e) {
 			LanguageServerPlugin.logWarning("Failed to parse file name from URI " + uri, e); //$NON-NLS-1$
+			return null;
 		}
-		return null;
+		java.nio.file.Path fileName = path.getFileName();
+		return fileName == null ? null : fileName.toString();
 	}
 
 	public static int toEclipseMarkerSeverity(@Nullable DiagnosticSeverity lspSeverity) {
