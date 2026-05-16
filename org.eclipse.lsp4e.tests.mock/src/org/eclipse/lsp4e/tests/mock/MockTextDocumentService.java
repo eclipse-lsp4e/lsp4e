@@ -216,7 +216,7 @@ public class MockTextDocumentService implements TextDocumentService {
 		if (file.exists() && file.length() > 100) {
 			return CompletableFuture
 					.completedFuture(List.of(new CodeLens(new Range(new Position(1, 0), new Position(1, 1)),
-							new Command("Hi, I'm a CodeLens", null), null)));
+							new Command("Hi, I'm a CodeLens", "dummyCommand"), null)));
 		}
 		return CompletableFuture.completedFuture(Collections.emptyList());
 	}
