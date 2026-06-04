@@ -23,8 +23,6 @@ import org.eclipse.lsp4e.tests.mock.MockConnectionProvider;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.ServerCapabilities;
-import org.eclipse.ui.PlatformUI;
-import org.eclipse.ui.intro.IIntroPart;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -43,10 +41,6 @@ public class AllCleanExtension implements BeforeEachCallback, AfterEachCallback 
 
 	@Override
 	public void beforeEach(ExtensionContext context) throws Exception {
-		IIntroPart intro = PlatformUI.getWorkbench().getIntroManager().getIntro();
-		if (intro != null) {
-			PlatformUI.getWorkbench().getIntroManager().closeIntro(intro);
-		}
 		clear();
 	}
 
