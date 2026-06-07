@@ -349,6 +349,9 @@ public class LanguageServerWrapper {
 
 		// Similarly, the error stream should also close when the input/output streams close.
 		this.errorProcessor.shutdownNow();
+
+		// Make sure the timer thread shuts down.
+		this.timer.cancel();
 	}
 
 	/**
