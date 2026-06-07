@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2023 Red Hat Inc. and others.
+ * Copyright (c) 2016, 2023, 2026 Red Hat Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -15,8 +15,6 @@
  *  Sebastian Thomschke (Vegard IT GmbH) - Prevent UI freezes through non-blocking hover rendering
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.hover;
-
-import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -67,53 +65,58 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 
 	private static final int GET_HOVER_REGION_TIMEOUT_MS = 100;
 
-	private @Nullable IRegion lastRegion;
-	private @Nullable ITextViewer lastViewer;
 	private @Nullable CompletableFuture<List<Hover>> request;
-	private @Nullable CompletableFuture<@Nullable String> hoverInfoFuture;
 
 	@Override
 	public @Nullable String getHoverInfo(ITextViewer textViewer, IRegion hoverRegion) {
 		// Non-blocking: only return immediately available content.
-		final var hoverInfoRequest_ = this.hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
-		if (hoverInfoRequest_.isDone()) {
-			try {
-				return hoverInfoRequest_.getNow(null);
-			} catch (final Exception ex) {
-				if (CancellationUtil.isRequestCancelledException(ex)) {
-					// Hover was cancelled; ignore as this is an expected fast-mouse-move scenario.
-					return null;
-				}
-				LanguageServerPlugin.logError(ex);
-			}
+		final var hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
+		if (hoverInfoFuture.isDone()) {
+			return getResult(hoverInfoFuture);
 		}
 		return null;
 	}
 
 	@Override
 	public @Nullable Object getHoverInfo2(ITextViewer textViewer, IRegion hoverRegion) {
-		final var hoverInfoRequest_ = this.hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
+		final var hoverInfoFuture = getHoverInfoFuture(textViewer, hoverRegion);
+		if (hoverInfoFuture.isDone()) {
+			// Result is already available, no need to load async.
+			return getResult(hoverInfoFuture);
+		}
 		final String placeholder = "<html><body>Loading…</body></html>"; //$NON-NLS-1$
-		return new AsyncHtmlHoverInput(hoverInfoRequest_, placeholder);
+		return new AsyncHtmlHoverInput(hoverInfoFuture, placeholder);
+	}
+
+	private @Nullable String getResult(CompletableFuture<@Nullable String> hoverInfoFuture) {
+		try {
+			return hoverInfoFuture.getNow(null);
+		} catch (final Exception ex) {
+			if (!CancellationUtil.isRequestCancelledException(ex)) {
+				// Hover computation failed but not due to a cancellation
+				LanguageServerPlugin.logError(ex);
+			}
+			return null;
+		}
 	}
 
 	public CompletableFuture<@Nullable String> getHoverInfoFuture(ITextViewer textViewer, IRegion hoverRegion) {
-		if (this.request == null || !textViewer.equals(this.lastViewer) || !hoverRegion.equals(this.lastRegion)) {
-			initiateHoverRequest(textViewer, hoverRegion.getOffset());
+		if (hoverRegion instanceof LSPHoverRegion region) {
+			return region.getRequest().thenApply(hoversList -> {
+				String result = hoversList.stream() //
+						.filter(Objects::nonNull) //
+						.map(LSPTextHover::getHoverString) //
+						.filter(Objects::nonNull) //
+						.collect(Collectors.joining("\n\n")) //$NON-NLS-1$
+						.trim();
+				if (!result.isEmpty()) {
+					return MarkdownUtil.renderToHtml(result);
+				} else {
+					return null;
+				}
+			});
 		}
-		return castNonNull(request).thenApply(hoversList -> {
-			String result = hoversList.stream() //
-					.filter(Objects::nonNull) //
-					.map(LSPTextHover::getHoverString) //
-					.filter(Objects::nonNull) //
-					.collect(Collectors.joining("\n\n")) //$NON-NLS-1$
-					.trim();
-			if (!result.isEmpty()) {
-				return MarkdownUtil.renderToHtml(result);
-			} else {
-				return null;
-			}
-		});
+		return CompletableFuture.completedFuture(null);
 	}
 
 	protected static @Nullable String getHoverString(Hover hover) {
@@ -133,7 +136,10 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 					// strings with language tags, e.g. without it things after <?php tag aren't
 					// displayed
 					if (markedString.getLanguage() != null && !markedString.getLanguage().isEmpty()) {
-						return String.format("```%s%n%s%n```", markedString.getLanguage(), markedString.getValue()); //$NON-NLS-1$
+						return String.format("""
+								```%s
+								%s
+								```""", markedString.getLanguage(), markedString.getValue()); //$NON-NLS-1$
 					} else {
 						return markedString.getValue();
 					}
@@ -148,20 +154,19 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 
 	@Override
 	public @Nullable IRegion getHoverRegion(ITextViewer textViewer, int offset) {
-		final var lastRegion = this.lastRegion;
-		if (this.request == null || lastRegion == null || !textViewer.equals(this.lastViewer)
-				|| offset < lastRegion.getOffset() || offset > lastRegion.getOffset() + lastRegion.getLength()) {
-			initiateHoverRequest(textViewer, offset);
-		}
-
 		final IDocument document = textViewer.getDocument();
 		if (document == null) {
 			return null;
 		}
 
+		var locRequest = initiateHoverRequest(textViewer, offset);
+		if (locRequest == null) {
+			return null;
+		}
+
 		try {
 			// Wait shortly for hover region result, fallback to heuristics if LS is laggy
-			Range range = castNonNull(this.request).get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream() //
+			Range range = locRequest.get(GET_HOVER_REGION_TIMEOUT_MS, TimeUnit.MILLISECONDS).stream() //
 					.filter(Objects::nonNull) //
 					.map(Hover::getRange) //
 					.filter(Objects::nonNull) //
@@ -171,7 +176,7 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 					LSPEclipseUtils.toOffset(range.getStart(), document));
 			int regionEndOffset = Math.min(document.getLength(),
 					LSPEclipseUtils.toOffset(range.getEnd(), document));
-			return this.lastRegion = new Region(regionStartOffset, regionEndOffset - regionStartOffset);
+			return new LSPHoverRegion(regionStartOffset, regionEndOffset - regionStartOffset, locRequest);
 		} catch (ExecutionException | BadLocationException e) {
 			if (!CancellationUtil.isRequestCancelledException(e)) {
 				LanguageServerPlugin.logError("Cannot get hover region for offset " + offset, e); //$NON-NLS-1$
@@ -182,7 +187,8 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 			// Fallback to heuristic region without blocking.
 		}
 
-		return this.lastRegion = computeHeuristicRegion(document, offset);
+		Region heuristicRegion = computeHeuristicRegion(document, offset);
+		return new LSPHoverRegion(heuristicRegion.getOffset(), heuristicRegion.getLength(), locRequest);
 	}
 
 	private static Region computeHeuristicRegion(final IDocument document, final int offset) {
@@ -202,10 +208,6 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 			request.cancel(true);
 			request = null;
 		}
-		if (hoverInfoFuture != null) {
-			hoverInfoFuture.cancel(true);
-			hoverInfoFuture = null;
-		}
 	}
 
 	/**
@@ -215,23 +217,24 @@ public class LSPTextHover implements ITextHover, ITextHoverExtension, ITextHover
 	 *            the text viewer.
 	 * @param offset
 	 *            the hovered offset.
+	 * @return the created request.
 	 */
-	private void initiateHoverRequest(ITextViewer viewer, int offset) {
+	private @Nullable CompletableFuture<List<Hover>> initiateHoverRequest(ITextViewer viewer, int offset) {
 		cancel();
 		final IDocument document = viewer.getDocument();
 		if (document == null) {
-			return;
+			return null;
 		}
-		this.lastViewer = viewer;
 		try {
 			HoverParams params = LSPEclipseUtils.toHoverParams(offset, document);
-
+			// Store request so we can cancel it when a new request is created.
 			this.request = LanguageServers.forDocument(document) //
 					.withCapability(ServerCapabilities::getHoverProvider) //
 					.collectAll(server -> server.getTextDocumentService().hover(params));
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 		}
+		return request;
 	}
 
 	@Override

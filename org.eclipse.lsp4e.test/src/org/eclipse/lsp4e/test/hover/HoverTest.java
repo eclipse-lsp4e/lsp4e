@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Rogue Wave Software Inc. and others.
+ * Copyright (c) 2016, 2026 Rogue Wave Software Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -28,7 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.eclipse.core.filesystem.EFS;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.internal.text.html.BrowserInformationControl;
+import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.Region;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -98,7 +100,8 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		String html = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		String html = hover.getHoverInfoFuture(viewer, hoverRegion).get(2, TimeUnit.SECONDS);
 		assertNotNull(html);
 		assertTrue(html.contains("HoverContent"));
 	}
@@ -111,8 +114,8 @@ public class HoverTest extends AbstractTestWithProject {
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
-
-		assertEquals(null, hover.getHoverInfo(viewer, new Region(0, 10)));
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		assertEquals(null, hover.getHoverInfo(viewer, hoverRegion));
 	}
 
 	@Test
@@ -122,7 +125,8 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		assertEquals(null, hover.getHoverInfo(viewer, new Region(0, 10)));
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		assertEquals(null, hover.getHoverInfo(viewer, hoverRegion));
 	}
 
 	@Test
@@ -134,7 +138,8 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		assertEquals(null, hover.getHoverInfo(viewer, new Region(0, 10)));
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		assertEquals(null, hover.getHoverInfo(viewer, hoverRegion));
 	}
 
 	@Test
@@ -146,7 +151,8 @@ public class HoverTest extends AbstractTestWithProject {
 		Path file = Files.createFile(tempDir.resolve("testHoverOnExternalfile.lspt"));
 		ITextViewer viewer = LSPEclipseUtils
 				.getTextViewer(IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri())));
-		String html = hover.getHoverInfoFuture(viewer, new Region(0, 0)).get(2, TimeUnit.SECONDS);
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		String html = hover.getHoverInfoFuture(viewer, hoverRegion).get(2, TimeUnit.SECONDS);
 		assertTrue(html != null && html.contains("blah"));
 	}
 
@@ -159,7 +165,8 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFileMultiLS(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		String hoverInfo = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		String hoverInfo = hover.getHoverInfoFuture(viewer, hoverRegion).get(2, TimeUnit.SECONDS);
 		int index = hoverInfo.indexOf("HoverContent");
 		assertNotEquals(-1, index, "Hover content not found");
 		index += "HoverContent".length();
@@ -182,7 +189,8 @@ public class HoverTest extends AbstractTestWithProject {
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editorPart);
 		assertEquals(UI.getActivePart(), editorPart);
 
-		String hoverContent = hover.getHoverInfoFuture(viewer, new Region(0, 10)).get(2, TimeUnit.SECONDS);
+		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
+		String hoverContent = hover.getHoverInfoFuture(viewer, hoverRegion).get(2, TimeUnit.SECONDS);
 
 		final var hoverManager = new LSPTextHover();
 
@@ -234,5 +242,56 @@ public class HoverTest extends AbstractTestWithProject {
 			}
 			shell.dispose();
 		}
+	}
+
+	@Test
+	public void testHoverRegionRefreshesForSameOffsetAfterCompletedRequest() throws Exception {
+		// Test for https://github.com/eclipse-lsp4e/lsp4e/issues/1514
+		// Verifies that getHoverRegion refreshes for the same offset after a completed
+		// request, instead of reusing the previous completed hover range indefinitely.
+		final var firstHover = new Hover(List.of(Either.forLeft("FirstValue")),
+				new Range(new Position(0, 0), new Position(0, 5)));
+		final var secondHover = new Hover(List.of(Either.forLeft("SecondValue")),
+				new Range(new Position(0, 6), new Position(0, 10)));
+
+		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
+		ITextViewer viewer = TestUtils.openTextViewer(file);
+
+		MockLanguageServer.INSTANCE.setHover(firstHover);
+		assertEquals(new Region(0, 5), hover.getHoverRegion(viewer, 2));
+
+		MockLanguageServer.INSTANCE.setHover(secondHover);
+		assertEquals(new Region(6, 4), hover.getHoverRegion(viewer, 2));
+	}
+
+	@Test
+	public void testHoverInfoRefreshesForSameOffsetAfterCompletedRequest() throws Exception {
+		// Test for https://github.com/eclipse-lsp4e/lsp4e/issues/1514
+		// Verifies that a second hover at the same offset recomputes the hover region
+		// and refreshes the hover content after the previous request completed.
+		final var firstHover = new Hover(List.of(Either.forLeft("FirstValue")),
+				new Range(new Position(0, 0), new Position(0, 5)));
+		final var secondHover = new Hover(List.of(Either.forLeft("SecondValue")),
+				new Range(new Position(0, 6), new Position(0, 10)));
+
+		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
+		ITextViewer viewer = TestUtils.openTextViewer(file);
+
+		MockLanguageServer.INSTANCE.setHover(firstHover);
+		Region firstRegion = (Region) hover.getHoverRegion(viewer, 2);
+		assertEquals(new Region(0, 5), firstRegion);
+
+		String firstHtml = hover.getHoverInfoFuture(viewer, firstRegion).get(2, TimeUnit.SECONDS);
+		assertNotNull(firstHtml);
+		assertTrue(firstHtml.contains("FirstValue"));
+
+		MockLanguageServer.INSTANCE.setHover(secondHover);
+		Region secondRegion = (Region) hover.getHoverRegion(viewer, 2);
+		assertEquals(new Region(6, 4), secondRegion);
+
+		String secondHtml = hover.getHoverInfoFuture(viewer, secondRegion).get(2, TimeUnit.SECONDS);
+		assertNotNull(secondHtml);
+		assertTrue(secondHtml.contains("SecondValue"));
+		assertTrue(!secondHtml.contains("FirstValue"));
 	}
 }
