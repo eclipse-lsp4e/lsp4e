@@ -23,6 +23,7 @@ import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.quickassist.IQuickAssistInvocationContext;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.TextInvocationContext;
+import org.eclipse.lsp4e.jdt.internal.LSJavaProposal;
 import org.eclipse.lsp4e.operations.codeactions.LSPCodeActionQuickAssistProcessor;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 
