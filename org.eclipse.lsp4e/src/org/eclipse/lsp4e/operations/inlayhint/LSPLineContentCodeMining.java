@@ -111,7 +111,7 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 		Either<Boolean, InlayHintRegistrationOptions> inlayProvider = capabilities.getInlayHintProvider();
 		if (inlayProvider != null && inlayProvider.isRight()) {
 			InlayHintRegistrationOptions options = inlayProvider.getRight();
-			return options.getResolveProvider() != null && options.getResolveProvider().booleanValue();
+			return Boolean.TRUE.equals(options.getResolveProvider());
 		}
 		return false;
 	}
@@ -134,7 +134,28 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 
 	@Override
 	public final @Nullable Consumer<MouseEvent> getAction() {
-		return inlayHint.getLabel().map(l -> null, this::labelPartAction);
+		// Check if there is a specific command to execute for the clicked on label part
+		var consumer = inlayHint.getLabel().map(l -> null, this::labelPartAction);
+		if (consumer != null) {
+			return consumer;
+		}
+
+		// Check if there are text edits to apply when clicking on the inlay hint
+		if (inlayHint.getTextEdits() != null && !inlayHint.getTextEdits().isEmpty()) {
+			return evt -> {
+				try {
+					LSPEclipseUtils.applyEdits(document, inlayHint.getTextEdits());
+					// The text of the inlay hint is integrated into the document.
+					// To avoid a brief moment where both the inserted text and the inlay hint are
+					// rendered, we set an empty label for the hint.
+					setLabel(""); //$NON-NLS-1$
+				} catch (BadLocationException e) {
+					// Location to modify document was no longer valid -> Ignore
+				}
+			};
+		}
+
+		return null;
 	}
 
 	private @Nullable Consumer<MouseEvent> labelPartAction(List<InlayHintLabelPart> labelParts) {
