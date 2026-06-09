@@ -87,8 +87,12 @@ public class ServerMessageHandler {
 		case Warning:
 			LanguageServerPlugin.logWarning(log.toString());
 			break;
+		case Info:
 		default:
-			LanguageServerPlugin.logInfo(log.toString());
+			if (LanguageServerPlugin.isLogTraceEnabled()) {
+				LanguageServerPlugin.logInfo(log.toString());
+			}
+			break;
 		}
 	}
 
