@@ -106,6 +106,9 @@ public final class Messages extends NLS {
 	public static String TH_diplay_hint;
 	public static String TH_cannot_find_file;
 	public static String occurrences;
+	public static String non_buffered_file_support;
+	public static String PreferencesPage_nonBufferedFileSupportRestartTitle;
+	public static String PreferencesPage_nonBufferedFileSupportWarningMessage;
 
 	static {
 		NLS.initializeMessages("org.eclipse.lsp4e.ui.messages", Messages.class); //$NON-NLS-1$
