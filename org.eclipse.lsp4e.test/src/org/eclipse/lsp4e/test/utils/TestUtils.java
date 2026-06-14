@@ -12,6 +12,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.utils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -40,6 +41,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServersRegistry;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockServerState;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Display;
@@ -366,7 +368,7 @@ public class TestUtils {
 		assertTrue(new DisplayHelper() {
 			@Override
 			protected boolean condition() {
-				return !server.isRunning();
+				return server.getState() != MockServerState.RUNNING;
 			}
 		}.waitForCondition(UI.getDisplay(), 1000));
 	}
@@ -397,7 +399,10 @@ public class TestUtils {
 		}
 	}
 
-	public static Condition numberOfChangesIs(int changes) {
-		return () -> MockLanguageServer.INSTANCE.getDidChangeEvents().size() == changes;
+	public static Condition numberOfChangesIs(int changes, MockLanguageServer server) {
+		return () -> {
+			assertEquals(changes, server.getDidChangeEvents().size());
+			return true;
+		};
 	}
 }

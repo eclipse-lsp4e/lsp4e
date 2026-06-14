@@ -23,6 +23,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Color;
 import org.eclipse.lsp4j.ColorInformation;
@@ -35,29 +36,26 @@ import org.eclipse.swt.graphics.ImageData;
 import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.ui.ide.IDE;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 public class ColorTest extends AbstractTestWithProject {
 
-	private RGB color;
-
-	@BeforeEach
-	public void setUp() {
-		color = new RGB(56, 78, 90); // a color that's not likely used anywhere else
-		MockLanguageServer.INSTANCE.getTextDocumentService().setDocumentColors(List.of(new ColorInformation(new Range(new Position(0, 0), new Position(0, 1)), new Color(color.red / 255., color.green / 255., color.blue / 255., 255))));
-	}
+	// a color that's not likely used anywhere else
+	private RGB color = new RGB(56, 78, 90);
 
 	@Test
-	public void testColorProvider() throws Exception {
+	public void testColorProvider(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration(this::configureColors);
+		
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "\u2588\u2588\u2588\u2588\u2588"));
 		StyledText widget = viewer.getTextWidget();
 		waitForAndAssertCondition(3_000, widget.getDisplay(), () -> containsColor(widget, color, 10));
 	}
 
 	@Test
-	public void testColorProviderExternalFile(@TempDir Path tempDir) throws Exception {
+	public void testColorProviderExternalFile(MockLanguageServerFactory factory, @TempDir Path tempDir) throws Exception {
+		factory.withConfiguration(this::configureColors);
 		Path file = Files.write(tempDir.resolve("testColorProviderExternalFile.lspt"), "\u2588\u2588\u2588\u2588\u2588".getBytes());
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri())));
 		StyledText widget = viewer.getTextWidget();
@@ -99,5 +97,11 @@ public class ColorTest extends AbstractTestWithProject {
 		final int dB = from.blue - to.blue;
 
 		return (int) Math.sqrt((dR * dR + dG * dG + dB * dB) / 3);
+	}
+	
+	private void configureColors(Integer idx, MockLanguageServer server) {
+		server.getTextDocumentService()
+				.setDocumentColors(List.of(new ColorInformation(new Range(new Position(0, 0), new Position(0, 1)),
+						new Color(color.red / 255., color.green / 255., color.blue / 255., 255))));
 	}
 }

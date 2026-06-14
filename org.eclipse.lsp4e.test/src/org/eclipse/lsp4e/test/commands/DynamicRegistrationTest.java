@@ -12,7 +12,6 @@
 package org.eclipse.lsp4e.test.commands;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -30,6 +29,7 @@ import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
@@ -42,7 +42,6 @@ import org.eclipse.lsp4j.UnregistrationParams;
 import org.eclipse.lsp4j.WorkspaceFoldersOptions;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
 import org.eclipse.lsp4j.services.LanguageClient;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class DynamicRegistrationTest extends AbstractTestWithProject {
@@ -51,43 +50,45 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 	private static final String WORKSPACE_DID_CHANGE_FOLDERS = "workspace/didChangeWorkspaceFolders";
 	private static final String WORKSPACE_DID_CHANGE_WATCHED_FILES = "workspace/didChangeWatchedFiles";
 
-	@BeforeEach
-	public void setUp() throws Exception {
+	@Test
+	public void testCommandRegistration(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
-
 		// Make sure mock language server is created...
 		IDocument document = LSPEclipseUtils.getDocument(testFile);
 		assertNotNull(document);
 		LanguageServers.forDocument(document).anyMatching();
-
-		waitForCondition(5_000, () -> !MockLanguageServer.INSTANCE.getRemoteProxies().isEmpty());
-		getMockClient();
-	}
-
-	@Test
-	public void testCommandRegistration() throws Exception {
+		
+		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
+		
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 
-		UUID registration = registerCommands("test.command", "test.command.2");
+		UUID registration = registerCommands(factory.getServer(), "test.command", "test.command.2");
 		try {
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command.2")));
 		} finally {
-			unregister(registration, WORKSPACE_EXECUTE_COMMAND);
+			unregister(registration, WORKSPACE_EXECUTE_COMMAND, factory.getServer());
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command.2")));
 	}
 
 	@Test
-	public void testWatchedFilesRegistrationAndNotification() throws Exception {
+	public void testWatchedFilesRegistrationAndNotification(MockLanguageServerFactory factory) throws Exception {
+		IFile testFile = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
+		// Make sure mock language server is created...
+		IDocument document = LSPEclipseUtils.getDocument(testFile);
+		assertNotNull(document);
+		LanguageServers.forDocument(document).anyMatching();
+		
+		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
-		UUID registration = registerWatchedFiles();
+		UUID registration = registerWatchedFiles(factory.getServer());
 		try {
-			MockWorkspaceService workspaceService = MockLanguageServer.INSTANCE.getWorkspaceService();
+			MockWorkspaceService workspaceService = factory.getServer().getWorkspaceService();
 
 			TestUtils.createFile(project, "watched.txt", "");
 			TestUtils.createFile(project, "unwatched.bin", "");
@@ -101,21 +102,29 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 			assertFalse(params.getChanges().stream()
 					.anyMatch(ev -> ev.getUri().endsWith("unwatched.bin")));
 		} finally {
-			unregister(registration, WORKSPACE_DID_CHANGE_WATCHED_FILES);
+			unregister(registration, WORKSPACE_DID_CHANGE_WATCHED_FILES, factory.getServer());
 		}
 	}
 
 	@Test
-	public void testWorkspaceFoldersRegistration() throws Exception {
+	public void testWorkspaceFoldersRegistration(MockLanguageServerFactory factory) throws Exception {
+		IFile testFile = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
+		// Make sure mock language server is created...
+		IDocument document = LSPEclipseUtils.getDocument(testFile);
+		assertNotNull(document);
+		LanguageServers.forDocument(document).anyMatching();
+		
+		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
+		
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 
-		UUID registration = registerWorkspaceFolders();
+		UUID registration = registerWorkspaceFolders(factory.getServer());
 		try {
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 		} finally {
-			unregister(registration, WORKSPACE_DID_CHANGE_FOLDERS);
+			unregister(registration, WORKSPACE_DID_CHANGE_FOLDERS, factory.getServer());
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> !hasWorkspaceFolderSupport(c)));
@@ -123,16 +132,16 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 
 	//////////////////////////////////////////////////////////////////////////////////
 
-	private void unregister(UUID registration, String method) throws Exception {
-		LanguageClient client = getMockClient();
+	private void unregister(UUID registration, String method, MockLanguageServer server) throws Exception {
+		LanguageClient client = server.getRemoteProxy();
 		final var unregistration = new Unregistration(registration.toString(), method);
 		client.unregisterCapability(new UnregistrationParams(List.of(unregistration)))
 			.get(1, TimeUnit.SECONDS);
 	}
 
-	private UUID registerWatchedFiles() throws Exception {
+	private UUID registerWatchedFiles(MockLanguageServer server) throws Exception {
 		var id = UUID.randomUUID();
-		LanguageClient client = getMockClient();
+		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
 		registration.setMethod(WORKSPACE_DID_CHANGE_WATCHED_FILES);
@@ -146,9 +155,9 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		return id;
 	}
 
-	private UUID registerWorkspaceFolders() throws Exception {
+	private UUID registerWorkspaceFolders(MockLanguageServer server) throws Exception {
 		UUID id = UUID.randomUUID();
-		LanguageClient client = getMockClient();
+		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
 		registration.setMethod(WORKSPACE_DID_CHANGE_FOLDERS);
@@ -157,21 +166,15 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		return id;
 	}
 
-	private UUID registerCommands(String... command) throws Exception {
+	private UUID registerCommands(MockLanguageServer server, String... command) throws Exception {
 		UUID id = UUID.randomUUID();
-		LanguageClient client = getMockClient();
+		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
 		registration.setMethod(WORKSPACE_EXECUTE_COMMAND);
 		registration.setRegisterOptions(new ExecuteCommandOptions(List.of(command)));
 		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
 		return id;
-	}
-
-	private LanguageClient getMockClient() {
-		List<LanguageClient> proxies = MockLanguageServer.INSTANCE.getRemoteProxies();
-		assertEquals(1, proxies.size());
-		return proxies.get(0);
 	}
 
 	private Predicate<ServerCapabilities> handlesCommand(String command) {

@@ -26,7 +26,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.ui.IEditorPart;
@@ -37,7 +37,7 @@ import org.junit.jupiter.api.io.TempDir;
 public class DocumentDidCloseTest extends AbstractTestWithProject {
 
 	@Test
-	public void testClose() throws Exception {
+	public void testClose(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		IEditorPart editor = TestUtils.openEditor(testFile);
 
@@ -47,7 +47,7 @@ public class DocumentDidCloseTest extends AbstractTestWithProject {
 		LanguageServers.forDocument(document).anyMatching();
 
 		final var didCloseExpectation = new CompletableFuture<DidCloseTextDocumentParams>();
-		MockLanguageServer.INSTANCE.setDidCloseCallback(didCloseExpectation);
+		factory.getServer().setDidCloseCallback(didCloseExpectation);
 
 		TestUtils.closeEditor(editor, false);
 		DidCloseTextDocumentParams lastChange = didCloseExpectation.get(1000, TimeUnit.MILLISECONDS);
@@ -56,7 +56,7 @@ public class DocumentDidCloseTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testCloseExternalFile(@TempDir Path tempDir) throws Exception {
+	public void testCloseExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
 		Path testFile = Files.createFile(tempDir.resolve("testCloseExternalFile.lspt"));
 		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(testFile.toUri()));
 
@@ -64,7 +64,7 @@ public class DocumentDidCloseTest extends AbstractTestWithProject {
 		LanguageServers.forDocument(LSPEclipseUtils.getDocument(editor.getEditorInput())).anyMatching();
 
 		final var didCloseExpectation = new CompletableFuture<DidCloseTextDocumentParams>();
-		MockLanguageServer.INSTANCE.setDidCloseCallback(didCloseExpectation);
+		factory.getServer().setDidCloseCallback(didCloseExpectation);
 
 		TestUtils.closeEditor(editor, false);
 

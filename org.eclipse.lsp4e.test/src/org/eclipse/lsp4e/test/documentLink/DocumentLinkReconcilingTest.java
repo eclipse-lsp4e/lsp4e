@@ -30,7 +30,7 @@ import org.eclipse.jface.text.source.projection.ProjectionAnnotation;
 import org.eclipse.jface.text.source.projection.ProjectionViewer;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.DocumentLink;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -72,8 +72,10 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	private List<TextPresentation> textPresentations = new ArrayList<>(4);
 	
 	@Test
-	public void testFullDocumentLinkReconciling() throws Exception {
-		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
+	public void testFullDocumentLinkReconciling(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(CONTENT_LINKS);
+		});
 
 		TextViewer viewer = (TextViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
 		IDocument doc = viewer.getDocument();
@@ -137,8 +139,10 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testMidLineClippedDocumentLinkReconciling() throws Exception {
-		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
+	public void testMidLineClippedDocumentLinkReconciling(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(CONTENT_LINKS);
+		});
 		
 		ProjectionViewer viewer = (ProjectionViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
 		IDocument doc = viewer.getDocument();
@@ -188,8 +192,10 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testClippedDocumentLinkReconciling() throws Exception {
-		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
+	public void testClippedDocumentLinkReconciling(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(CONTENT_LINKS);
+		});
 		
 		ProjectionViewer viewer = (ProjectionViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
 		IDocument doc = viewer.getDocument();
@@ -239,8 +245,10 @@ public class DocumentLinkReconcilingTest extends AbstractTestWithProject {
 	}
 	
 	@Test
-	public void testDocumentWithFoldingLinkReconciling() throws Exception {
-		MockLanguageServer.INSTANCE.setDocumentLinks(CONTENT_LINKS);
+	public void testDocumentWithFoldingLinkReconciling(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(CONTENT_LINKS);
+		});
 		
 		ProjectionViewer viewer = (ProjectionViewer) TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, CONTENT));
 		IDocument doc = viewer.getDocument();

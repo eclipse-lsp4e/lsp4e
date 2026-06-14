@@ -37,7 +37,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.operations.hover.LSPTextHover;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.Position;
@@ -67,10 +67,12 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverRegion() throws CoreException {
+	public void testHoverRegion(MockLanguageServerFactory factory) throws CoreException {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")),
 				new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -79,8 +81,10 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverRegionInvalidOffset() throws CoreException {
-		MockLanguageServer.INSTANCE.setHover(null);
+	public void testHoverRegionInvalidOffset(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(null);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -92,10 +96,12 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverInfo() throws Exception {
+	public void testHoverInfo(MockLanguageServerFactory factory) throws Exception {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")),
 				new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -107,10 +113,12 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverInfoEmptyContentList() throws CoreException {
+	public void testHoverInfoEmptyContentList(MockLanguageServerFactory factory) throws CoreException {
 		final var hoverResponse = new Hover(Collections.emptyList(),
 				new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -119,8 +127,10 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverInfoInvalidOffset() throws CoreException {
-		MockLanguageServer.INSTANCE.setHover(null);
+	public void testHoverInfoInvalidOffset(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(null);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -130,10 +140,12 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverEmptyContentItem() throws CoreException {
+	public void testHoverEmptyContentItem(MockLanguageServerFactory factory) throws CoreException {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("")),
 				new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -143,10 +155,12 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverOnExternalFile(@TempDir Path tempDir) throws Exception {
+	public void testHoverOnExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("blah")),
 				new Range(new Position(0, 0), new Position(0, 0)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		Path file = Files.createFile(tempDir.resolve("testHoverOnExternalfile.lspt"));
 		ITextViewer viewer = LSPEclipseUtils
@@ -157,10 +171,12 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testMultipleHovers() throws Exception {
+	public void testMultipleHovers(MockLanguageServerFactory factory) throws Exception {
 		final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent")),
 				new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		IFile file = TestUtils.createUniqueTestFileMultiLS(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -175,12 +191,14 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testIntroUrlLink() throws Exception {
+	public void testIntroUrlLink(MockLanguageServerFactory factory) throws Exception {
 		final var hoverResponse = new Hover(
 				List.of(Either.forLeft(
 						"[My intro URL link](http://org.eclipse.ui.intro/execute?command=org.eclipse.ui.file.close)")),
 				new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setHover(hoverResponse);
+		factory.withConfiguration((idx, server)-> {
+			server.setHover(hoverResponse);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		IEditorPart editorPart = TestUtils.openEditor(file);
@@ -245,7 +263,7 @@ public class HoverTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testHoverRegionRefreshesForSameOffsetAfterCompletedRequest() throws Exception {
+	public void testHoverRegionRefreshesForSameOffsetAfterCompletedRequest(MockLanguageServerFactory factory) throws Exception {
 		// Test for https://github.com/eclipse-lsp4e/lsp4e/issues/1514
 		// Verifies that getHoverRegion refreshes for the same offset after a completed
 		// request, instead of reusing the previous completed hover range indefinitely.
@@ -257,15 +275,15 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		MockLanguageServer.INSTANCE.setHover(firstHover);
+		factory.getServer().setHover(firstHover);
 		assertEquals(new Region(0, 5), hover.getHoverRegion(viewer, 2));
 
-		MockLanguageServer.INSTANCE.setHover(secondHover);
+		factory.getServer().setHover(secondHover);
 		assertEquals(new Region(6, 4), hover.getHoverRegion(viewer, 2));
 	}
 
 	@Test
-	public void testHoverInfoRefreshesForSameOffsetAfterCompletedRequest() throws Exception {
+	public void testHoverInfoRefreshesForSameOffsetAfterCompletedRequest(MockLanguageServerFactory factory) throws Exception {
 		// Test for https://github.com/eclipse-lsp4e/lsp4e/issues/1514
 		// Verifies that a second hover at the same offset recomputes the hover region
 		// and refreshes the hover content after the previous request completed.
@@ -277,7 +295,7 @@ public class HoverTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "HoverRange Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 
-		MockLanguageServer.INSTANCE.setHover(firstHover);
+		factory.getServer().setHover(firstHover);
 		Region firstRegion = (Region) hover.getHoverRegion(viewer, 2);
 		assertEquals(new Region(0, 5), firstRegion);
 
@@ -285,7 +303,7 @@ public class HoverTest extends AbstractTestWithProject {
 		assertNotNull(firstHtml);
 		assertTrue(firstHtml.contains("FirstValue"));
 
-		MockLanguageServer.INSTANCE.setHover(secondHover);
+		factory.getServer().setHover(secondHover);
 		Region secondRegion = (Region) hover.getHoverRegion(viewer, 2);
 		assertEquals(new Region(6, 4), secondRegion);
 

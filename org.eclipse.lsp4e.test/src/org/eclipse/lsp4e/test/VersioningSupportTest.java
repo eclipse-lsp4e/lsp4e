@@ -29,7 +29,7 @@ import org.eclipse.lsp4e.VersionedEdits;
 import org.eclipse.lsp4e.internal.DocumentUtil;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.FormattingOptions;
 import org.eclipse.lsp4j.Position;
@@ -42,12 +42,14 @@ import org.junit.jupiter.api.Test;
 public class VersioningSupportTest extends AbstractTestWithProject {
 
 	@Test
-	public void testVersionSupportSuccess() throws Exception {
+	public void testVersionSupportSuccess(MockLanguageServerFactory factory) throws Exception {
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 0), new Position(0, 1)), "MyF"));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 10), new Position(0, 11)), ""));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 21), new Position(0, 21)), " Second"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(formattingTextEdits);
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(formattingTextEdits);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -79,12 +81,14 @@ public class VersioningSupportTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testVersionedEditsFailsOnModification() throws Exception {
+	public void testVersionedEditsFailsOnModification(MockLanguageServerFactory factory) throws Exception {
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 0), new Position(0, 1)), "MyF"));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 10), new Position(0, 11)), ""));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 21), new Position(0, 21)), " Second"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(formattingTextEdits);
+		factory.withConfiguration((idx, server) -> {
+			server.setFormattingTextEdits(formattingTextEdits);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -103,7 +107,7 @@ public class VersioningSupportTest extends AbstractTestWithProject {
 
 		VersionedEdits edits = result.join().get();
 		viewer.getDocument().replace(0, 0, "Hello");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(1, factory.getServer()));
 
 		assertThrows(ConcurrentModificationException.class, () -> edits.apply());
 	}

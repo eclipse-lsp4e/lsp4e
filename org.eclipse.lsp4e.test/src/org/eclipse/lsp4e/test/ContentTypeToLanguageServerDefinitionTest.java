@@ -19,13 +19,12 @@ import java.util.List;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServersRegistry;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-public class ContentTypeToLanguageServerDefinitionTest extends AbstractTest {
+public class ContentTypeToLanguageServerDefinitionTest {
 
 	public static final String SERVER_TO_DISABLE = "org.eclipse.lsp4e.test.server.disable";
 	public static final String DISABLED_CONTENT_TYPE = "org.eclipse.lsp4e.test.content-type-disabled";

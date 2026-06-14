@@ -17,12 +17,11 @@ import org.eclipse.jface.text.DocumentEvent;
 import org.eclipse.jface.text.Region;
 import org.eclipse.jface.text.TextEvent;
 import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeHolder;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 import org.junit.jupiter.api.Test;
 
-public class StyleRangeHolderTest extends AbstractTest {
+public class StyleRangeHolderTest {
 
 	private static final Color RED = new Color(255, 0, 0);
 	private List<StyleRange> originalStyleRanges = List.of(new StyleRange(0, 4, RED, null), new StyleRange(15, 4, RED, null), new StyleRange(24, 7, RED, null));

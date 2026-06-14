@@ -33,7 +33,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.operations.highlight.HighlightReconcilingStrategy;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightKind;
 import org.eclipse.lsp4j.Position;
@@ -46,15 +46,17 @@ import org.osgi.framework.Version;
 public class HighlightTest extends AbstractTestWithProject{
 
 	@Test
-	public void testHighlight() throws CoreException {
+	public void testHighlight(MockLanguageServerFactory factory) throws CoreException {
 		checkGenericEditorVersion();
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentHighlights(Map.ofEntries( //
+					Map.entry(new Position(0, 1), List.of( //
+							new DocumentHighlight(new Range(new Position(0, 2), new Position(0, 6)), DocumentHighlightKind.Read),
+							new DocumentHighlight(new Range(new Position(0, 7), new Position(0, 12)), DocumentHighlightKind.Write),
+							new DocumentHighlight(new Range(new Position(0, 13), new Position(0, 17)), DocumentHighlightKind.Text) //
+							))));
+		});
 
-		MockLanguageServer.INSTANCE.setDocumentHighlights(Map.ofEntries( //
-				Map.entry(new Position(0, 1), List.of( //
-						new DocumentHighlight(new Range(new Position(0, 2), new Position(0, 6)), DocumentHighlightKind.Read),
-						new DocumentHighlight(new Range(new Position(0, 7), new Position(0, 12)), DocumentHighlightKind.Write),
-						new DocumentHighlight(new Range(new Position(0, 13), new Position(0, 17)), DocumentHighlightKind.Text) //
-				))));
 
 		final IFile testFile = TestUtils.createUniqueTestFile(project, "  READ WRITE TEXT");
 		final ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -76,13 +78,16 @@ public class HighlightTest extends AbstractTestWithProject{
 	}
 
 	@Test
-	public void testCheckIfOtherAnnotationsRemains() throws CoreException {
+	public void testCheckIfOtherAnnotationsRemains(MockLanguageServerFactory factory) throws CoreException {
 		checkGenericEditorVersion();
+		
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentHighlights(Map.ofEntries( //
+					Map.entry(new Position(0, 1), List.of( //
+							new DocumentHighlight(new Range(new Position(0, 2), new Position(0, 6)), DocumentHighlightKind.Read)
+							))));
+		});
 
-		MockLanguageServer.INSTANCE.setDocumentHighlights(Map.ofEntries( //
-				Map.entry(new Position(0, 1), List.of( //
-						new DocumentHighlight(new Range(new Position(0, 2), new Position(0, 6)), DocumentHighlightKind.Read)
-				))));
 
 		final IFile testFile = TestUtils.createUniqueTestFile(project, "  READ WRITE TEXT");
 		final ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -107,19 +112,21 @@ public class HighlightTest extends AbstractTestWithProject{
 	}
 
 	@Test
-	public void testHighlightsInMultipleViewersForOneSource() throws CoreException {
+	public void testHighlightsInMultipleViewersForOneSource(MockLanguageServerFactory factory) throws CoreException {
 		checkGenericEditorVersion();
 
 		// Create a test file with two sets of highlights
 		final IFile testFile = TestUtils.createUniqueTestFile(project, "ONE\nTWO");
 
-		MockLanguageServer.INSTANCE.setDocumentHighlights(Map.ofEntries( //
-				Map.entry(new Position(0, 1), List.of( //
-						new DocumentHighlight(new Range(new Position(0, 0), new Position(0, 3)), DocumentHighlightKind.Write)
-				)),
-				Map.entry(new Position(1, 1), List.of( //
-						new DocumentHighlight(new Range(new Position(1, 0), new Position(1, 3)), DocumentHighlightKind.Write)
-				))));
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentHighlights(Map.ofEntries( //
+					Map.entry(new Position(0, 1), List.of( //
+							new DocumentHighlight(new Range(new Position(0, 0), new Position(0, 3)), DocumentHighlightKind.Write)
+							)),
+					Map.entry(new Position(1, 1), List.of( //
+							new DocumentHighlight(new Range(new Position(1, 0), new Position(1, 3)), DocumentHighlightKind.Write)
+							))));
+		});
 
 		// Open the first viewer
 		final var viewer1 = (ISourceViewer) TestUtils.openTextViewer(testFile);

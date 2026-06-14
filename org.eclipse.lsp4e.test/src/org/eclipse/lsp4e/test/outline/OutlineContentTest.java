@@ -33,7 +33,7 @@ import org.eclipse.lsp4e.outline.EditorToOutlineAdapterFactory;
 import org.eclipse.lsp4e.outline.SymbolsModel.DocumentSymbolWithURI;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -51,14 +51,16 @@ import org.junit.jupiter.api.io.TempDir;
 public class OutlineContentTest extends AbstractTestWithProject {
 
 	@Test
-	public void testExternalFile(@TempDir Path tempDir) throws CoreException, IOException {
+	public void testExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws CoreException, IOException {
 		var testFile = Files.writeString(tempDir.resolve("test.lspt"), "content\n does\n not\n matter\n but needs to cover the ranges described below");
 
 		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
 				new Range(new Position(0, 0), new Position(0, 2)),
 				new Range(new Position(0, 0), new Position(0, 2)));
 
-		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentSymbols(symbolCow);
+		});
 
 		final var editor = (ITextEditor) TestUtils.openExternalFileInEditor(testFile);
 
@@ -81,14 +83,16 @@ public class OutlineContentTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testExternalFileOpenedOnFileStore(@TempDir Path tempDir) throws CoreException, IOException {
+	public void testExternalFileOpenedOnFileStore(@TempDir Path tempDir, MockLanguageServerFactory factory) throws CoreException, IOException {
 		var testFile = Files.writeString(tempDir.resolve("test.lspt"), "content\n does\n not\n matter\n but needs to cover the ranges described below");
 
 		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
 				new Range(new Position(0, 0), new Position(0, 2)),
 				new Range(new Position(0, 0), new Position(0, 2)));
 
-		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentSymbols(symbolCow);
+		});
 
 		final var editor = (ITextEditor) TestUtils.openExternalFileOnFileStore(testFile);
 
@@ -111,7 +115,7 @@ public class OutlineContentTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testOutlineSorting() throws CoreException {
+	public void testOutlineSorting(MockLanguageServerFactory factory) throws CoreException {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "content\n does\n not\n matter\n but needs to cover the ranges described below");
 		final var symbolCow = new DocumentSymbol("cow", SymbolKind.Constant,
 				new Range(new Position(0, 0), new Position(0, 2)),
@@ -123,7 +127,9 @@ public class OutlineContentTest extends AbstractTestWithProject {
 				new Range(new Position(2, 0), new Position(2, 2)),
 				new Range(new Position(2, 0), new Position(2, 2)));
 
-		MockLanguageServer.INSTANCE.setDocumentSymbols(symbolCow, symbolFox, symbolCat);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentSymbols(symbolCow, symbolFox, symbolCat);
+		});
 
 		// ensure outline sorting is disabled
 		IEclipsePreferences prefs = InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID);
@@ -162,14 +168,16 @@ public class OutlineContentTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testNodeRemainExpandedUponSelection() throws CoreException {
+	public void testNodeRemainExpandedUponSelection(MockLanguageServerFactory factory) throws CoreException {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "a(b())");
-		MockLanguageServer.INSTANCE.setDocumentSymbols(
-				new DocumentSymbol("a", SymbolKind.Constant, new Range(new Position(0, 0), new Position(0, 6)),
-						new Range(new Position(0, 0), new Position(0, 1)), "",
-						List.of(new DocumentSymbol("b", SymbolKind.Constant,
-								new Range(new Position(0, 2), new Position(0, 5)),
-								new Range(new Position(0, 2), new Position(0, 3))))));
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentSymbols(
+					new DocumentSymbol("a", SymbolKind.Constant, new Range(new Position(0, 0), new Position(0, 6)),
+							new Range(new Position(0, 0), new Position(0, 1)), "",
+							List.of(new DocumentSymbol("b", SymbolKind.Constant,
+									new Range(new Position(0, 2), new Position(0, 5)),
+									new Range(new Position(0, 2), new Position(0, 3))))));
+		});
 		final var editor = (ITextEditor) TestUtils.openEditor(testFile);
 		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrappers(testFile, request -> true).iterator().next();
 
@@ -197,14 +205,16 @@ public class OutlineContentTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testNodeRemainExpandedUponModification() throws CoreException, BadLocationException {
+	public void testNodeRemainExpandedUponModification(MockLanguageServerFactory factory) throws CoreException, BadLocationException {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "a(b())");
-		MockLanguageServer.INSTANCE.setDocumentSymbols(
-				new DocumentSymbol("a", SymbolKind.Constant, new Range(new Position(0, 0), new Position(0, 6)),
-						new Range(new Position(0, 0), new Position(0, 1)), "",
-						List.of(new DocumentSymbol("b", SymbolKind.Constant,
-								new Range(new Position(0, 2), new Position(0, 5)),
-								new Range(new Position(0, 2), new Position(0, 3))))));
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentSymbols(
+					new DocumentSymbol("a", SymbolKind.Constant, new Range(new Position(0, 0), new Position(0, 6)),
+							new Range(new Position(0, 0), new Position(0, 1)), "",
+							List.of(new DocumentSymbol("b", SymbolKind.Constant,
+									new Range(new Position(0, 2), new Position(0, 5)),
+									new Range(new Position(0, 2), new Position(0, 3))))));
+		});
 		final var editor = (ITextEditor) TestUtils.openEditor(testFile);
 		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrappers(testFile, request -> true).iterator().next();
 

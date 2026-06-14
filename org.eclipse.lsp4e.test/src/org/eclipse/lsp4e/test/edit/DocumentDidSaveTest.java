@@ -30,7 +30,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.ui.IEditorPart;
@@ -41,7 +41,7 @@ import org.junit.jupiter.api.io.TempDir;
 public class DocumentDidSaveTest extends AbstractTestWithProject {
 
 	@Test
-	public void testSave() throws Exception {
+	public void testSave(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		IEditorPart editor = TestUtils.openEditor(testFile);
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
@@ -54,7 +54,7 @@ public class DocumentDidSaveTest extends AbstractTestWithProject {
 		assertNotNull(document);
 		LanguageServers.forDocument(document).anyMatching();
 		final var didSaveExpectation = new CompletableFuture<DidSaveTextDocumentParams>();
-		MockLanguageServer.INSTANCE.setDidSaveCallback(didSaveExpectation);
+		factory.getServer().setDidSaveCallback(didSaveExpectation);
 
 		// simulate change in file
 		viewer.getDocument().replace(0, 0, "Hello");
@@ -69,7 +69,7 @@ public class DocumentDidSaveTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testSaveExternalFile(@TempDir Path tempDir) throws Exception {
+	public void testSaveExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
 		Path file = Files.createFile(tempDir.resolve("testSaveExternalFile.lspt"));
 		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
@@ -80,7 +80,7 @@ public class DocumentDidSaveTest extends AbstractTestWithProject {
 		// Force LS to initialize and open file
 		LanguageServers.forDocument(LSPEclipseUtils.getDocument(editor.getEditorInput())).anyMatching();
 		final var didSaveExpectation = new CompletableFuture<DidSaveTextDocumentParams>();
-		MockLanguageServer.INSTANCE.setDidSaveCallback(didSaveExpectation);
+		factory.getServer().setDidSaveCallback(didSaveExpectation);
 
 		// simulate change in file
 		viewer.getDocument().replace(0, 0, "Hello");

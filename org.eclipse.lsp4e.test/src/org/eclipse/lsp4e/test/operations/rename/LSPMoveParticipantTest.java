@@ -11,7 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.operations.rename;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 
@@ -25,13 +27,13 @@ import org.eclipse.lsp4e.operations.rename.LSPMoveParticipant;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
 import org.eclipse.lsp4j.FileOperationOptions;
 import org.eclipse.lsp4j.FileOperationsServerCapabilities;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
 import org.eclipse.ltk.core.refactoring.participants.MoveArguments;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class LSPMoveParticipantTest extends AbstractTestWithProject {
@@ -54,21 +56,19 @@ class LSPMoveParticipantTest extends AbstractTestWithProject {
 		}
 	}
 
-	@BeforeEach
-	void setupCaps() {
-		MockLanguageServer.reset(() -> {
-			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
-			var ws = new WorkspaceServerCapabilities();
-			var fileOps = new FileOperationsServerCapabilities();
-			fileOps.setWillRename(new FileOperationOptions());
-			ws.setFileOperations(fileOps);
-			caps.setWorkspace(ws);
-			return caps;
-		});
+	private ServerCapabilities capabilities() {
+		ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
+		var ws = new WorkspaceServerCapabilities();
+		var fileOps = new FileOperationsServerCapabilities();
+		fileOps.setWillRename(new FileOperationOptions());
+		ws.setFileOperations(fileOps);
+		caps.setWorkspace(ws);
+		return caps;
 	}
 
 	@Test
-	void computesNewUriFromDestinationResource() throws Exception {
+	void computesNewUriFromDestinationResource(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::capabilities);
 		IFile file = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(file); // start LS
 		assertTrue(LanguageServers.forProject(project).anyMatching());
@@ -89,7 +89,7 @@ class LSPMoveParticipantTest extends AbstractTestWithProject {
 		assertTrue(participant.initialize(file));
 		participant.createPreChange(new NullProgressMonitor());
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillRename());
 		assertEquals(1, ws.getLastWillRename().getFiles().size());
 		assertEquals(oldUri.toString(), ws.getLastWillRename().getFiles().get(0).getOldUri());
@@ -97,7 +97,8 @@ class LSPMoveParticipantTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	void computesNewUriFromDestinationPath() throws Exception {
+	void computesNewUriFromDestinationPath(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::capabilities);
 		IFile file = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(file); // start LS
 		assertTrue(LanguageServers.forProject(project).anyMatching());
@@ -118,7 +119,7 @@ class LSPMoveParticipantTest extends AbstractTestWithProject {
 		assertTrue(participant.initialize(file));
 		participant.createPreChange(new NullProgressMonitor());
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillRename());
 		assertEquals(1, ws.getLastWillRename().getFiles().size());
 		assertEquals(oldUri.toString(), ws.getLastWillRename().getFiles().get(0).getOldUri());

@@ -21,7 +21,8 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
+import org.eclipse.lsp4e.tests.mock.MockServerState;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
 import org.junit.jupiter.api.Test;
@@ -29,7 +30,7 @@ import org.junit.jupiter.api.Test;
 public class DocumentRevertAndCloseTest extends AbstractTestWithProject {
 
 	@Test
-	public void testShutdownLsp() throws Exception {
+	public void testShutdownLsp(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "Hello!");
 		IEditorPart editor = TestUtils.openEditor(testFile);
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
@@ -46,6 +47,6 @@ public class DocumentRevertAndCloseTest extends AbstractTestWithProject {
 		((AbstractTextEditor)editor).doRevertToSaved();
 		((AbstractTextEditor)editor).getSite().getPage().closeEditor(editor, false);
 
-		waitForAndAssertCondition(3_000, () -> !MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(3_000, () -> factory.getServer().getState() != MockServerState.RUNNING);
 	}
 }

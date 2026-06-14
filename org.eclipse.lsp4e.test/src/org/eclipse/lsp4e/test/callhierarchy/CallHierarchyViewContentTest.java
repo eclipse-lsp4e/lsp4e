@@ -28,15 +28,13 @@ import org.eclipse.lsp4e.callhierarchy.CallHierarchyViewTreeNode;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.views.HierarchyViewInput;
-import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.swt.layout.FillLayout;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 import org.eclipse.swt.widgets.TreeItem;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 
 /**
  * UI-level test that opens a file, initializes Call Hierarchy and verifies that
@@ -44,20 +42,15 @@ import org.junit.jupiter.api.TestInfo;
  */
 public class CallHierarchyViewContentTest extends AbstractTestWithProject {
 
-	@Override
-	@BeforeEach
-	public void setUpProject(TestInfo testInfo) throws Exception {
-		super.setUpProject(testInfo);
-		// Ensure the mock server advertises callHierarchyProvider
-		MockLanguageServer.reset(() -> {
-			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
+	@Test
+	public void testCallHierarchyShowsCalleeAndCaller(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
+			var caps = MockLanguageServer.defaultServerCapabilities();
+			// Ensure the mock server advertises callHierarchyProvider
 			caps.setCallHierarchyProvider(Boolean.TRUE);
 			return caps;
 		});
-	}
-
-	@Test
-	public void testCallHierarchyShowsCalleeAndCaller() throws Exception {
+		
 		IProject p = project;
 		IFile file = TestUtils.createUniqueTestFile(p, "// mock content for call hierarchy\nfunction f(){}\n");
 

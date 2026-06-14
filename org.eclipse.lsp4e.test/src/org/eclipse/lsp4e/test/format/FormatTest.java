@@ -39,6 +39,7 @@ import org.eclipse.lsp4e.operations.format.LSPFormatter;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
@@ -64,8 +65,10 @@ public class FormatTest extends AbstractTestWithProject {
 	 * and leaves the document content unchanged.
 	 */
 	@Test
-	public void testFormattingEmptyEditsYieldEmptyOptional() throws Exception {
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(Collections.emptyList());
+	public void testFormattingEmptyEditsYieldEmptyOptional(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(Collections.emptyList());
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -82,8 +85,10 @@ public class FormatTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFormattingNoChanges() throws Exception {
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(Collections.emptyList());
+	public void testFormattingNoChanges(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(Collections.emptyList());
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -105,13 +110,16 @@ public class FormatTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFormatting()
+	public void testFormatting(MockLanguageServerFactory factory)
 			throws Exception {
+		
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 0), new Position(0, 1)), "MyF"));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 10), new Position(0, 11)), ""));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 21), new Position(0, 21)), " Second"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(formattingTextEdits);
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(formattingTextEdits);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -138,13 +146,15 @@ public class FormatTest extends AbstractTestWithProject {
 	}
 	
 	@Test
-	public void testSelectiveFormatting() throws Exception {
+	public void testSelectiveFormatting(MockLanguageServerFactory factory) throws Exception {
 		String fileContent = "Line 1\nLine 2\n\nText to be formatted.\nLine 5";
 		
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 5), new Position(0, 5)), " changed"));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(3, 10), new Position(3, 11)), "\n"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(formattingTextEdits);
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(formattingTextEdits);
+		});
 		
 		IFile file = TestUtils.createUniqueTestFile(project, fileContent);
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -177,13 +187,15 @@ public class FormatTest extends AbstractTestWithProject {
 	}
 	
 	@Test
-	public void testSelectiveFormattingWithEmptySelection() throws Exception {
+	public void testSelectiveFormattingWithEmptySelection(MockLanguageServerFactory factory) throws Exception {
 		String fileContent = "Line 1\nLine 2\n\nText to be formatted.\nLine 5";
 		
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 6), new Position(0, 6)), " changed"));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(3, 10), new Position(3, 11)), "\n"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(formattingTextEdits);
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(formattingTextEdits);
+		});
 		
 		IFile file = TestUtils.createUniqueTestFile(project, fileContent);
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -221,15 +233,17 @@ public class FormatTest extends AbstractTestWithProject {
 	} 
 	
 	@Test
-	public void testSelectiveFormattingWithIncapableServer() throws Exception {
-		MockLanguageServer.reset(FormatTest::customServerWithoutRangeFormatting);
+	public void testSelectiveFormattingWithIncapableServer(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(FormatTest::customServerWithoutRangeFormatting);
 		
 		String fileContent = "Line 1\nLine 2\n\nText to be formatted.\nLine 5";
 		
 		final var formattingTextEdits = new ArrayList<TextEdit>();
 		formattingTextEdits.add(new TextEdit(new Range(new Position(0, 6), new Position(0, 6)), " changed"));
 		formattingTextEdits.add(new TextEdit(new Range(new Position(3, 10), new Position(3, 11)), "\n"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(formattingTextEdits);
+		factory.withConfiguration((idx, server)-> {
+			server.setFormattingTextEdits(formattingTextEdits);
+		});
 		
 		IFile file = TestUtils.createUniqueTestFile(project, fileContent);
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -261,10 +275,12 @@ public class FormatTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testOutdatedFormatting()
+	public void testOutdatedFormatting(MockLanguageServerFactory factory)
 			throws CoreException, InterruptedException, ExecutionException, BadLocationException {
-		// Use a non-empty edit list so that a VersionedEdits is produced
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(List.of(new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "X")));
+		factory.withConfiguration((idx, server)-> {
+			// Use a non-empty edit list so that a VersionedEdits is produced
+			server.setFormattingTextEdits(List.of(new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "X")));
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Formatting Other Text");
 		IEditorPart editor = TestUtils.openEditor(file);
@@ -276,7 +292,7 @@ public class FormatTest extends AbstractTestWithProject {
 		Optional<VersionedEdits> edits = formatter.requestFormatting(viewer.getDocument(), (ITextSelection) selection).get();
 		assertTrue(edits.isPresent());
 		viewer.getDocument().replace(0, 0, "Hello");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(1, factory.getServer()));
 
 		assertThrows(ConcurrentModificationException.class, () -> edits.get().apply());
 

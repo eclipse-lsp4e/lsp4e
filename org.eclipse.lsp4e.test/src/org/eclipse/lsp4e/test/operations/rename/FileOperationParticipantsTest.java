@@ -11,7 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.operations.rename;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.util.List;
@@ -23,6 +25,7 @@ import org.eclipse.lsp4e.operations.rename.LSPFileOperationParticipantSupport;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
 import org.eclipse.lsp4j.CreateFilesParams;
 import org.eclipse.lsp4j.DeleteFilesParams;
@@ -36,30 +39,26 @@ import org.eclipse.lsp4j.FileRename;
 import org.eclipse.lsp4j.RenameFilesParams;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class FileOperationParticipantsTest extends AbstractTestWithProject {
 
-	@BeforeEach
-	void setupCaps() {
-		MockLanguageServer.reset(() -> {
-			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
-			var ws = new WorkspaceServerCapabilities();
-			var fileOps = new FileOperationsServerCapabilities();
-			fileOps.setWillCreate(new FileOperationOptions());
-			fileOps.setWillRename(new FileOperationOptions());
-			fileOps.setWillDelete(new FileOperationOptions());
-			ws.setFileOperations(fileOps);
-			caps.setWorkspace(ws);
-			return caps;
-		});
+	private ServerCapabilities capabilities() {
+		ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
+		var ws = new WorkspaceServerCapabilities();
+		var fileOps = new FileOperationsServerCapabilities();
+		fileOps.setWillCreate(new FileOperationOptions());
+		fileOps.setWillRename(new FileOperationOptions());
+		fileOps.setWillDelete(new FileOperationOptions());
+		ws.setFileOperations(fileOps);
+		caps.setWorkspace(ws);
+		return caps;
 	}
 
 	@Test
-	void testFilterGlobMatching() throws Exception {
+	void testFilterGlobMatching(MockLanguageServerFactory factory) throws Exception {
 		// Reconfigure with a forward-slash glob filter
-		MockLanguageServer.reset(() -> {
+		factory.withCapabilities(() -> {
 			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
 			var ws = new WorkspaceServerCapabilities();
 			var fileOps = new FileOperationsServerCapabilities();
@@ -81,7 +80,8 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	void testWillRename() throws Exception {
+	void testWillRename(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::capabilities);
 		IFile file = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(file);
 		URI uri = LSPEclipseUtils.toUri(file);
@@ -102,7 +102,7 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		LSPFileOperationParticipantSupport.computePreChange("rename", params, executor,
 				(ws, p) -> ws.willRenameFiles(p));
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillRename());
 		assertEquals(1, ws.getLastWillRename().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillRename().getFiles().get(0).getOldUri());
@@ -110,7 +110,8 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	void testWillCreate() throws Exception {
+	void testWillCreate(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::capabilities);
 		IFile file = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(file);
 		URI uri = LSPEclipseUtils.toUri(file);
@@ -126,14 +127,15 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		LSPFileOperationParticipantSupport.computePreChange("create", params, executor,
 				(ws, p) -> ws.willCreateFiles(p));
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillCreate());
 		assertEquals(1, ws.getLastWillCreate().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillCreate().getFiles().get(0).getUri());
 	}
 
 	@Test
-	void testWillDelete() throws Exception {
+	void testWillDelete(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::capabilities);
 		IFile file = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(file);
 		URI uri = LSPEclipseUtils.toUri(file);
@@ -149,7 +151,7 @@ class FileOperationParticipantsTest extends AbstractTestWithProject {
 		LSPFileOperationParticipantSupport.computePreChange("delete", params, executor,
 				(ws, p) -> ws.willDeleteFiles(p));
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillDelete());
 		assertEquals(1, ws.getLastWillDelete().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillDelete().getFiles().get(0).getUri());

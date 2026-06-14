@@ -32,7 +32,7 @@ import org.eclipse.jface.text.source.IAnnotationModel;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -41,8 +41,8 @@ import org.junit.jupiter.api.Test;
 public class LinkedEditingTest extends AbstractTestWithProject {
 
 	@Test
-	public void testLinkedEditing() throws CoreException {
-		final var sourceViewer = setupSimpleHtmlPageViewer();
+	public void testLinkedEditing(MockLanguageServerFactory factory) throws CoreException {
+		final var sourceViewer = setupSimpleHtmlPageViewer(factory);
 
 		sourceViewer.getTextWidget().setSelection(11); // 10-14 <body|>
 
@@ -63,8 +63,8 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testLinkedEditingExitPolicy() throws CoreException {
-		final var sourceViewer = setupSimpleHtmlPageViewer();
+	public void testLinkedEditingExitPolicy(MockLanguageServerFactory factory) throws CoreException {
+		final var sourceViewer = setupSimpleHtmlPageViewer(factory);
 
 		// Test linked editing annotation in a tag name position
 		sourceViewer.getTextWidget().setCaretOffset(14);
@@ -97,14 +97,16 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testSelectionChange() throws CoreException {
+	public void testSelectionChange(MockLanguageServerFactory factory) throws CoreException {
 
 		final var ranges = new ArrayList<Range>();
 		ranges.add(new Range(new Position(0, 0), new Position(0, 5)));
 		ranges.add(new Range(new Position(0, 6), new Position(0, 12)));
 
 		final var linkedEditingRanges = new LinkedEditingRanges(ranges, "[:A-Z_a-z]*\\b");
-		MockLanguageServer.INSTANCE.setLinkedEditingRanges(linkedEditingRanges);
+		factory.withConfiguration((idx, server)-> {
+			server.setLinkedEditingRanges(linkedEditingRanges);
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "first second");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -137,13 +139,15 @@ public class LinkedEditingTest extends AbstractTestWithProject {
 	}
 
 
-	private ISourceViewer setupSimpleHtmlPageViewer() throws CoreException {
+	private ISourceViewer setupSimpleHtmlPageViewer(MockLanguageServerFactory factory) throws CoreException {
 		final var ranges = new ArrayList<Range>();
 		ranges.add(new Range(new Position(1, 3), new Position(1, 7)));
 		ranges.add(new Range(new Position(3, 4), new Position(3, 8)));
 
 		final var linkkedEditingRanges = new LinkedEditingRanges(ranges, "[:A-Z_a-z]*\\Z");
-		MockLanguageServer.INSTANCE.setLinkedEditingRanges(linkkedEditingRanges);
+		factory.withConfiguration((idx, server)-> {
+			server.setLinkedEditingRanges(linkkedEditingRanges);
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "<html>\n  <body class=\"test\">\n    a body text\n  </body>\n</html>");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);

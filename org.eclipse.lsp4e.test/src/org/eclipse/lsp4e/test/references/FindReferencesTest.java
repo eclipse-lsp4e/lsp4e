@@ -31,7 +31,7 @@ import org.eclipse.lsp4e.operations.references.LSFindReferences;
 import org.eclipse.lsp4e.operations.references.LSSearchResult;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -73,13 +73,6 @@ public class FindReferencesTest extends AbstractTestWithProject {
 	@BeforeEach
 	public void setUp() throws Exception {
 		ensureSearchResultViewIsClosed();
-
-		final var testFile = TestUtils.createUniqueTestFile(project, "word1 word2\nword3 word2");
-		var textViewer = TestUtils.openTextViewer(testFile);
-		DisplayHelper.sleep(textViewer.getTextWidget().getDisplay(), 2_000); // Give some time to the editor to update
-		MockLanguageServer.INSTANCE.getTextDocumentService().setMockReferences(
-				new Location(testFile.getLocationURI().toString(), new Range(new Position(0, 6), new Position(0, 11))),
-				new Location(testFile.getLocationURI().toString(), new Range(new Position(1, 6), new Position(1, 11))));
 	}
 
 	@AfterEach
@@ -88,7 +81,14 @@ public class FindReferencesTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFindReferences() throws Exception {
+	public void testFindReferences(MockLanguageServerFactory factory) throws Exception {
+		final var testFile = TestUtils.createUniqueTestFile(project, "word1 word2\nword3 word2");
+		var textViewer = TestUtils.openTextViewer(testFile);
+		DisplayHelper.sleep(textViewer.getTextWidget().getDisplay(), 2_000); // Give some time to the editor to update
+		factory.getServer().getTextDocumentService().setMockReferences(
+					new Location(testFile.getLocationURI().toString(), new Range(new Position(0, 6), new Position(0, 11))),
+					new Location(testFile.getLocationURI().toString(), new Range(new Position(1, 6), new Position(1, 11))));
+		
 		final var handler = new LSFindReferences();
 		final var evaluationService = PlatformUI.getWorkbench().getService(IEvaluationService.class);
 		final var searchResultListener = registerSearchResultListener();
@@ -98,7 +98,15 @@ public class FindReferencesTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFindReferencesIsNonBlocking() throws Exception {
+	public void testFindReferencesIsNonBlocking(MockLanguageServerFactory factory) throws Exception {
+		final var testFile = TestUtils.createUniqueTestFile(project, "word1 word2\nword3 word2");
+		var textViewer = TestUtils.openTextViewer(testFile);
+		DisplayHelper.sleep(textViewer.getTextWidget().getDisplay(), 2_000); // Give some time to the editor to update
+		factory.getServer().getTextDocumentService().setMockReferences(
+					new Location(testFile.getLocationURI().toString(), new Range(new Position(0, 6), new Position(0, 11))),
+					new Location(testFile.getLocationURI().toString(), new Range(new Position(1, 6), new Position(1, 11))));
+		
+		
 		final int uiFreezeThreshold = 300;
 		final int findReferencesFakeDuration = uiFreezeThreshold * 5;
 
@@ -107,7 +115,7 @@ public class FindReferencesTest extends AbstractTestWithProject {
 		waitForAndAssertCondition("UiFreezeEventLogger.INSTANCE is null", 2_000,
 				() -> UiFreezeEventLogger.INSTANCE != null);
 
-		MockLanguageServer.INSTANCE.setTimeToProceedQueries(findReferencesFakeDuration);
+		factory.getServer().setTimeToProceedQueries(findReferencesFakeDuration);
 		try {
 			final var handler = new LSFindReferences();
 			final var evaluationService = PlatformUI.getWorkbench().getService(IEvaluationService.class);
@@ -124,7 +132,7 @@ public class FindReferencesTest extends AbstractTestWithProject {
 			waitForAndAssertSearchResult(searchResultListener, findReferencesFakeDuration,
 					findReferencesFakeDuration + 1_000);
 		} finally {
-			MockLanguageServer.INSTANCE.setTimeToProceedQueries(0);
+			factory.getServer().setTimeToProceedQueries(0);
 			uiFreezeMonitor.shutdown();
 		}
 

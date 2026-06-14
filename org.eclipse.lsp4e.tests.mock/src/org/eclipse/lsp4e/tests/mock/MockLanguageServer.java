@@ -16,6 +16,10 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.tests.mock;
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.lang.System.Logger;
+import java.lang.System.Logger.Level;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 import org.eclipse.lsp4j.CodeAction;
@@ -69,6 +74,8 @@ import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
+import org.eclipse.lsp4j.WorkspaceFoldersOptions;
+import org.eclipse.lsp4j.WorkspaceServerCapabilities;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.launch.LSPLauncher;
@@ -84,30 +91,37 @@ public class MockLanguageServer implements LanguageServer {
 	 */
 	public static final String SUPPORTED_COMMAND_ID = "mock.command";
 
-	public static MockLanguageServer INSTANCE = new MockLanguageServer(MockLanguageServer::defaultServerCapabilities);
-
 	private volatile MockTextDocumentService textDocumentService = new MockTextDocumentService(
 			this::buildMaybeDelayedFuture);
 	private final MockWorkspaceService workspaceService = new MockWorkspaceService(this::buildMaybeDelayedFuture);
 	private final InitializeResult initializeResult = new InitializeResult();
 	private volatile long delay = 0;
 	private volatile Executor delayedExecutor = null;
-	private volatile boolean started;
+	private AtomicReference<MockServerState> state = new AtomicReference<MockServerState>(MockServerState.RUNNING);
 
-	private final List<LanguageClient> remoteProxies = new CopyOnWriteArrayList<>();
+	private static final Logger LOGGER = System.getLogger(MockLanguageServer.class.getSimpleName());
+
+	/**
+	 * The MockLanguageServer was started as a separate process.
+	 */
+	private boolean launchedStandalone = false;
+
+	/**
+	 * The remote proxy. This can be used to send requests to the client.
+	 */
+	private LanguageClient remoteProxy = null;
 
 	private final List<CompletableFuture<?>> inFlight = new CopyOnWriteArrayList<>();
 
-	public static void reset() {
-		INSTANCE = new MockLanguageServer(MockLanguageServer::defaultServerCapabilities);
-	}
+	/**
+	 * Stream which this LS uses to send messages to the client. Closing this stream
+	 * will terminate the connection on the client side.
+	 */
+	private OutputStream output;
 
-	public static void reset(final Supplier<ServerCapabilities> serverConfigurer) {
-		INSTANCE = new MockLanguageServer(serverConfigurer);
-	}
-
-	protected MockLanguageServer(final Supplier<ServerCapabilities> serverConfigurer) {
-		resetInitializeResult(serverConfigurer);
+	public MockLanguageServer(Supplier<ServerCapabilities> supplier, OutputStream stdout) {
+		initializeResult.setCapabilities(supplier.get());
+		this.output = stdout;
 	}
 
 	/**
@@ -117,10 +131,11 @@ public class MockLanguageServer implements LanguageServer {
 	 * @throws InterruptedException
 	 */
 	public static void main(String[] args) throws InterruptedException, ExecutionException {
-		Launcher<LanguageClient> l = LSPLauncher.createServerLauncher(MockLanguageServer.INSTANCE, System.in,
+		MockLanguageServer server = new MockLanguageServer(MockLanguageServer::defaultServerCapabilities, System.out);
+		server.launchedStandalone = true;
+		Launcher<LanguageClient> l = LSPLauncher.createServerLauncher(server, System.in,
 				System.out);
 		Future<?> f = l.startListening();
-		MockLanguageServer.INSTANCE.addRemoteProxy(l.getRemoteProxy());
 		f.get();
 	}
 
@@ -141,14 +156,9 @@ public class MockLanguageServer implements LanguageServer {
 		});
 	}
 
-	public void addRemoteProxy(LanguageClient remoteProxy) {
-		this.textDocumentService.addRemoteProxy(remoteProxy);
-		this.remoteProxies.add(remoteProxy);
-		this.started = true;
-	}
-
-	private void resetInitializeResult(final Supplier<ServerCapabilities> serverConfigurer) {
-		initializeResult.setCapabilities(serverConfigurer.get());
+	public void setRemoteProxy(LanguageClient remoteProxy) {
+		this.textDocumentService.setRemoteProxy(remoteProxy);
+		this.remoteProxy = remoteProxy;
 	}
 
 	public <U> CompletableFuture<U> buildMaybeDelayedFuture(U value) {
@@ -161,6 +171,10 @@ public class MockLanguageServer implements LanguageServer {
 		return CompletableFuture.completedFuture(value);
 	}
 
+	/**
+	 * Supplier to get a default set of server capabilities.
+	 * 
+	 */
 	public static ServerCapabilities defaultServerCapabilities() {
 		final var capabilities = new ServerCapabilities();
 		capabilities.setTextDocumentSync(TextDocumentSyncKind.Full);
@@ -187,6 +201,22 @@ public class MockLanguageServer implements LanguageServer {
 		capabilities.setLinkedEditingRangeProvider(new LinkedEditingRangeRegistrationOptions());
 		capabilities.setTypeHierarchyProvider(new TypeHierarchyRegistrationOptions());
 		capabilities.setFoldingRangeProvider(new FoldingRangeProviderOptions());
+		return capabilities;
+	}
+
+	/**
+	 * Similar to {@link #defaultServerCapabilities()}, but with workspace support
+	 * (multi root) enabled.
+	 * 
+	 */
+	public static ServerCapabilities multiRootCapabilities() {
+		var capabilities = defaultServerCapabilities();
+		final var workspace = new WorkspaceServerCapabilities();
+		final var workspaceFolders = new WorkspaceFoldersOptions();
+		workspaceFolders.setSupported(Boolean.TRUE);
+
+		workspace.setWorkspaceFolders(workspaceFolders);
+		capabilities.setWorkspace(workspace);
 		return capabilities;
 	}
 
@@ -290,12 +320,24 @@ public class MockLanguageServer implements LanguageServer {
 
 	@Override
 	public CompletableFuture<Object> shutdown() {
-		this.started = false;
+		state.set(MockServerState.SHUTDOWN);
 		return buildMaybeDelayedFuture(Collections.emptySet());
 	}
 
 	@Override
 	public void exit() {
+		state.set(MockServerState.EXIT);
+		try {
+			output.close();
+		} catch (IOException e) {
+			LOGGER.log(Level.ERROR, "Failed to close outputstream of MockLanguageServer", e);
+		}
+		if (launchedStandalone) {
+			// If we are running as an external Process, we actually have to exit the
+			// process, because LaunchConfigurationStreamProvider/StreamProxyInputStream
+			// cannot check for EOF but only if the underlying process has exited.
+			System.exit(0);
+		}
 	}
 
 	public void setTimeToProceedQueries(final long delayInMS) {
@@ -323,12 +365,12 @@ public class MockLanguageServer implements LanguageServer {
 		this.textDocumentService.setMockTypeDefinitions(locations);
 	}
 
-	public boolean isRunning() {
-		return this.started;
-	}
-
-	public List<LanguageClient> getRemoteProxies() {
-		return remoteProxies;
+	/**
+	 * Get access to the language client. This can be used to send
+	 * requests/notifications from the server to the client.
+	 */
+	public LanguageClient getRemoteProxy() {
+		return remoteProxy;
 	}
 
 	public void setDocumentSymbols(DocumentSymbol documentSymbol) {
@@ -368,9 +410,12 @@ public class MockLanguageServer implements LanguageServer {
 		this.textDocumentService.setFoldingRanges(foldingRanges);
 	}
 
+	public MockServerState getState() {
+		return state.get();
+	}
+
 	@Override
 	public String toString() {
-		return "MockLanguageServer [started=" + started + ", delay=" + delay + ", remoteProxies=" + remoteProxies.size()
-				+ ", inFlight=" + inFlight.size() + "]";
+		return "MockLanguageServer [state=" + state.get() + ", delay=" + delay + ", inFlight=" + inFlight.size() + "]";
 	}
 }

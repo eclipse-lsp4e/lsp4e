@@ -16,13 +16,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.lsp4e.callhierarchy.CallHierarchyLabelProvider;
 import org.eclipse.lsp4e.callhierarchy.CallHierarchyViewTreeNode;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4j.CallHierarchyItem;
 import org.eclipse.swt.custom.StyleRange;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-public class CallHierarchyLabelProviderTest extends AbstractTest {
+public class CallHierarchyLabelProviderTest {
 	
 	private static CallHierarchyLabelProvider labelProvider = null;
 	

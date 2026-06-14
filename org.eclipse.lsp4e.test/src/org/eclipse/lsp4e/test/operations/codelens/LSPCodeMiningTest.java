@@ -31,6 +31,7 @@ import org.eclipse.lsp4e.operations.codelens.LSPCodeMining;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.ExecuteCommandParams;
@@ -91,7 +92,7 @@ public class LSPCodeMiningTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testLSPCodeMiningActionServerSideHandling()
+	public void testLSPCodeMiningActionServerSideHandling(MockLanguageServerFactory factory)
 			throws Exception {
 		final CodeLens lens = createCodeLens(MockLanguageServer.SUPPORTED_COMMAND_ID);
 		Command command = lens.getCommand();
@@ -103,7 +104,7 @@ public class LSPCodeMiningTest extends AbstractTestWithProject {
 		IFile file = TestUtils.createUniqueTestFile(project, "lspt", "test content");
 		IDocument document = TestUtils.openTextViewer(file).getDocument();
 
-		MockLanguageServer languageServer = MockLanguageServer.INSTANCE;
+		MockLanguageServer languageServer = factory.getServer();
 		final var provider = new CodeLensProvider();
 
 		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrapper(project, LanguageServersRegistry.getInstance().getDefinition(MOCK_SERVER_ID));

@@ -18,7 +18,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IViewPart;
@@ -45,11 +45,13 @@ public class EditorToOutlineAdapterFactoryTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testGetAdapter() throws CoreException {
+	public void testGetAdapter(MockLanguageServerFactory factory) throws CoreException {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "Hello World !!");
 		outline.partClosed(outline);
 
-		MockLanguageServer.INSTANCE.setTimeToProceedQueries(500);
+		factory.withConfiguration((idx, server)-> {
+			server.setTimeToProceedQueries(500);
+		});
 		TestUtils.openEditor(testFile);
 
 		long beginOpenOutline = System.currentTimeMillis();

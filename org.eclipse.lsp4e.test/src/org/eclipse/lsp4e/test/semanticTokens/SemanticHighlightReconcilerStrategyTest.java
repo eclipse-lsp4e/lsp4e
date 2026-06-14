@@ -18,7 +18,7 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.widgets.Display;
@@ -34,19 +34,20 @@ public class SemanticHighlightReconcilerStrategyTest extends AbstractTestWithPro
 	@BeforeEach
 	public void setUp() {
 		shell = new Shell();
-
-		// Setup Server Capabilities
-		List<String> tokenTypes = List.of("keyword");
-		List<String> tokenModifiers = List.of("obsolete");
-		SemanticTokensTestUtil.setSemanticTokensLegend(tokenTypes, tokenModifiers);
 	}
 
 	@Test
-	public void testKeyword() throws CoreException {
+	public void testKeyword(MockLanguageServerFactory factory) throws CoreException {
+		List<String> tokenTypes = List.of("keyword");
+		List<String> tokenModifiers = List.of("obsolete");
+		SemanticTokensTestUtil.setSemanticTokensLegend(tokenTypes, tokenModifiers, factory);
+		
 		final var semanticTokens = new SemanticTokens();
 		semanticTokens.setData(SemanticTokensTestUtil.keywordSemanticTokens());
 
-		MockLanguageServer.INSTANCE.getTextDocumentService().setSemanticTokens(semanticTokens);
+		factory.withConfiguration((idx, server) -> {
+			server.getTextDocumentService().setSemanticTokens(semanticTokens);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "lsptm", SemanticTokensTestUtil.keywordText);
 		ITextViewer textViewer = TestUtils.openTextViewer(file);

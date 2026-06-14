@@ -28,6 +28,7 @@ import org.eclipse.lsp4e.operations.inlayhint.LSPLineContentCodeMining;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.ExecuteCommandParams;
 import org.eclipse.lsp4j.InlayHint;
@@ -47,7 +48,7 @@ public class LSPLineContentCodeMiningTest extends AbstractTestWithProject {
 	private static final String MOCK_SERVER_ID = "org.eclipse.lsp4e.test.server";
 
 	@Test
-	public void singleLabelPartCommand() throws Exception {
+	public void singleLabelPartCommand(MockLanguageServerFactory factory) throws Exception {
 		final InlayHint inlay = createMultiLabelInlayHint(createInlayLabelPart("Label-Text", MockLanguageServer.SUPPORTED_COMMAND_ID));
 		Command command = inlay.getLabel().getRight().get(0).getCommand();
 		final var jsonObject = new JsonObject();
@@ -59,7 +60,7 @@ public class LSPLineContentCodeMiningTest extends AbstractTestWithProject {
 		ITextViewer textViewer = TestUtils.openTextViewer(file);
 		IDocument document = textViewer.getDocument();
 
-		MockLanguageServer languageServer = MockLanguageServer.INSTANCE;
+		MockLanguageServer languageServer = factory.getServer();
 		final var provider = new InlayHintProvider();
 
 		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrapper(project, LanguageServersRegistry.getInstance().getDefinition(MOCK_SERVER_ID));

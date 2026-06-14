@@ -26,7 +26,7 @@ import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
@@ -52,17 +52,17 @@ public class DynamicCompletionRegistrationTest extends AbstractTestWithProject {
 	@BeforeEach
 	public void setup() {
 		contentAssistProcessor = new LSContentAssistProcessor(true, false);
-	}
+	} 
 
     @Test
-    public void testDynamicCompletionRegistrationProvidesProposalsAndTriggers() throws Exception {
+    public void testDynamicCompletionRegistrationProvidesProposalsAndTriggers(MockLanguageServerFactory factory) throws Exception {
         // Prepare a file and open a viewer
         IFile file = TestUtils.createUniqueTestFile(project, "");
         ITextViewer viewer = TestUtils.openTextViewer(file);
 
         // Ensure the mock LS is up
-        waitForAndAssertCondition(5_000, () -> !MockLanguageServer.INSTANCE.getRemoteProxies().isEmpty());
-        LanguageClient client = getMockClient();
+        waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
+        LanguageClient client = factory.getServer().getRemoteProxy();
         assertNotNull(client);
 
         // Provide a simple completion item in the mock LS
@@ -72,7 +72,7 @@ public class DynamicCompletionRegistrationTest extends AbstractTestWithProject {
         item.setKind(CompletionItemKind.Text);
         item.setTextEdit(Either.forLeft(new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "Alpha")));
         items.add(item);
-        MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+        factory.getServer().setCompletionList(new CompletionList(false, items));
 
         // Dynamically register completion with trigger characters (server-like behavior)
         var registration = new Registration();
@@ -96,9 +96,4 @@ public class DynamicCompletionRegistrationTest extends AbstractTestWithProject {
         assertTrue(trig.indexOf('#') >= 0);
     }
 
-	private LanguageClient getMockClient() {
-		var proxies = MockLanguageServer.INSTANCE.getRemoteProxies();
-		assertEquals(1, proxies.size());
-		return proxies.get(0);
-	}
 }
