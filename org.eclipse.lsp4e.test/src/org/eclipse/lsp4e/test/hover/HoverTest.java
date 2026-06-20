@@ -187,7 +187,7 @@ public class HoverTest extends AbstractTestWithProject {
 
 		waitForAndAssertCondition(5_000, () -> LSPEclipseUtils.getTextViewer(editorPart) != null);
 		ITextViewer viewer = LSPEclipseUtils.getTextViewer(editorPart);
-		assertEquals(UI.getActivePart(), editorPart);
+		assertEquals(editorPart, UI.getActivePart());
 
 		@Nullable IRegion hoverRegion = hover.getHoverRegion(viewer, 0);
 		String hoverContent = hover.getHoverInfoFuture(viewer, hoverRegion).get(2, TimeUnit.SECONDS);
@@ -220,7 +220,7 @@ public class HoverTest extends AbstractTestWithProject {
 				@Override
 				public void completed(ProgressEvent event) {
 					browser.removeProgressListener(this);
-					assertEquals(UI.getActivePart(), editorPart);
+					assertEquals(editorPart, UI.getActivePart());
 					browser.execute("document.getElementsByTagName('a')[0].click()");
 					completed.set(true);
 				}

@@ -80,10 +80,7 @@ public class TestUtils {
 		IWorkbenchPage page = workbenchWindow.getActivePage();
 		final var input = new FileEditorInput(file);
 
-		IEditorPart part = page.openEditor(input, "org.eclipse.ui.genericeditor.GenericEditor", false);
-		if (part != null) {
-			part.setFocus();
-		}
+		IEditorPart part = page.openEditor(input, "org.eclipse.ui.genericeditor.GenericEditor", true);
 		return part;
 	}
 
@@ -103,10 +100,7 @@ public class TestUtils {
 	public static IEditorPart openExternalFileInEditor(Path file) throws PartInitException {
 		IWorkbenchWindow workbenchWindow = UI.getActiveWindow();
 		IWorkbenchPage page = workbenchWindow.getActivePage();
-		IEditorPart part = IDE.openEditor(page, file.toUri(), "org.eclipse.ui.genericeditor.GenericEditor", false);
-		if (part != null) {
-			part.setFocus();
-		}
+		IEditorPart part = IDE.openEditor(page, file.toUri(), "org.eclipse.ui.genericeditor.GenericEditor", true);
 		return part;
 	}
 
@@ -115,8 +109,8 @@ public class TestUtils {
 		IWorkbenchPage page = workbenchWindow.getActivePage();
 		IFileStore fileStore = EFS.getLocalFileSystem().getStore(file.toUri());
 		IEditorPart part = IDE.openEditorOnFileStore(page, fileStore);
-		if (part != null) {
-			part.setFocus();
+		if (page != null && part != null) {
+			page.activate(part);
 		}
 		return part;
 	}
