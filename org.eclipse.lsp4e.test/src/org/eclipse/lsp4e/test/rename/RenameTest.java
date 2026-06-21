@@ -85,7 +85,7 @@ public class RenameTest extends AbstractTestWithProject {
 
 	@Test
 	public void testAsyncRenameHandlerEnablement() throws Exception {
-		final int delay = 4_000;
+		final int delay = 6_000;
 		// this fixed value is not really an optimal solution, since it depends on the following things
 		// to happen within that time frame. Should maybe re-work this in the future towards a more
 		// precise way of steering the execution from the test here
