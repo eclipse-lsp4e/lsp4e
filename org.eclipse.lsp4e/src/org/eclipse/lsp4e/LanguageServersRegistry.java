@@ -473,7 +473,7 @@ public class LanguageServersRegistry {
 		final var res = new HashSet<LanguageServerDefinition>();
 		contentTypes = expandToSuperTypes(contentTypes);
 		for (ContentTypeToLanguageServerDefinition mapping : this.connections) {
-			if (mapping.isEnabled(uri) && contentTypes.contains(mapping.getKey())) {
+			if (contentTypes.contains(mapping.getKey()) && mapping.isEnabled(uri)) {
 				res.add(mapping.getValue());
 			}
 		}
