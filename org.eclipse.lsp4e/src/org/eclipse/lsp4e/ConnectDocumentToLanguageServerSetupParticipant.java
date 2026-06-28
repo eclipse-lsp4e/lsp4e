@@ -16,6 +16,8 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -36,7 +38,16 @@ import org.eclipse.jface.text.IDocument;
  */
 public class ConnectDocumentToLanguageServerSetupParticipant implements IDocumentSetupParticipant, IDocumentSetupParticipantExtension {
 
+	/**
+	 * Used to delay the actual document setup.
+	 */
+	private static ScheduledExecutorService DELAYED_EXECUTOR = createExecutor();
+
 	private static final Set<CompletableFuture<?>> PENDING_CONNECTIONS = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
+
+	private static ScheduledExecutorService createExecutor() {
+		return Executors.newSingleThreadScheduledExecutor(Thread.ofVirtual().name("LS-Document-Delayed-Setup").factory()); //$NON-NLS-1$
+	}
 
 	@Override
 	public void setup(IDocument document) {
@@ -49,10 +60,13 @@ public class ConnectDocumentToLanguageServerSetupParticipant implements IDocumen
 
 	@Override
 	public void setup(final IDocument document, IPath location, LocationKind locationKind) {
-		// Force document connect
-		CompletableFuture.runAsync(
-				() -> PENDING_CONNECTIONS.add(LanguageServers.forDocument(document).collectAll(ls -> CompletableFuture.completedFuture(null))),
-				CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS)); // delay to ensure the document is initialized and can be resolved by LSPEclipseUtils.toUri
+		// Force document connect.
+		// Delay to ensure the document is initialized and can be resolved by
+		// LSPEclipseUtils.toUri
+		DELAYED_EXECUTOR.schedule(() -> {
+			PENDING_CONNECTIONS.add(
+					LanguageServers.forDocument(document).collectAll(ls -> CompletableFuture.completedFuture(null)));
+		}, 1, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -60,13 +74,25 @@ public class ConnectDocumentToLanguageServerSetupParticipant implements IDocumen
 	 * jobs trying to attach to them
 	 */
 	public static void waitForAll() {
-		PENDING_CONNECTIONS.forEach(cf -> {
+		// Don't accept any more document setups
+		DELAYED_EXECUTOR.shutdownNow();
+		try {
+			DELAYED_EXECUTOR.awaitTermination(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			LanguageServerPlugin.logError("Failed to await termination of delayed document setup", e); //$NON-NLS-1$
+		}
+
+		// Now we can wait for the pending connection to finish.
+		PENDING_CONNECTIONS.forEach(future -> {
 			try {
-				cf.get(1000, TimeUnit.MILLISECONDS);
+				future.get(1, TimeUnit.SECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				LanguageServerPlugin.logInfo("Interrupted trying to cancel document setup"); //$NON-NLS-1$;
+				LanguageServerPlugin.logError("Interrupted trying to cancel document setup", e); //$NON-NLS-1$ ;
 			}
 		});
+
+		// Create new executor for next setup.
+		DELAYED_EXECUTOR = createExecutor();
 	}
 
 }
