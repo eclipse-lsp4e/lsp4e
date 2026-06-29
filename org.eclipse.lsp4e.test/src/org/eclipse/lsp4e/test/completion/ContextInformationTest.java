@@ -25,7 +25,7 @@ import org.eclipse.jface.text.contentassist.IContextInformation;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.SignatureHelp;
 import org.eclipse.lsp4j.SignatureInformation;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,8 +40,10 @@ public class ContextInformationTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testNoContextInformation() throws CoreException {
-		MockLanguageServer.INSTANCE.setSignatureHelp(new SignatureHelp());
+	public void testNoContextInformation(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server)-> {
+			server.setSignatureHelp(new SignatureHelp());
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -51,11 +53,13 @@ public class ContextInformationTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testContextInformationNoParameters() throws CoreException {
+	public void testContextInformationNoParameters(MockLanguageServerFactory factory) throws CoreException {
 		final var signatureHelp = new SignatureHelp();
 		final var information = new SignatureInformation("label", "documentation", Collections.emptyList());
 		signatureHelp.setSignatures(List.of(information));
-		MockLanguageServer.INSTANCE.setSignatureHelp(signatureHelp);
+		factory.withConfiguration((idx, server) -> {
+			server.setSignatureHelp(signatureHelp);
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "method()");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -70,9 +74,11 @@ public class ContextInformationTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testTriggerChars() throws CoreException {
+	public void testTriggerChars(MockLanguageServerFactory factory) throws CoreException {
 		final Set<String> triggers = Set.of("a", "b");
-		MockLanguageServer.INSTANCE.setContextInformationTriggerChars(triggers);
+		factory.withConfiguration((idx, server) -> {
+			server.setContextInformationTriggerChars(triggers);
+		});
 
 		final var content = "First";
 		TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -82,8 +88,10 @@ public class ContextInformationTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testTriggerCharsNullList() throws CoreException {
-		MockLanguageServer.INSTANCE.setContextInformationTriggerChars(null);
+	public void testTriggerCharsNullList(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server)-> {
+			server.setContextInformationTriggerChars(null);
+		});
 
 		TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "First"));
 

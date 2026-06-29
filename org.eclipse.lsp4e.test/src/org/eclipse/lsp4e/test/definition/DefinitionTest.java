@@ -33,7 +33,7 @@ import org.eclipse.lsp4e.operations.declaration.LSBasedHyperlink;
 import org.eclipse.lsp4e.operations.declaration.OpenDeclarationHyperlinkDetector;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.LocationLink;
@@ -49,9 +49,11 @@ public class DefinitionTest extends AbstractTestWithProject {
 	private final OpenDeclarationHyperlinkDetector hyperlinkDetector = new OpenDeclarationHyperlinkDetector();
 
 	@Test
-	public void testDefinitionOneLocation() throws Exception {
-		final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setDefinition(List.of(location));
+	public void testDefinitionOneLocation(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
+			server.setDefinition(List.of(location));
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -62,11 +64,13 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDefinitionAndTypeDefinition() throws Exception {
-		final var definitionRange = new Range(new Position(0, 0), new Position(0, 1));
-		MockLanguageServer.INSTANCE.setDefinition(List.of(new Location("file://testDefinition", definitionRange)));
-		final var typeDefinitionRange = new Range(new Position(0, 2), new Position(0, 3));
-		MockLanguageServer.INSTANCE.setTypeDefinitions(List.of(new LocationLink("file://testTypeDefinition", typeDefinitionRange, typeDefinitionRange)));
+	public void testDefinitionAndTypeDefinition(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			final var definitionRange = new Range(new Position(0, 0), new Position(0, 1));
+			server.setDefinition(List.of(new Location("file://testDefinition", definitionRange)));
+			final var typeDefinitionRange = new Range(new Position(0, 2), new Position(0, 3));
+			server.setTypeDefinitions(List.of(new LocationLink("file://testTypeDefinition", typeDefinitionRange, typeDefinitionRange)));
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -84,9 +88,11 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDefinitionOneLocationExternalFile(@TempDir Path tempDir) throws Exception {
-		final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setDefinition(List.of(location));
+	public void testDefinitionOneLocationExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
+			server.setDefinition(List.of(location));
+		});
 
 		Path file = Files.createFile(tempDir.resolve("testDocumentLinkExternalFile.lspt"));
 		final var editor = (ITextEditor) IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
@@ -97,12 +103,14 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDefinitionManyLocation() throws Exception {
-		final var locations = new ArrayList<Location>();
-		locations.add(new Location("file://test0", new Range(new Position(0, 0), new Position(0, 10))));
-		locations.add(new Location("file://test1", new Range(new Position(1, 0), new Position(1, 10))));
-		locations.add(new Location("file://test2", new Range(new Position(2, 0), new Position(2, 10))));
-		MockLanguageServer.INSTANCE.setDefinition(locations);
+	public void testDefinitionManyLocation(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			final var locations = new ArrayList<Location>();
+			locations.add(new Location("file://test0", new Range(new Position(0, 0), new Position(0, 10))));
+			locations.add(new Location("file://test1", new Range(new Position(1, 0), new Position(1, 10))));
+			locations.add(new Location("file://test2", new Range(new Position(2, 0), new Position(2, 10))));
+			server.setDefinition(locations);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -113,8 +121,10 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDefinitionNoLocations() throws Exception {
-		MockLanguageServer.INSTANCE.setDefinition(null);
+	public void testDefinitionNoLocations(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDefinition(null);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -124,8 +134,10 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDefinitionEmptyLocations() throws Exception {
-		MockLanguageServer.INSTANCE.setDefinition(Collections.emptyList());
+	public void testDefinitionEmptyLocations(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDefinition(Collections.emptyList());
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -135,9 +147,11 @@ public class DefinitionTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testReturnsPromptly() throws Exception {
-		final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
-		MockLanguageServer.INSTANCE.setDefinition(List.of(location));
+	public void testReturnsPromptly(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			final var location = new Location("file://test", new Range(new Position(0, 0), new Position(0, 10)));
+			server.setDefinition(List.of(location));
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);

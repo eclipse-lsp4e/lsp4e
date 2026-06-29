@@ -52,8 +52,10 @@ import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.LanguageServersRegistry;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.MappingEnablementTester;
+import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServerMultiRootFolders;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
+import org.eclipse.lsp4e.tests.mock.MockServerState;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.ui.ide.IDE;
@@ -107,7 +109,9 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 		var testFile = createFile(project, "shouldUseRunConfiguration.lspt2", "");
 		// Force LS to initialize and open file
 		LanguageServers.forDocument(LSPEclipseUtils.getDocument(testFile)).anyMatching();
-		assertTrue(hasActiveLanguageServers(testFile, MATCH_ALL));
+		// anyMatching will return after 50ms, even if the LS is still initializing. 
+		// So we have to give the LS slightly more time.
+		TestUtils.waitForAndAssertCondition(5_000, () -> assertTrue(hasActiveLanguageServers(testFile, MATCH_ALL)));
 	}
 
 	@Test
@@ -179,19 +183,19 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testCreateNewLSAfterInitialProjectGotDeleted() throws Exception {
+	public void testCreateNewLSAfterInitialProjectGotDeleted(MockLanguageServerFactory factory) throws Exception {
 		var testFile1 = createUniqueTestFile(project, "");
 
 		openEditor(testFile1);
 		assertTrue(hasActiveLanguageServers(testFile1, MATCH_ALL));
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
 
 		var wrappers = getLSWrappers(testFile1, MATCH_ALL);
 		var wrapper1 = wrappers.iterator().next();
 		assertTrue(wrapper1.isActive());
 
 		UI.getActivePage().closeAllEditors(false);
-		waitForAndAssertCondition(5_000, () -> !MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServer().getState() != MockServerState.RUNNING);
 
 		project.delete(true, true, new NullProgressMonitor());
 
@@ -200,7 +204,7 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 
 		openEditor(testFile2);
 		assertTrue(hasActiveLanguageServers(testFile2, MATCH_ALL));
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 2);
 
 		wrappers = getLSWrappers(testFile2, MATCH_ALL);
 		var wrapper2 = wrappers.iterator().next();
@@ -215,28 +219,30 @@ public class LanguageServiceAccessorTest extends AbstractTestWithProject {
 	 * put the server in the running state.
 	 */
 	@Test
-	public void testReuseMultirootFolderLSAfterInitialProjectGotDeleted() throws Exception {
-		var testFile1 = createUniqueTestFile(project, "lsptWithMultiRoot", "");
+	public void testReuseMultirootFolderLSAfterInitialProjectGotDeleted(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(MockLanguageServer::multiRootCapabilities);
+		
+		var testFile1 = createUniqueTestFile(project, "lspt", "");
 
 		openEditor(testFile1);
 		assertTrue(hasActiveLanguageServers(testFile1, MATCH_ALL));
-		// FIXME waitForCondition(5_000, () -> MockLanguageServerMultiRootFolders.INSTANCE.isRunning());
+		waitForCondition(5_000, () -> factory.getServerCount() == 1);
 
 		var wrappers = getLSWrappers(testFile1, MATCH_ALL);
 		var wrapper1 = wrappers.iterator().next();
 		assertTrue(wrapper1.isActive());
 
 		UI.getActivePage().closeAllEditors(false);
-		waitForAndAssertCondition(5_000, () -> !MockLanguageServerMultiRootFolders.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServer().getState() != MockServerState.RUNNING);
 
 		project.delete(true, true, new NullProgressMonitor());
 
 		project = createProject("LanguageServiceAccessorTest2" + System.currentTimeMillis());
-		var testFile2 = createUniqueTestFile(project, "lsptWithMultiRoot", "");
+		var testFile2 = createUniqueTestFile(project, "lspt", "");
 
 		openEditor(testFile2);
 		assertTrue(hasActiveLanguageServers(testFile2, MATCH_ALL));
-		// FIXME waitForAndAssertCondition(5_000, () -> MockLanguageServerMultiRootFolders.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 2);
 
 		wrappers = getLSWrappers(testFile2, MATCH_ALL);
 		var wrapper2 = wrappers.iterator().next();

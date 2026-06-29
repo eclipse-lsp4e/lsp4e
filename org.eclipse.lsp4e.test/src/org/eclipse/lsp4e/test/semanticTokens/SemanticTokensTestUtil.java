@@ -19,9 +19,11 @@ import org.eclipse.jface.text.TextAttribute;
 import org.eclipse.jface.text.rules.IToken;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.lsp4j.SemanticTokensWithRegistrationOptions;
+import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.swt.graphics.Color;
 
 public class SemanticTokensTestUtil {
@@ -112,12 +114,16 @@ public class SemanticTokensTestUtil {
 			}
 		};
 	}
-	public static void setSemanticTokensLegend(final List<String> tokenTypes, List<String> tokenModifiers) {
-		final var legend = new SemanticTokensLegend(tokenTypes, tokenModifiers);
-		final var semanticTokensWithRegistrationOptions = new SemanticTokensWithRegistrationOptions(legend);
-		semanticTokensWithRegistrationOptions.setFull(true);
-		semanticTokensWithRegistrationOptions.setRange(false);
-
-		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities().setSemanticTokensProvider(semanticTokensWithRegistrationOptions);
+	public static void setSemanticTokensLegend(final List<String> tokenTypes, List<String> tokenModifiers, MockLanguageServerFactory factory) {
+		factory.withCapabilities(() -> {
+			final var legend = new SemanticTokensLegend(tokenTypes, tokenModifiers);
+			final var semanticTokensWithRegistrationOptions = new SemanticTokensWithRegistrationOptions(legend);
+			semanticTokensWithRegistrationOptions.setFull(true);
+			semanticTokensWithRegistrationOptions.setRange(false);
+			
+			ServerCapabilities capabilities = MockLanguageServer.defaultServerCapabilities();
+			capabilities.setSemanticTokensProvider(semanticTokensWithRegistrationOptions);
+			return capabilities;
+		});
 	}
 }

@@ -11,7 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.operations.rename;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 import java.util.List;
@@ -24,6 +26,7 @@ import org.eclipse.lsp4e.operations.rename.LSPFileOperationParticipantSupport;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
 import org.eclipse.lsp4j.CreateFilesParams;
 import org.eclipse.lsp4j.DeleteFilesParams;
@@ -43,9 +46,9 @@ import org.junit.jupiter.api.Test;
 class FolderOperationParticipantsTest extends AbstractTestWithProject {
 
 	@Test
-	void testFolderFilterGlobMatching() throws Exception {
+	void testFolderFilterGlobMatching(MockLanguageServerFactory factory) throws Exception {
 		// Reconfigure with a folder-only glob filter
-		MockLanguageServer.reset(() -> {
+		factory.withCapabilities(() -> {
 			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
 			var ws = new WorkspaceServerCapabilities();
 			var fileOps = new FileOperationsServerCapabilities();
@@ -76,9 +79,9 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	void testFolderWillRename() throws Exception {
+	void testFolderWillRename(MockLanguageServerFactory factory) throws Exception {
 		// Enable unfiltered file ops
-		MockLanguageServer.reset(() -> {
+		factory.withCapabilities(() -> {
 			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
 			var ws = new WorkspaceServerCapabilities();
 			var fileOps = new FileOperationsServerCapabilities();
@@ -111,7 +114,7 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 		LSPFileOperationParticipantSupport.computePreChange("rename-folder", params, executor,
 				(ws, p) -> ws.willRenameFiles(p));
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillRename());
 		assertEquals(1, ws.getLastWillRename().getFiles().size());
 		assertEquals(oldUri.toString(), ws.getLastWillRename().getFiles().get(0).getOldUri());
@@ -119,8 +122,8 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	void testFolderWillCreate() throws Exception {
-		MockLanguageServer.reset(() -> {
+	void testFolderWillCreate(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
 			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
 			var ws = new WorkspaceServerCapabilities();
 			var fileOps = new FileOperationsServerCapabilities();
@@ -148,15 +151,15 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 		LSPFileOperationParticipantSupport.computePreChange("create-folder", params, executor,
 				(ws, p) -> ws.willCreateFiles(p));
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillCreate());
 		assertEquals(1, ws.getLastWillCreate().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillCreate().getFiles().get(0).getUri());
 	}
 
 	@Test
-	void testFolderWillDelete() throws Exception {
-		MockLanguageServer.reset(() -> {
+	void testFolderWillDelete(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
 			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
 			var ws = new WorkspaceServerCapabilities();
 			var fileOps = new FileOperationsServerCapabilities();
@@ -186,7 +189,7 @@ class FolderOperationParticipantsTest extends AbstractTestWithProject {
 		LSPFileOperationParticipantSupport.computePreChange("delete-folder", params, executor,
 				(ws, p) -> ws.willDeleteFiles(p));
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = factory.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillDelete());
 		assertEquals(1, ws.getLastWillDelete().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillDelete().getFiles().get(0).getUri());

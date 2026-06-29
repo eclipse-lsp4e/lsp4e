@@ -30,7 +30,8 @@ import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockConnectionProviderMultiRootFolders;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.ui.IEditorPart;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,9 +46,10 @@ public class LanguageServerWrapperTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testConnect() throws Exception {
-		IFile testFile1 = TestUtils.createFile(project, "shouldUseExtension.lsptWithMultiRoot", "");
-		IFile testFile2 = TestUtils.createFile(project2, "shouldUseExtension.lsptWithMultiRoot", "");
+	public void testConnect(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(MockLanguageServer::multiRootCapabilities);
+		IFile testFile1 = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
+		IFile testFile2 = TestUtils.createFile(project2, "shouldUseExtension.lspt", "");
 
 		IEditorPart editor1 = TestUtils.openEditor(testFile1);
 		IEditorPart editor2 = TestUtils.openEditor(testFile2);
@@ -60,7 +62,7 @@ public class LanguageServerWrapperTest extends AbstractTestWithProject {
 		waitForAndAssertCondition(2_000, wrapper::isActive);
 
 		// e.g. LanguageServerWrapper@69fe8c75 [serverId=org.eclipse.lsp4e.test.server-with-multi-root-support, initialPath=null, initialProject=P/LanguageServerWrapperTest_testConnect_11691664858710, isActive=true]
-		assertThat(wrapper.toString(), matchesPattern("LanguageServerWrapper@[0-9a-f]+ \\[serverId=org.eclipse.lsp4e.test.server-with-multi-root-support, initialPath=null, initialProject=P\\/LanguageServerWrapperTest_testConnect_[0-9]+, isActive=true, pid=(null|[0-9])+\\]"));
+		assertThat(wrapper.toString(), matchesPattern("LanguageServerWrapper@[0-9a-f]+ \\[serverId=org.eclipse.lsp4e.test.server, initialPath=null, initialProject=P\\/LanguageServerWrapperTest_testConnect_[0-9]+, isActive=true, pid=(null|[0-9])+\\]"));
 
 		assertTrue(wrapper.isConnectedTo(testFile1.getLocationURI()));
 		assertTrue(wrapper.isConnectedTo(testFile2.getLocationURI()));
@@ -74,12 +76,11 @@ public class LanguageServerWrapperTest extends AbstractTestWithProject {
 	 * @see <a href="https://github.com/eclipse-lsp4e/lsp4e/pull/688">GitHub Pull Request #688</a>
 	 */
 	@Test
-	public void testStartStopAndActive() throws CoreException, AssertionError {
+	public void testStartStopAndActive(MockLanguageServerFactory factory) throws CoreException, AssertionError {
+		factory.withCapabilities(MockLanguageServer::multiRootCapabilities);
 		final int testCount= 100;
 
-		MockConnectionProviderMultiRootFolders.resetCounts();
-
-		IFile testFile1 = TestUtils.createFile(project, "shouldUseExtension.lsptWithMultiRoot", "");
+		IFile testFile1 = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
 		IEditorPart editor1 = TestUtils.openEditor(testFile1);
 		@NonNull Collection<LanguageServerWrapper> wrappers = LanguageServiceAccessor.getLSWrappers(testFile1, request -> true);
 		assertEquals(1, wrappers.size());
@@ -132,10 +133,7 @@ public class LanguageServerWrapperTest extends AbstractTestWithProject {
 		if (ForkJoinPool.commonPool().getActiveThreadCount() > startingActiveThreads)
 			throw new AssertionError("timeout waiting for ForkJoinPool.commonPool to go quiet");
 
-		Integer cpStartCount= MockConnectionProviderMultiRootFolders.getStartCount();
-		Integer cpStopCount= MockConnectionProviderMultiRootFolders.getStopCount();
-
-		assertEquals(cpStartCount, cpStopCount, "startCount == stopCount");
+		assertEquals(factory.connectionProviderStartCounter.get(), factory.connectionProviderStopCounter.get());
 	}
 
 }

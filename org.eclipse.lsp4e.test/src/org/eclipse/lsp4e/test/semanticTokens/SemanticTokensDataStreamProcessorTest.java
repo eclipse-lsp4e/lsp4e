@@ -14,12 +14,11 @@ import java.util.List;
 
 import org.eclipse.jface.text.Document;
 import org.eclipse.lsp4e.operations.semanticTokens.SemanticTokensDataStreamProcessor;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4j.SemanticTokensLegend;
 import org.eclipse.swt.custom.StyleRange;
 import org.junit.jupiter.api.Test;
 
-public class SemanticTokensDataStreamProcessorTest extends AbstractTest {
+public class SemanticTokensDataStreamProcessorTest {
 
 	@Test
 	public void testKeyword() {

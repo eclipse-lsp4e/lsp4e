@@ -1,1 +1,2 @@
+org.eclipse.lsp4e.test.utils.MockLanguageServerExtension
 org.eclipse.lsp4e.test.utils.CloseIntroExtension

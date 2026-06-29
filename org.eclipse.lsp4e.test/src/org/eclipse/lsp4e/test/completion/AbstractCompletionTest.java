@@ -22,7 +22,7 @@ import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
@@ -74,19 +74,21 @@ public abstract class AbstractCompletionTest extends AbstractTestWithProject {
 	}
 
 	protected void confirmCompletionResults(String[] completions, String content, Integer cursorIndexInContent,
-			String[] expectedOrder) throws CoreException {
+			String[] expectedOrder, MockLanguageServerFactory factory) throws CoreException {
 		final var range = new Range(new Position(0, 0), new Position(0, cursorIndexInContent));
 		final var items = new ArrayList<CompletionItem>();
 		for (String string : completions) {
 			items.add(createCompletionItem(string, CompletionItemKind.Class, range));
 		}
-		confirmCompletionResults(items, content, cursorIndexInContent, expectedOrder);
+		confirmCompletionResults(items, content, cursorIndexInContent, expectedOrder, factory);
 	}
 
 	protected void confirmCompletionResults(List<CompletionItem> completions, String content,
-			Integer cursorIndexInContent, String[] expectedOrder) throws CoreException {
-
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, completions));
+			Integer cursorIndexInContent, String[] expectedOrder, MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, completions));
+		});
+		
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
 
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer,

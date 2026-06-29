@@ -28,33 +28,30 @@ import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.test.utils.TestUtils.JobSynchronizer;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
+import org.eclipse.lsp4e.tests.mock.MockServerState;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.WorkspaceFoldersOptions;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class WorkspaceFoldersTest extends AbstractTestWithProject {
 
-	@BeforeEach
-	public void setUp() {
-		MockLanguageServer.INSTANCE.getWorkspaceService().getWorkspaceFoldersEvents().clear();
-	}
-
 	@Test
-	public void testRecycleLSAfterInitialProjectGotDeletedIfWorkspaceFolders() throws Exception {
+	public void testRecycleLSAfterInitialProjectGotDeletedIfWorkspaceFolders(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::getServerCapabilities);
 		IFile testFile1 = TestUtils.createUniqueTestFile(project, "");
 
 		TestUtils.openEditor(testFile1);
 		Collection<LanguageServerWrapper> wrappers = LanguageServiceAccessor.getLSWrappers(testFile1, c -> true);
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
 
 		LanguageServerWrapper wrapper1 = wrappers.iterator().next();
 		assertTrue(wrapper1.isActive());
 
 		UI.getActivePage().closeAllEditors(false);
-		waitForAndAssertCondition(5_000, () -> !MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServer().getState() != MockServerState.RUNNING);
 
 		project.delete(true, true, new NullProgressMonitor());
 
@@ -63,7 +60,7 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 
 		TestUtils.openEditor(testFile2);
 		wrappers = LanguageServiceAccessor.getLSWrappers(testFile2, c -> true);
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 2);
 
 		LanguageServerWrapper wrapper2 = wrappers.iterator().next();
 		assertTrue(wrapper2.isActive());
@@ -74,35 +71,37 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testPojectCreate() throws Exception {
+	public void testPojectCreate(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::getServerCapabilities);
 		IFile testFile1 = TestUtils.createUniqueTestFile(project, "");
 
 		TestUtils.openEditor(testFile1);
 		Collection<LanguageServerWrapper> wrappers = LanguageServiceAccessor.getLSWrappers(testFile1, c -> true);
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
 		ConnectDocumentToLanguageServerSetupParticipant.waitForAll();
 
 		LanguageServerWrapper wrapper1 = wrappers.iterator().next();
 		assertTrue(wrapper1.isActive());
 
 		UI.getActivePage().closeAllEditors(false);
-		waitForAndAssertCondition(5_000, () -> !MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServer().getState() != MockServerState.RUNNING);
 
 		// test that the LS emitted a workspace-folder added event for our project
 		final var expected = Paths.get(project.getLocationURI());
-		assertTrue(MockLanguageServer.INSTANCE.getWorkspaceService() //
+		assertTrue(factory.getServer().getWorkspaceService() //
 			.getWorkspaceFoldersEvents().stream() //
 			.flatMap(event -> event.getEvent().getAdded().stream()) //
 			.anyMatch(added -> Paths.get(URI.create(added.getUri())).equals(expected)));
 	}
 
 	@Test
-	public void testProjectClose() throws Exception {
+	public void testProjectClose(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::getServerCapabilities);
 		IFile testFile1 = TestUtils.createUniqueTestFile(project, "");
 
 		TestUtils.openEditor(testFile1);
 		LanguageServiceAccessor.getLSWrappers(testFile1, capabilities -> true).iterator().next();
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
 		ConnectDocumentToLanguageServerSetupParticipant.waitForAll();
 		final var synchronizer = new JobSynchronizer();
 		project.close(synchronizer);
@@ -110,19 +109,20 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 
 		// test that the LS emitted a workspace-folder removal event for our project
 		final var expected = Paths.get(project.getLocationURI());
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.getWorkspaceService() //
+		waitForAndAssertCondition(5_000, () -> factory.getServer().getWorkspaceService() //
 				.getWorkspaceFoldersEvents().stream() //
 				.flatMap(evt -> evt.getEvent().getRemoved().stream()) //
 				.anyMatch(removed -> Paths.get(URI.create(removed.getUri())).equals(expected)));
 	}
 
 	@Test
-	public void testProjectDelete() throws Exception {
+	public void testProjectDelete(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::getServerCapabilities);
 		IFile testFile1 = TestUtils.createUniqueTestFile(project, "");
 
 		TestUtils.openEditor(testFile1);
 		Collection<LanguageServerWrapper> wrappers = LanguageServiceAccessor.getLSWrappers(testFile1, c -> true);
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
 		ConnectDocumentToLanguageServerSetupParticipant.waitForAll();
 
 		LanguageServerWrapper wrapper1 = wrappers.iterator().next();
@@ -135,19 +135,20 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 		synchronizer.await();
 
 		// test that the LS emitted a workspace-folder removal event for our project
-		assertTrue(MockLanguageServer.INSTANCE.getWorkspaceService() //
+		assertTrue(factory.getServer().getWorkspaceService() //
 			.getWorkspaceFoldersEvents().stream() //
 			.flatMap(event -> event.getEvent().getRemoved().stream()) //
 			.anyMatch(removed -> Paths.get(URI.create(removed.getUri())).equals(expected)));
 	}
 
 	@Test
-	public void testProjectReopen() throws Exception {
+	public void testProjectReopen(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::getServerCapabilities);
 		IFile testFile1 = TestUtils.createUniqueTestFile(project, "");
 
 		TestUtils.openEditor(testFile1);
 		LanguageServiceAccessor.getLSWrappers(testFile1, capabilities -> true).iterator().next();
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.isRunning());
+		waitForAndAssertCondition(5_000, () -> factory.getServerCount() == 1);
 		ConnectDocumentToLanguageServerSetupParticipant.waitForAll();
 
 		final var synchronizer = new JobSynchronizer();
@@ -164,17 +165,15 @@ public class WorkspaceFoldersTest extends AbstractTestWithProject {
 
 		// test that the LS emitted a workspace-folder added event for our project
 		final var expected = Paths.get(project.getLocationURI());
-		waitForAndAssertCondition(5_000, () -> MockLanguageServer.INSTANCE.getWorkspaceService() //
+		waitForAndAssertCondition(5_000, () -> factory.getServer().getWorkspaceService() //
 				.getWorkspaceFoldersEvents().stream() //
 				.flatMap(evt -> evt.getEvent().getAdded().stream()) //
 				.anyMatch(added -> Paths.get(URI.create(added.getUri())).equals(expected)));
 	}
 
-	@Override
 	public ServerCapabilities getServerCapabilities() {
 		// Enable workspace folders on the mock server (for this test only)
 		final ServerCapabilities base = MockLanguageServer.defaultServerCapabilities();
-
 		final var wsc = new WorkspaceServerCapabilities();
 		final var wso = new WorkspaceFoldersOptions();
 		wso.setSupported(true);

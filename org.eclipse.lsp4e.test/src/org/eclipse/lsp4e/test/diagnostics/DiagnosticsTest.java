@@ -13,10 +13,12 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.diagnostics;
 
-import static org.eclipse.lsp4e.test.utils.TestUtils.*;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.MatcherAssert.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -46,7 +48,7 @@ import org.eclipse.lsp4e.test.color.ColorTest;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.BlockingWorkspaceJob;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Diagnostic;
 import org.eclipse.lsp4j.DiagnosticSeverity;
@@ -296,12 +298,14 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDiagnosticsFromVariousLS() throws Exception {
+	public void testDiagnosticsFromVariousLS(MockLanguageServerFactory factory) throws Exception {
 		final var content = "Diagnostic Other Text";
 		IFile file = TestUtils.createUniqueTestFileMultiLS(project, content);
-		final var range = new Range(new Position(1, 0), new Position(1, 0));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				createDiagnostic("1", "message1", range, DiagnosticSeverity.Error, "source1")));
+		factory.withConfiguration((idx, server)-> {
+			final var range = new Range(new Position(1, 0), new Position(1, 0));
+			server.setDiagnostics(List.of(
+					createDiagnostic("1", "message1", range, DiagnosticSeverity.Error, "source1")));
+		});
 		IMarker[] markers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true, IResource.DEPTH_ZERO);
 		assertEquals(0, markers.length, "no marker should be shown at file initialization");
 		TestUtils.openEditor(file);
@@ -335,8 +339,10 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDiagnosticsOnExternalFile(@TempDir Path tempDir) throws Exception {
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(new Diagnostic(new Range(new Position(0, 0), new Position(0, 1)), "This is a warning", DiagnosticSeverity.Warning, null)));
+	public void testDiagnosticsOnExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			server.setDiagnostics(List.of(new Diagnostic(new Range(new Position(0, 0), new Position(0, 1)), "This is a warning", DiagnosticSeverity.Warning, null)));
+		});
 		Path file = Files.writeString(tempDir.resolve("testDiagnosticsOnExternalFile.lspt"), "a");
 		Font font = null;
 		try {

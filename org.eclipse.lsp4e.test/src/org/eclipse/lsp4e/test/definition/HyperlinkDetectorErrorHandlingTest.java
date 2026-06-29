@@ -27,6 +27,7 @@ import org.eclipse.lsp4e.operations.declaration.OpenDeclarationHyperlinkDetector
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockTextDocumentService;
 import org.eclipse.lsp4j.DeclarationParams;
 import org.eclipse.lsp4j.ImplementationParams;
@@ -43,8 +44,7 @@ public class HyperlinkDetectorErrorHandlingTest extends AbstractTestWithProject 
 
 	private final OpenDeclarationHyperlinkDetector detector = new OpenDeclarationHyperlinkDetector();
 
-	@Override
-	protected ServerCapabilities getServerCapabilities() {
+	protected ServerCapabilities capabilities() {
 		// Ensure providers are enabled to exercise all branches
 		var caps = MockLanguageServer.defaultServerCapabilities();
 		caps.setDefinitionProvider(true);
@@ -55,48 +55,52 @@ public class HyperlinkDetectorErrorHandlingTest extends AbstractTestWithProject 
 	}
 
 	@Test
-	public void testDefinitionRemainsWhenTypeDefinitionErrors() throws Exception {
-		MockLanguageServer.INSTANCE.setTextDocumentService(
-				// Simulate server error for typeDefinition (mirrors issue
-				// https://github.com/eclipse-lsp4e/lsp4e/issues/1169)
-				new MockTextDocumentService(MockLanguageServer.INSTANCE::buildMaybeDelayedFuture) {
-					@Override
-					public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> typeDefinition(
-							TypeDefinitionParams params) {
-						var f = new CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>>();
-						f.completeExceptionally(
-								new RuntimeException("unexpected error during typeDefinition retrieval"));
-						return f;
-					}
-
-					@Override
-					public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> implementation(
-							ImplementationParams params) {
-						throw new RuntimeException("unexpected error during implementation retrieval");
-					}
-
-					@Override
-					public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> declaration(
-							DeclarationParams params) {
-						throw new RuntimeException("unexpected error during declaration retrieval");
-					}
-				});
-
-		// ensure TextDocumentService is faulty
-		assertThrows(RuntimeException.class,
-				() -> MockLanguageServer.INSTANCE.getTextDocumentService().declaration(null));
-		assertThrows(RuntimeException.class,
-				() -> MockLanguageServer.INSTANCE.getTextDocumentService().implementation(null));
-		assertTrue(
-				MockLanguageServer.INSTANCE.getTextDocumentService().typeDefinition(null).isCompletedExceptionally());
-
-		// Configure 1 good definition result
-		MockLanguageServer.INSTANCE.setDefinition(List.of( //
-				new Location("file://def", new Range(new Position(0, 0), new Position(0, 10))), //
-				new Location("file://def", new Range(new Position(1, 10), new Position(1, 20)))));
+	public void testDefinitionRemainsWhenTypeDefinitionErrors(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(this::capabilities);
+		factory.withConfiguration((idx, server)-> {
+			server.setTextDocumentService(
+					// Simulate server error for typeDefinition (mirrors issue
+					// https://github.com/eclipse-lsp4e/lsp4e/issues/1169)
+					new MockTextDocumentService(server::buildMaybeDelayedFuture) {
+						@Override
+						public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> typeDefinition(
+								TypeDefinitionParams params) {
+							var f = new CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>>();
+							f.completeExceptionally(
+									new RuntimeException("unexpected error during typeDefinition retrieval"));
+							return f;
+						}
+						
+						@Override
+						public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> implementation(
+								ImplementationParams params) {
+							throw new RuntimeException("unexpected error during implementation retrieval");
+						}
+						
+						@Override
+						public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> declaration(
+								DeclarationParams params) {
+							throw new RuntimeException("unexpected error during declaration retrieval");
+						}
+					});
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "Example Text");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
+		
+		// ensure TextDocumentService is faulty
+		assertThrows(RuntimeException.class,
+				() -> factory.getServer().getTextDocumentService().declaration(null));
+		assertThrows(RuntimeException.class,
+				() -> factory.getServer().getTextDocumentService().implementation(null));
+		assertTrue(
+				factory.getServer().getTextDocumentService().typeDefinition(null).isCompletedExceptionally());
+
+		// Configure 1 good definition result
+		factory.getServer().setDefinition(List.of( //
+				new Location("file://def", new Range(new Position(0, 0), new Position(0, 10))), //
+				new Location("file://def", new Range(new Position(1, 10), new Position(1, 20)))));
+
 
 		IHyperlink[] links = detector.detectHyperlinks(viewer, new Region(0, 0), true);
 

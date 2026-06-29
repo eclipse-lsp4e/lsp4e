@@ -11,7 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.operations.rename;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.URI;
 
@@ -24,6 +26,7 @@ import org.eclipse.lsp4e.operations.rename.LSPCreateParticipant;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
 import org.eclipse.lsp4j.FileOperationOptions;
 import org.eclipse.lsp4j.FileOperationsServerCapabilities;
@@ -31,7 +34,6 @@ import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.WorkspaceServerCapabilities;
 import org.eclipse.ltk.core.refactoring.participants.CheckConditionsContext;
 import org.eclipse.ltk.core.refactoring.participants.CreateArguments;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class LSPCreateParticipantTest extends AbstractTestWithProject {
@@ -54,21 +56,10 @@ class LSPCreateParticipantTest extends AbstractTestWithProject {
 		}
 	}
 
-	@BeforeEach
-	void setupCaps() {
-		MockLanguageServer.reset(() -> {
-			ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
-			var ws = new WorkspaceServerCapabilities();
-			var fileOps = new FileOperationsServerCapabilities();
-			fileOps.setWillCreate(new FileOperationOptions());
-			ws.setFileOperations(fileOps);
-			caps.setWorkspace(ws);
-			return caps;
-		});
-	}
-
 	@Test
-	void fileCreateSendsWillCreate() throws Exception {
+	void fileCreateSendsWillCreate(MockLanguageServerFactory serverConfig) throws Exception {
+		serverConfig.withCapabilities(this::capabilitiesWithWillCreate);
+		
 		// start LS
 		IFile starter = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(starter);
@@ -84,14 +75,26 @@ class LSPCreateParticipantTest extends AbstractTestWithProject {
 		participant.checkConditions(new NullProgressMonitor(), new CheckConditionsContext());
 		participant.createPreChange(new NullProgressMonitor());
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = serverConfig.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillCreate());
 		assertEquals(1, ws.getLastWillCreate().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillCreate().getFiles().get(0).getUri());
 	}
 
+	private ServerCapabilities capabilitiesWithWillCreate() {
+		ServerCapabilities caps = MockLanguageServer.defaultServerCapabilities();
+		var ws = new WorkspaceServerCapabilities();
+		var fileOps = new FileOperationsServerCapabilities();
+		fileOps.setWillCreate(new FileOperationOptions());
+		ws.setFileOperations(fileOps);
+		caps.setWorkspace(ws);
+		return caps;
+	}
+
 	@Test
-	void folderCreateSendsWillCreate() throws Exception {
+	void folderCreateSendsWillCreate(MockLanguageServerFactory serverConfig) throws Exception {
+		serverConfig.withCapabilities(this::capabilitiesWithWillCreate);
+		
 		// start LS
 		IFile starter = TestUtils.createUniqueTestFile(project, "content");
 		TestUtils.openTextViewer(starter);
@@ -107,7 +110,7 @@ class LSPCreateParticipantTest extends AbstractTestWithProject {
 		participant.checkConditions(new NullProgressMonitor(), new CheckConditionsContext());
 		participant.createPreChange(new NullProgressMonitor());
 
-		MockWorkspaceService ws = MockLanguageServer.INSTANCE.getWorkspaceService();
+		MockWorkspaceService ws = serverConfig.getServer().getWorkspaceService();
 		assertNotNull(ws.getLastWillCreate());
 		assertEquals(1, ws.getLastWillCreate().getFiles().size());
 		assertEquals(uri.toString(), ws.getLastWillCreate().getFiles().get(0).getUri());

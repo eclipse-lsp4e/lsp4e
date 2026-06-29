@@ -24,7 +24,7 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.TextSelection;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
@@ -44,12 +44,14 @@ import org.junit.jupiter.api.Test;
 public class FormatHandlerReadOnlyTest extends AbstractTestWithProject {
 
 	@Test
-	public void testFormatOnReadOnlyFileAndMakeWritable() throws Exception {
-		// Mock formatting to prepend "//" at the start of each line
-		var edits = List.of( //
-				new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "//"),
-				new TextEdit(new Range(new Position(1, 0), new Position(1, 0)), "//"));
-		MockLanguageServer.INSTANCE.setFormattingTextEdits(edits);
+	public void testFormatOnReadOnlyFileAndMakeWritable(MockLanguageServerFactory factory) throws Exception {
+		factory.withConfiguration((idx, server)-> {
+			// Mock formatting to prepend "//" at the start of each line
+			var edits = List.of( //
+					new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "//"),
+					new TextEdit(new Range(new Position(1, 0), new Position(1, 0)), "//"));
+			server.setFormattingTextEdits(edits);
+		});
 
 		String content = "line1\nline2\n";
 		IFile file = TestUtils.createUniqueTestFile(project, content);

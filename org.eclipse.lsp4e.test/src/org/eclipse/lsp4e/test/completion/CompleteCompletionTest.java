@@ -42,8 +42,8 @@ import org.eclipse.lsp4e.LanguageServersRegistry.LanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockConnectionProvider;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
@@ -77,10 +77,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	 * file-specific LS already associated is something we want to support.
 	 */
 	@Test
-	public void testAssistForUnknownButConnectedType() throws CoreException {
+	public void testAssistForUnknownButConnectedType(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFileOfUnknownType(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -103,10 +106,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testNoPrefix() throws CoreException {
+	public void testNoPrefix(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -120,11 +125,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testPrefix() throws CoreException {
+	public void testPrefix(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClass", CompletionItemKind.Class));
 		items.add(createCompletionItem("SecondClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "First";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -142,13 +149,15 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	 * The test will use a Command that shall be handled by the langauge server.
 	 */
 	@Test
-	public void testCommandExecution() throws CoreException, InterruptedException, ExecutionException, TimeoutException {
+	public void testCommandExecution(MockLanguageServerFactory factory) throws CoreException, InterruptedException, ExecutionException, TimeoutException {
 		CompletionItem completionItem = createCompletionItem("Bla", CompletionItemKind.Class);
 		final var expectedParameter = "command execution parameter";
 		List<Object> commandArguments = List.of(expectedParameter);
 		completionItem.setCommand(new Command("TestCommand", MockLanguageServer.SUPPORTED_COMMAND_ID, commandArguments));
 
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		});
 
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, ""));
 
@@ -159,7 +168,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		lsCompletionProposal.apply(viewer, '\n', 0, 0);
 
 		// Assert command was invoked on language server
-		ExecuteCommandParams executedCommand = MockLanguageServer.INSTANCE.getWorkspaceService().getExecutedCommand().get(2, TimeUnit.SECONDS);
+		ExecuteCommandParams executedCommand = factory.getServer().getWorkspaceService().getExecutedCommand().get(2, TimeUnit.SECONDS);
 
 		assertEquals(MockLanguageServer.SUPPORTED_COMMAND_ID, executedCommand.getCommand());
 		List<JsonPrimitive> expectedParameterList = List.of(new JsonPrimitive(expectedParameter));
@@ -167,10 +176,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testPrefixCaseSensitivity() throws CoreException {
+	public void testPrefixCaseSensitivity(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "FIRST";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -184,10 +195,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 	
 	@Test
-	public void testPrefixCaseSensitivityWithoutTextEdit() throws CoreException {
+	public void testPrefixCaseSensitivityWithoutTextEdit(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItemWithoutTextEdit("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "FIRST";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -201,10 +214,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 	
 	@Test
-	public void testPrefixCaseSensitivityWithoutTextEditAtOffset() throws CoreException {
+	public void testPrefixCaseSensitivityWithoutTextEditAtOffset(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItemWithoutTextEdit("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "FIRST";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -218,13 +233,15 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testCompleteOnFileEnd() throws CoreException { // bug 508842
+	public void testCompleteOnFileEnd(MockLanguageServerFactory factory) throws CoreException { // bug 508842
 		final var item = new CompletionItem();
 		item.setLabel("1024M");
 		item.setKind(CompletionItemKind.Value);
 		item.setTextEdit(Either.forLeft(new TextEdit(new Range(new Position(2, 10), new Position(2, 10)), "1024M")));
 		final var completionList = new CompletionList(false, List.of(item));
-		MockLanguageServer.INSTANCE.setCompletionList(completionList);
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(completionList);
+		});
 
 		final var content = "applications:\n" + "- name: hello\n" + "  memory: ";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -239,9 +256,11 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testTriggerCharsWithoutPreliminaryCompletion() throws CoreException { // bug 508463
+	public void testTriggerCharsWithoutPreliminaryCompletion(MockLanguageServerFactory factory) throws CoreException { // bug 508463
 		final Set<String> triggers = Set.of("a", "b");
-		MockLanguageServer.INSTANCE.setCompletionTriggerChars(triggers);
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionTriggerChars(triggers);
+		});
 
 		final var content = "First";
 		TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -253,8 +272,10 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testTriggerCharsNullList() throws CoreException {
-		MockLanguageServer.INSTANCE.setCompletionTriggerChars(null);
+	public void testTriggerCharsNullList(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionTriggerChars(null);
+		});
 
 		TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "First"));
 
@@ -262,11 +283,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testApplyCompletionWithPrefix() throws CoreException {
+	public void testApplyCompletionWithPrefix(MockLanguageServerFactory factory) throws CoreException {
 		final var range = new Range(new Position(0, 0), new Position(0, 5));
 		List<CompletionItem> items = List
 				.of(createCompletionItem("FirstClass", CompletionItemKind.Class, range));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "First";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -279,11 +302,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testApplyCompletionReplace() throws CoreException {
+	public void testApplyCompletionReplace(MockLanguageServerFactory factory) throws CoreException {
 		final var range = new Range(new Position(0, 0), new Position(0, 20));
 		List<CompletionItem> items = List
 				.of(createCompletionItem("FirstClass", CompletionItemKind.Class, range));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "FirstNotMatchedLabel";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -295,11 +320,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testApplyCompletionReplaceAndTypingWithTextEdit() throws CoreException, BadLocationException {
+	public void testApplyCompletionReplaceAndTypingWithTextEdit(MockLanguageServerFactory factory) throws CoreException, BadLocationException {
 		final var range = new Range(new Position(0, 0), new Position(0, 20));
 		List<CompletionItem> items = List
 				.of(createCompletionItem("FirstClass", CompletionItemKind.Class, range));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "FirstNotMatchedLabel";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project,content));
@@ -317,12 +344,14 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testApplyCompletionReplaceAndTyping() throws CoreException, BadLocationException {
+	public void testApplyCompletionReplaceAndTyping(MockLanguageServerFactory factory) throws CoreException, BadLocationException {
 		final var item = new CompletionItem("strncasecmp");
 		item.setKind(CompletionItemKind.Function);
 		item.setInsertText("strncasecmp()");
 
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false,  List.of(item)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false,  List.of(item)));
+		});
 
 		final var content = "str";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
@@ -341,12 +370,14 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testCompletionReplace() throws CoreException {
+	public void testCompletionReplace(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(
+					new CompletionList(false, List.of(createCompletionItem("Inserted", CompletionItemKind.Text,
+							new Range(new Position(1, 4), new Position(1, 4 + "InsertHere".length()))))));
+		});
 		IFile file = TestUtils.createUniqueTestFile(project, "line1\nlineInsertHere");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(
-			createCompletionItem("Inserted", CompletionItemKind.Text, new Range(new Position(1, 4), new Position(1, 4 + "InsertHere".length())))
-		)));
 
 		int invokeOffset = viewer.getDocument().getLength() - "InsertHere".length();
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
@@ -357,7 +388,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testItemOrdering() throws Exception {
+	public void testItemOrdering(MockLanguageServerFactory factory) throws Exception {
 		final var range = new Range(new Position(0, 0), new Position(0, 1));
 		List<CompletionItem> items = List.of( //
 				createCompletionItem("AA", CompletionItemKind.Class, range),
@@ -366,7 +397,9 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 				createCompletionItem("BB", CompletionItemKind.Class, range),
 				createCompletionItem("CB", CompletionItemKind.Class, range),
 				createCompletionItem("CC", CompletionItemKind.Class, range));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		final var content = "B";
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project,content));
@@ -384,10 +417,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testBasicSnippet() throws CoreException {
+	public void testBasicSnippet(MockLanguageServerFactory factory) throws CoreException {
 		CompletionItem completionItem = createCompletionItem("$1 and ${2:foo}", CompletionItemKind.Class, new Range(new Position(0, 0), new Position(0, 1)));
 		completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		});
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project,""));
 		int invokeOffset = 0;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
@@ -398,10 +433,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testChoiceSnippet() throws CoreException {
+	public void testChoiceSnippet(MockLanguageServerFactory factory) throws CoreException {
 		CompletionItem completionItem = createCompletionItem("1${1|a,b|}2", CompletionItemKind.Class);
 		completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		});
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project,""));
 		int invokeOffset = 0;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
@@ -418,10 +455,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testDuplicateVariable() throws CoreException {
+	public void testDuplicateVariable(MockLanguageServerFactory factory) throws CoreException {
 		CompletionItem completionItem = createCompletionItem("${1:foo} and ${1:foo}", CompletionItemKind.Class, new Range(new Position(0, 0), new Position(0, 1)));
 		completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		});
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project,""));
 		int invokeOffset = 0;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
@@ -464,14 +503,16 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	
 	@ParameterizedTest
 	@FieldSource
-    public void testComplexSnippets(String completion, String expected, String fileContent, int caretPos, int selectionLen) throws CoreException {
+    public void testComplexSnippets(String completion, String expected, String fileContent, int caretPos, int selectionLen, MockLanguageServerFactory factory) throws CoreException {
 			CompletionItem completionItem = createCompletionItem( //
 					completion, //
 					CompletionItemKind.Snippet, //
 					new Range(new Position(0, caretPos),
 							new Position(0, caretPos + selectionLen)));
 			completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
-			MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(completionItem)));
+			factory.withConfiguration((idx, server) -> {
+				server.setCompletionList(new CompletionList(false, List.of(completionItem)));
+			});
 
 			ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, fileContent));
 			viewer.setSelectedRange(caretPos, selectionLen);
@@ -485,12 +526,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testSnippetTabStops() throws CoreException {
+	public void testSnippetTabStops(MockLanguageServerFactory factory) throws CoreException {
 		CompletionItem completionItem = createCompletionItem("sum(${1:x}, ${2:y})", CompletionItemKind.Method,
 				new Range(new Position(0, 0), new Position(0, 1)));
 		completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
-		MockLanguageServer.INSTANCE
-				.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(completionItem)));
+		});
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, ""));
 		int invokeOffset = 0;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
@@ -512,10 +554,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testMultipleLS() throws Exception {
+	public void testMultipleLS(MockLanguageServerFactory factory) throws Exception {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFileMultiLS(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -525,10 +569,12 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testReopeningFileAndReusingContentAssist() throws CoreException {
+	public void testReopeningFileAndReusingContentAssist(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
 		items.add(createCompletionItem("FirstClass", CompletionItemKind.Class));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, items));
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -540,9 +586,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		assertEquals(new Point("FirstClass".length(), 0), lsCompletionProposal.getSelection(viewer.getDocument()));
 
 		UI.getActivePage().closeAllEditors(false);
-		MockLanguageServer.reset();
 
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
 		viewer = TestUtils.openTextViewer(testFile);
 
 		proposals = contentAssistProcessor.computeCompletionProposals(viewer, 0);
@@ -553,7 +597,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testFilterNonmatchingCompletions() throws Exception {
+	public void testFilterNonmatchingCompletions(MockLanguageServerFactory factory) throws Exception {
 		final var items = new ArrayList<CompletionItem>();
 		var item = new CompletionItem("server.web");
 		item.setFilterText("server.web");
@@ -568,7 +612,7 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		items.add(new CompletionItem(": 1.0.1"));
 		items.add(new CompletionItem("s.Status"));
 
-		confirmCompletionResults(items, "server", 6, new String[] { "server.web", ": 1.0.1", "s.Status" });
+		confirmCompletionResults(items, "server", 6, new String[] { "server.web", ": 1.0.1", "s.Status" }, factory);
 	}
 
 	@Test
@@ -587,11 +631,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testAdjustIndentation() throws Exception {
-		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\t\nc"));
+	public void testAdjustIndentation(MockLanguageServerFactory factory) throws Exception {
 		final var item = new CompletionItem("line1\nline2");
 		item.setInsertTextMode(InsertTextMode.AdjustIndentation);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(item)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(item)));
+		});
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\t\nc"));
 		int invokeOffset = 6;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
 		assertEquals(1, proposals.length);
@@ -600,12 +646,14 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 	
 	@Test
-	public void testAdjustIndentationIsDefault() throws Exception {
-		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\t\nc"));
+	public void testAdjustIndentationIsDefault(MockLanguageServerFactory factory) throws Exception {
 		final var item = new CompletionItem("line1\nline2");
 		// No insert mode specified -> fall back to default, which is AdjustIndentation
 		item.setInsertTextMode(null);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(item)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(item)));
+		});
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\t\nc"));
 		int invokeOffset = 6;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
 		assertEquals(1, proposals.length);
@@ -614,11 +662,13 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testAdjustIndentationWithPrefixInLine() throws Exception {
-		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\tprefix\nc"));
+	public void testAdjustIndentationWithPrefixInLine(MockLanguageServerFactory factory) throws Exception {
 		final var item = new CompletionItem("line1\n\tline2\nline3");
 		item.setInsertTextMode(InsertTextMode.AdjustIndentation);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(item)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(false, List.of(item)));
+		});
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\tprefix\nc"));
 		int invokeOffset = 12;
 		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
 		assertEquals(1, proposals.length);
@@ -627,16 +677,15 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testCancellation() throws Exception {
-		MockConnectionProvider.cancellations.clear();
+	public void testCancellation(MockLanguageServerFactory factory) throws Exception {
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a\n\tb\n\t\nc"));
 		final var item = new CompletionItem("a");
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, List.of(item)));
-		MockLanguageServer.INSTANCE.setTimeToProceedQueries(10000);
+		factory.getServer().setCompletionList(new CompletionList(false, List.of(item)));
+		factory.getServer().setTimeToProceedQueries(10000);
 		CompletableFuture.runAsync(() -> contentAssistProcessor.computeCompletionProposals(viewer, 1));
 		Thread.sleep(500);
 		CompletableFuture.runAsync(() -> contentAssistProcessor.computeCompletionProposals(viewer, 1));
-		DisplayHelper.waitAndAssertCondition(viewer.getTextWidget().getDisplay(), () -> assertEquals(1, MockConnectionProvider.cancellations.size()));
+		DisplayHelper.waitAndAssertCondition(viewer.getTextWidget().getDisplay(), () -> assertEquals(1, factory.cancellations.size()));
 	}
 
 	/**
@@ -644,13 +693,15 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	 * the start of the edit range when available.
 	 */
 	@Test
-	public void testContextInformationPositionUsesEditRangeStart() throws CoreException {
+	public void testContextInformationPositionUsesEditRangeStart(MockLanguageServerFactory factory) throws CoreException {
 		final int editOffset = 2;
 		CompletionItem completionItem = createCompletionItem( //
 				"hello", //
 				CompletionItemKind.Text, //
 				new Range(new Position(0, editOffset), new Position(0, editOffset + 1)));
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(true, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(true, List.of(completionItem)));
+		});
 
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "ABCDE"));
 
@@ -668,14 +719,16 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 	 * even when the TextEdit range is on a different line.
 	 */
 	@Test
-	public void testVariablesUseViewerLineNotEditRange() throws CoreException {
+	public void testVariablesUseViewerLineNotEditRange(MockLanguageServerFactory factory) throws CoreException {
 		final CompletionItem completionItem = createCompletionItem( //
 				"$TM_LINE_INDEX $TM_LINE_NUMBER $TM_CURRENT_LINE", //
 				CompletionItemKind.Snippet, //
 				// Replace the entire 3rd line (line2) to avoid trailing leftovers
 				new Range(new Position(2, 0), new Position(2, 5)));
 		completionItem.setInsertTextFormat(InsertTextFormat.Snippet);
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(true, List.of(completionItem)));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(true, List.of(completionItem)));
+		});
 
 		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "line0\nline1\nline2"));
 

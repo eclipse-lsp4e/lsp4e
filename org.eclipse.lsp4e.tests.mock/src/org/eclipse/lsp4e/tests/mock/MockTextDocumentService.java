@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -114,7 +113,10 @@ public class MockTextDocumentService implements TextDocumentService {
 	private ConcurrentLinkedQueue<DidChangeTextDocumentParams> didChangeEvents = new ConcurrentLinkedQueue<>();
 
 	private Function<?, ? extends CompletableFuture<?>> _futureFactory;
-	private final List<LanguageClient> remoteProxies = new CopyOnWriteArrayList<>();
+	/**
+	 * The remote proxy. This can be used to send requests to the client.
+	 */
+	private LanguageClient remoteProxy = null;
 	private Location[] mockReferences = new Location[0];
 	private List<Diagnostic> diagnostics;
 	private List<Either<Command, CodeAction>> mockCodeActions;
@@ -280,17 +282,8 @@ public class MockTextDocumentService implements TextDocumentService {
 		}
 
 		if (this.diagnostics != null && !this.diagnostics.isEmpty()) {
-			// we're not sure which remote proxy to use, but we know we should only use one
-			// per didOpen
-			// for proper LS interaction; so a strategy is to use the first one and rotate
-			// the others
-			// for further executions
-			synchronized (this.remoteProxies) {
-				// and we synchronize to avoid concurrent read/write on the list
-				this.remoteProxies.get(0).publishDiagnostics(
-						new PublishDiagnosticsParams(params.getTextDocument().getUri(), this.diagnostics));
-				Collections.rotate(this.remoteProxies, 1);
-			}
+			this.remoteProxy.publishDiagnostics(
+					new PublishDiagnosticsParams(params.getTextDocument().getUri(), this.diagnostics));
 		}
 //		if (this.foldingRanges != null && !this.foldingRanges.isEmpty()) {
 //			synchronized (this.remoteProxies) {
@@ -394,27 +387,12 @@ public class MockTextDocumentService implements TextDocumentService {
 		this.mockDocumentLinks = documentLinks;
 	}
 
-	public void reset() {
-		this.mockCompletionList = new CompletionList();
-		this.mockDefinitionLocations = Collections.emptyList();
-		this.mockTypeDefinitions = Collections.emptyList();
-		this.mockHover = null;
-		this.mockCodeLenses = null;
-		this.mockReferences = null;
-		this.remoteProxies.clear();
-		this.mockCodeActions = new ArrayList<>();
-		this.mockRenameEdit = null;
-		this.documentSymbols = Collections.emptyList();
-		this.foldingRanges = new ArrayList<>();
-		this.codeActionRequests = 0;
-	}
-
 	public void setDiagnostics(List<Diagnostic> diagnostics) {
 		this.diagnostics = diagnostics;
 	}
 
-	public void addRemoteProxy(LanguageClient remoteProxy) {
-		this.remoteProxies.add(remoteProxy);
+	public void setRemoteProxy(LanguageClient remoteProxy) {
+		this.remoteProxy = remoteProxy;
 	}
 
 	public void setCodeActions(List<Either<Command, CodeAction>> codeActions) {

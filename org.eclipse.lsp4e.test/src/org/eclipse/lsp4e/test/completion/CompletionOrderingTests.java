@@ -24,6 +24,7 @@ import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
@@ -32,88 +33,77 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.FieldSource;
 
 public class CompletionOrderingTests extends AbstractCompletionTest {
 
 	@Test
-	public void testItemOrdering() throws Exception {
+	public void testItemOrdering(MockLanguageServerFactory factory) throws Exception {
 		confirmCompletionResults(new String[] { "AA", "AB", "BA", "BB", "CB", "CC" }, "B", 1,
-				new String[] { "BA", "BB", "AB", "CB" });
+				new String[] { "BA", "BB", "AB", "CB" }, factory);
+	}
+
+	public static final Arguments[] testOrderByCategory = {
+			Arguments.argumentSet("Category 1 before Category 2 (testa)",
+					new String[] { "testa", "test.a", "a.test.a", "a.testa", "test" },
+					new String[] { "test", "testa", "a.testa", "test.a", "a.test.a" }),
+			Arguments.argumentSet("Category 2 before Category 3 (atest)", new String[] { "testa", "atest", "a.testa" },
+					new String[] { "testa", "a.testa", "atest" }),
+			Arguments.argumentSet("Category 3 before Category 4 (tZesZt)", new String[] { "atesta", "tZesZt", "atest" },
+					new String[] { "atest", "atesta", "tZesZt" }),
+			Arguments.argumentSet("Category 4 before Category 5 (qwerty)",
+					new String[] { "qwerty", "tZesZt", "t.e.s.t" }, new String[] { "tZesZt", "t.e.s.t", "qwerty" }) };
+	
+	@ParameterizedTest
+	@FieldSource
+	public void testOrderByCategory(String[] completions, String[] orderedResults, MockLanguageServerFactory factory) throws Exception {
+		confirmCompletionResults(completions, "test", 4, orderedResults, factory);
+	}
+	
+	public static final Arguments[] testOrderByRank = {
+			Arguments.argumentSet("Category 1",
+					new String[] { "prefix.test", "alongprefix.test", "test", "test.test", "pretest.test" },
+					new String[] { "test", "test.test", "pretest.test", "prefix.test", "alongprefix.test" }),
+			Arguments.argumentSet("Category 2",
+					new String[] { "testa", "alongprefix.testa", "testatest", "prefix.testa" },
+					new String[] { "testa", "prefix.testa", "alongprefix.testa", "testatest" }),
+			Arguments.argumentSet("Category 3", new String[] { "atesta", "teteteststst", "long.prefixtest.suffix" },
+					new String[] { "atesta", "teteteststst", "long.prefixtest.suffix" }),
+			Arguments.argumentSet("Category 4", new String[] { "tlongbreakbetweenest", "tZesZt", "t.e.s.t", "tes.tst" },
+					new String[] { "tes.tst", "tZesZt", "t.e.s.t", "tlongbreakbetweenest" }) };
+	
+	@ParameterizedTest
+	@FieldSource
+	public void testOrderByRank(String[] completions, String[] orderedResults, MockLanguageServerFactory factory) throws Exception {
+		confirmCompletionResults(completions, "test", 4, orderedResults, factory);
+	}
+
+	public static final Arguments[] testOrderWithCapitalization = {
+			Arguments.argumentSet("Category 1",
+					new String[] { "prefiX.Test", "alongprefix.test", "tEsT", "teSt.teST", "preTEst.test" },
+					new String[] { "tEsT", "teSt.teST", "preTEst.test", "prefiX.Test",
+					"alongprefix.test" }),
+			Arguments.argumentSet("Category 2",
+					new String[] { "teSTa", "alonGPrefix.TESTA", "tEStatest", "prefix.testa" },
+					new String[] { "teSTa", "prefix.testa", "alonGPrefix.TESTA", "tEStatest" }),
+			Arguments.argumentSet("Category 3",
+					new String[] { "ATesta", "teTETesTSTst", "long.prefixtest.suffix" },
+					new String[] { "ATesta", "teTETesTSTst", "long.prefixtest.suffix" }),
+			Arguments.argumentSet("Category 4",
+					new String[] { "TlongbreakbetweenEST", "TZesZT", "t.e.s.t", "teS.tst" },
+					new String[] { "teS.tst", "TZesZT", "t.e.s.t", "TlongbreakbetweenEST" }),
+	};
+	
+	@ParameterizedTest
+	@FieldSource
+	public void testOrderWithCapitalization(String[] completions, String[] orderedResults, MockLanguageServerFactory factory) throws Exception {
+		confirmCompletionResults(completions, "test", 4, orderedResults, factory);
 	}
 
 	@Test
-	public void testOrderByCategory() throws Exception {
-		// Category 1 before Category 2 (testa)
-		var completions = new String[] { "testa", "test.a", "a.test.a", "a.testa", "test" };
-		var orderedResults = new String[] { "test", "testa", "a.testa", "test.a", "a.test.a" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 2 before Category 3 (atest)
-		completions = new String[] { "testa", "atest", "a.testa" };
-		orderedResults = new String[] { "testa", "a.testa", "atest" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 3 before Category 4 (tZesZt)
-		completions = new String[] { "atesta", "tZesZt", "atest" };
-		orderedResults = new String[] { "atest", "atesta", "tZesZt" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 4 before Category 5 (qwerty)
-		completions = new String[] { "qwerty", "tZesZt", "t.e.s.t" };
-		orderedResults = new String[] { "tZesZt", "t.e.s.t", "qwerty" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-	}
-
-	@Test
-	public void testOrderByRank() throws Exception {
-		// Category 1
-		var completions = new String[] { "prefix.test", "alongprefix.test", "test", "test.test", "pretest.test" };
-		var orderedResults = new String[] { "test", "test.test", "pretest.test", "prefix.test",
-				"alongprefix.test" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 2
-		completions = new String[] { "testa", "alongprefix.testa", "testatest", "prefix.testa" };
-		orderedResults = new String[] { "testa", "prefix.testa", "alongprefix.testa", "testatest" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 3
-		completions = new String[] { "atesta", "teteteststst", "long.prefixtest.suffix" };
-		orderedResults = new String[] { "atesta", "teteteststst", "long.prefixtest.suffix" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 4
-		completions = new String[] { "tlongbreakbetweenest", "tZesZt", "t.e.s.t", "tes.tst" };
-		orderedResults = new String[] { "tes.tst", "tZesZt", "t.e.s.t", "tlongbreakbetweenest" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-	}
-
-	@Test
-	public void testOrderWithCapitalization() throws Exception {
-		// Category 1
-		var completions = new String[] { "prefiX.Test", "alongprefix.test", "tEsT", "teSt.teST", "preTEst.test" };
-		var orderedResults = new String[] { "tEsT", "teSt.teST", "preTEst.test", "prefiX.Test",
-				"alongprefix.test" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-
-		// Category 2
-		completions = new String[] { "teSTa", "alonGPrefix.TESTA", "tEStatest", "prefix.testa" };
-		orderedResults = new String[] { "teSTa", "prefix.testa", "alonGPrefix.TESTA", "tEStatest" };
-		confirmCompletionResults(completions, "tESt", 4, orderedResults);
-
-		// Category 3
-		completions = new String[] { "ATesta", "teTETesTSTst", "long.prefixtest.suffix" };
-		orderedResults = new String[] { "ATesta", "teTETesTSTst", "long.prefixtest.suffix" };
-		confirmCompletionResults(completions, "TEST", 4, orderedResults);
-
-		// Category 4
-		completions = new String[] { "TlongbreakbetweenEST", "TZesZT", "t.e.s.t", "teS.tst" };
-		orderedResults = new String[] { "teS.tst", "TZesZT", "t.e.s.t", "TlongbreakbetweenEST" };
-		confirmCompletionResults(completions, "test", 4, orderedResults);
-	}
-
-	@Test
-	public void testOrderWithLongInsert() throws Exception {
+	public void testOrderWithLongInsert(MockLanguageServerFactory factory) throws Exception {
 		var items = new ArrayList<CompletionItem>();
 		var item = new CompletionItem("server.address");
 		item.setFilterText("server.address");
@@ -147,11 +137,11 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 						"  application:\n" +
 						"    name: f\n" +
 						"address",
-				62, orderedResults);
+				62, orderedResults, factory);
 	}
 
 	@Test
-	public void testSortTextIsComparedLexicographically() throws Exception {
+	public void testSortTextIsComparedLexicographically(MockLanguageServerFactory factory) throws Exception {
 		final var completions = new ArrayList<CompletionItem>();
 
 		final var item15 = createCompletionItem("15", CompletionItemKind.Class);
@@ -162,7 +152,7 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 		item5.setSortText("5");
 		completions.add(item5);
 
-		confirmCompletionResults(completions, "", 0, new String[] { "15", "5" });
+		confirmCompletionResults(completions, "", 0, new String[] { "15", "5" }, factory);
 	}
 
 	@Test
@@ -209,7 +199,7 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 	}
 
 	@Test
-	public void testPerformance() throws Exception {
+	public void testPerformance(MockLanguageServerFactory factory) throws Exception {
 		final var batchSizes = new int[] { 10, 100, 1000, 10000 };
 		final var resultAverages = new int[batchSizes.length];
 		final int repeat = 5;
@@ -218,7 +208,7 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 		for (int i = 0; i < batchSizes.length; i++) {
 			long resultSum = 0;
 			for (int j = 0; j < repeat; j++) {
-				resultSum += timeToDisplayCompletionList(viewer, batchSizes[i]);
+				resultSum += timeToDisplayCompletionList(viewer, batchSizes[i], factory.getServer());
 			}
 			resultAverages[i] = (int) (resultSum / repeat);
 		}
@@ -247,13 +237,13 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 		return denominator == 0 ? 0 : numerator / denominator;
 	}
 
-	private long timeToDisplayCompletionList(ITextViewer viewer, int size) {
+	private long timeToDisplayCompletionList(ITextViewer viewer, int size, MockLanguageServer mockLanguageServer) {
 		final var range = new Range(new Position(0, 0), new Position(0, 8));
 		final var items = new ArrayList<CompletionItem>();
 		for (int i = 0; i < size; i++) {
 			items.add(createCompletionItem(randomString(), CompletionItemKind.Class, range));
 		}
-		MockLanguageServer.INSTANCE.setCompletionList(new CompletionList(false, items));
+		mockLanguageServer.setCompletionList(new CompletionList(false, items));
 
 		long startTimeControl = System.currentTimeMillis();
 		contentAssistProcessor.computeCompletionProposals(viewer, 0);

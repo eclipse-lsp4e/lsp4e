@@ -20,16 +20,17 @@ import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.operations.semanticTokens.SemanticTokensClient;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.junit.jupiter.api.Test;
 
 public class SemanticTokensLegendProviderTest extends AbstractTestWithProject {
 
 	@Test
-	public void testSemanticTokensLegendProvider() throws CoreException {
+	public void testSemanticTokensLegendProvider(MockLanguageServerFactory factory) throws CoreException {
 		// Setup Server Capabilities
 		List<String> tokenTypes = List.of("keyword","other");
 		List<String> tokenModifiers = List.of("obsolete");
-		SemanticTokensTestUtil.setSemanticTokensLegend(tokenTypes, tokenModifiers);
+		SemanticTokensTestUtil.setSemanticTokensLegend(tokenTypes, tokenModifiers, factory);
 
 		// Setup test data
 		IFile file = TestUtils.createUniqueTestFile(project, "lspt", "test content");

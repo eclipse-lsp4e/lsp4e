@@ -20,13 +20,12 @@ import org.eclipse.jface.text.Region;
 import org.eclipse.jface.text.TextPresentation;
 import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeHolder;
 import org.eclipse.lsp4e.operations.semanticTokens.StyleRangeMerger;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.graphics.Color;
 import org.junit.jupiter.api.Test;
 
-public class StyleRangeMergerTest extends AbstractTest {
+public class StyleRangeMergerTest {
 
 	@Test
 	public void testSemanticHighlightMergesWithExistingStyleRanges() {

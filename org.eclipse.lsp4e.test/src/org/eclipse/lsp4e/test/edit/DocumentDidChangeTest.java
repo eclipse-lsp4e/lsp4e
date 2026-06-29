@@ -30,6 +30,7 @@ import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.DidChangeTextDocumentParams;
 import org.eclipse.lsp4j.Range;
@@ -45,9 +46,12 @@ import org.junit.jupiter.api.io.TempDir;
 public class DocumentDidChangeTest extends AbstractTestWithProject {
 
 	@Test
-	public void testIncrementalSync() throws Exception {
-		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities()
-				.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+	public void testIncrementalSync(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
+			var caps = MockLanguageServer.defaultServerCapabilities();
+			caps.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+			return caps;
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -62,8 +66,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 
 		// Test initial insert
 		viewer.getDocument().replace(0, 0, "Hello");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
-		DidChangeTextDocumentParams lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(0);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(1, factory.getServer()));
+		DidChangeTextDocumentParams lastChange = factory.getServer().getDidChangeEvents().get(0);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		TextDocumentContentChangeEvent change0 = lastChange.getContentChanges().get(0);
@@ -78,8 +82,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 
 		// Test additional insert
 		viewer.getDocument().replace(5, 0, " ");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(2));
-		lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(1);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(2, factory.getServer()));
+		lastChange = factory.getServer().getDidChangeEvents().get(1);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		change0 = lastChange.getContentChanges().get(0);
@@ -94,8 +98,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 
 		// test replace
 		viewer.getDocument().replace(0, 5, "Hallo");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(3));
-		lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(2);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(3, factory.getServer()));
+		lastChange = factory.getServer().getDidChangeEvents().get(2);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		change0 = lastChange.getContentChanges().get(0);
@@ -110,9 +114,12 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testIncrementalSync_deleteLastLine() throws Exception {
-		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities()
-				.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+	public void testIncrementalSync_deleteLastLine(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
+			var caps = MockLanguageServer.defaultServerCapabilities();
+			caps.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+			return caps;
+		});
 
 		final var multiLineText = "line1\nline2\nline3\n";
 		IFile testFile = TestUtils.createUniqueTestFile(project, multiLineText);
@@ -127,8 +134,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 
 		// Test initial insert
 		viewer.getDocument().replace("line1\nline2\n".length(), "line3\n".length(), "");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
-		DidChangeTextDocumentParams lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(0);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(1, factory.getServer()));
+		DidChangeTextDocumentParams lastChange = factory.getServer().getDidChangeEvents().get(0);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		TextDocumentContentChangeEvent change0 = lastChange.getContentChanges().get(0);
@@ -143,16 +150,20 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testIncrementalEditOrdering() throws Exception {
-		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities().setTextDocumentSync(TextDocumentSyncKind.Incremental);
+	public void testIncrementalEditOrdering(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
+			var caps = MockLanguageServer.defaultServerCapabilities();
+			caps.setTextDocumentSync(TextDocumentSyncKind.Incremental);
+			return caps;
+		});
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
 		StyledText text = viewer.getTextWidget();
 		for (int i = 0; i < 500; i++) {
 			text.append(i + "\n");
 		}
-		waitForAndAssertCondition(10_000,  numberOfChangesIs(500));
-		List<DidChangeTextDocumentParams> changes = MockLanguageServer.INSTANCE.getDidChangeEvents();
+		waitForAndAssertCondition(10_000,  numberOfChangesIs(500, factory.getServer()));
+		List<DidChangeTextDocumentParams> changes = factory.getServer().getDidChangeEvents();
 		for (int i = 0; i < 500; i++) {
 			String delta = changes.get(i).getContentChanges().get(0).getText();
 			assertEquals(i + "\n", delta);
@@ -160,9 +171,12 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFullSync() throws Exception {
-		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities()
-				.setTextDocumentSync(TextDocumentSyncKind.Full);
+	public void testFullSync(MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
+			var caps = MockLanguageServer.defaultServerCapabilities();
+			caps.setTextDocumentSync(TextDocumentSyncKind.Full);
+			return caps;
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		ITextViewer viewer = TestUtils.openTextViewer(testFile);
@@ -176,8 +190,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 		// Test initial insert
 		final var text = "Hello";
 		viewer.getDocument().replace(0, 0, text);
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
-		DidChangeTextDocumentParams lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(0);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(1, factory.getServer()));
+		DidChangeTextDocumentParams lastChange = factory.getServer().getDidChangeEvents().get(0);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		TextDocumentContentChangeEvent change0 = lastChange.getContentChanges().get(0);
@@ -186,8 +200,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 		// Test additional insert
 
 		viewer.getDocument().replace(5, 0, " World");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(2));
-		lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(1);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(2, factory.getServer()));
+		lastChange = factory.getServer().getDidChangeEvents().get(1);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		change0 = lastChange.getContentChanges().get(0);
@@ -195,9 +209,12 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testFullSyncExternalFile(@TempDir Path tempDir) throws Exception {
-		MockLanguageServer.INSTANCE.getInitializeResult().getCapabilities()
-				.setTextDocumentSync(TextDocumentSyncKind.Full);
+	public void testFullSyncExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
+		factory.withCapabilities(() -> {
+			var caps = MockLanguageServer.defaultServerCapabilities();
+			caps.setTextDocumentSync(TextDocumentSyncKind.Full);
+			return caps;
+		});
 
 		Path file = Files.createFile(tempDir.resolve("testFullSyncExternalFile.lspt"));
 		IEditorPart editor = IDE.openEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
@@ -212,8 +229,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 		// Test initial insert
 		final var text = "Hello";
 		viewer.getDocument().replace(0, 0, text);
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(1));
-		DidChangeTextDocumentParams lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(0);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(1, factory.getServer()));
+		DidChangeTextDocumentParams lastChange = factory.getServer().getDidChangeEvents().get(0);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		TextDocumentContentChangeEvent change0 = lastChange.getContentChanges().get(0);
@@ -221,8 +238,8 @@ public class DocumentDidChangeTest extends AbstractTestWithProject {
 
 		// Test additional insert
 		viewer.getDocument().replace(5, 0, " World");
-		waitForAndAssertCondition(1_000,  numberOfChangesIs(2));
-		lastChange = MockLanguageServer.INSTANCE.getDidChangeEvents().get(1);
+		waitForAndAssertCondition(1_000,  numberOfChangesIs(2, factory.getServer()));
+		lastChange = factory.getServer().getDidChangeEvents().get(1);
 		assertNotNull(lastChange.getContentChanges());
 		assertEquals(1, lastChange.getContentChanges().size());
 		change0 = lastChange.getContentChanges().get(0);

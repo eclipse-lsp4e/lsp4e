@@ -31,7 +31,7 @@ import org.eclipse.lsp4e.operations.diagnostics.LSPDiagnosticsToMarkers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.NoErrorLoggedRule;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.CodeAction;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.Diagnostic;
@@ -60,20 +60,24 @@ public class CodeActionTests extends AbstractTestWithProject {
 	public final @RegisterExtension NoErrorLoggedRule noErrorLoggedRule = new NoErrorLoggedRule();
 
 	@Test
-	public void testCodeActionsClientCommandForTextEdit() throws CoreException {
+	public void testCodeActionsClientCommandForTextEdit(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server)-> {
+			server.setCodeActions(List.of(Either.forLeft(new Command(
+					"fixme",
+					"edit",
+					List.of(
+							new TextEdit(
+									new Range(new Position(0, 0), new Position(0, 5)),
+									"fixed"))
+					)
+					)
+					));
+			server.setDiagnostics(List.of(
+					new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		});
+		
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
-		MockLanguageServer.INSTANCE.setCodeActions(List.of(Either.forLeft(new Command(
-				"fixme",
-				"edit",
-				List.of(
-					new TextEdit(
-							new Range(new Position(0, 0), new Position(0, 5)),
-							"fixed"))
-				)
-			)
-		));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		try {
 			IMarker m = assertDiagnostics(f, "error", "fixme");
@@ -84,20 +88,23 @@ public class CodeActionTests extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testCodeActionsClientCommandForWorkspaceEdit() throws CoreException {
+	public void testCodeActionsClientCommandForWorkspaceEdit(MockLanguageServerFactory factory) throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
+		factory.withConfiguration((idx, server)-> {
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
+			server.setCodeActions(List
+					.of(Either.forLeft(new Command(
+							"fixme",
+							"edit",
+							List.of(wEdit))
+							)
+							));
+			server.setDiagnostics(List.of(
+					new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		});
+		
 
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
-		MockLanguageServer.INSTANCE.setCodeActions(List
-				.of(Either.forLeft(new Command(
-				"fixme",
-				"edit",
-				List.of(wEdit))
-			)
-		));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 
 		IMarker m = assertDiagnostics(f, "error", "fixme");
@@ -113,19 +120,21 @@ public class CodeActionTests extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testCodeActionsQuickAssist() throws CoreException {
-		MockLanguageServer.reset();
+	public void testCodeActionsQuickAssist(MockLanguageServerFactory factory) throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
 
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
-		MockLanguageServer.INSTANCE.setCodeActions(List
-				.of(Either.forLeft(new Command(
-				"fixme",
-				"edit",
-				List.of(wEdit))
-			)
-		));
+		factory.withConfiguration((idx, server)-> {
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
+			server.setCodeActions(List
+					.of(Either.forLeft(new Command(
+							"fixme",
+							"edit",
+							List.of(wEdit))
+							)
+							));
+		});
+		
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		final Set<Shell> beforeShells = Arrays.stream(editor.getSite().getShell().getDisplay().getShells()).filter(Shell::isVisible).collect(Collectors.toSet());
 		editor.selectAndReveal(3, 0);
@@ -138,20 +147,22 @@ public class CodeActionTests extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testSlowCodeActionsQuickAssist() throws CoreException {
-		MockLanguageServer.reset();
+	public void testSlowCodeActionsQuickAssist(MockLanguageServerFactory factory) throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
 
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
-		MockLanguageServer.INSTANCE.setCodeActions(List
-				.of(Either.forLeft(new Command(
-				"fixme",
-				"edit",
-				List.of(wEdit))
-			)
-		));
-		MockLanguageServer.INSTANCE.setTimeToProceedQueries(1000);
+		factory.withConfiguration((idx, server)-> {
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
+			server.setCodeActions(List
+					.of(Either.forLeft(new Command(
+							"fixme",
+							"edit",
+							List.of(wEdit))
+							)
+							));
+			server.setTimeToProceedQueries(1000);
+		});
+		
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		final Set<Shell> beforeShells = Arrays.stream(editor.getSite().getShell().getDisplay().getShells()).filter(Shell::isVisible).collect(Collectors.toSet());
 		editor.selectAndReveal(3, 0);
@@ -166,27 +177,29 @@ public class CodeActionTests extends AbstractTestWithProject {
 			final Table completionProposalList = TestUtils.findCompletionSelectionControl(completionShell);
 			return completionProposalList.getItemCount() == 1 && "fixme".equals(completionProposalList.getItem(0).getText());
 		});
-		assertEquals(1, MockLanguageServer.INSTANCE.getTextDocumentService().codeActionRequests);
+		assertEquals(1, factory.getServer().getTextDocumentService().codeActionRequests);
 	}
 
 	@Test
-	public void testCodeActionLiteralWorkspaceEdit() throws CoreException {
+	public void testCodeActionLiteralWorkspaceEdit(MockLanguageServerFactory factory) throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
+		factory.withConfiguration((idx, server)-> {
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
+			final var codeAction = new CodeAction("fixme");
+			codeAction.setEdit(wEdit);
+			server.setCodeActions(List.of(Either.forRight(codeAction)));
+			server.setDiagnostics(List.of(
+					new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		});
 
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
-		final var codeAction = new CodeAction("fixme");
-		codeAction.setEdit(wEdit);
-		MockLanguageServer.INSTANCE.setCodeActions(List.of(Either.forRight(codeAction)));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		IMarker m = assertDiagnostics(f, "error", "fixme");
 		assertResolution(editor, m, "fixed");
 	}
 
 	@Test
-	public void testNoCodeActionOnReadOnlySource() throws CoreException {
+	public void testNoCodeActionOnReadOnlySource(MockLanguageServerFactory factory) throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
 		f.setResourceAttributes(new ResourceAttributes() {
 			@Override
@@ -195,47 +208,53 @@ public class CodeActionTests extends AbstractTestWithProject {
 			}
 		});
 
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
-		final var codeAction = new CodeAction("fixme");
-		codeAction.setEdit(wEdit);
-		MockLanguageServer.INSTANCE.setCodeActions(List.of(Either.forRight(codeAction)));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		factory.withConfiguration((idx, server)-> {
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
+			final var codeAction = new CodeAction("fixme");
+			codeAction.setEdit(wEdit);
+			server.setCodeActions(List.of(Either.forRight(codeAction)));
+			server.setDiagnostics(List.of(
+					new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		});
 		TestUtils.openEditor(f);
 		assertDiagnostics(f, "error", "fixme", false);
 	}
 
 	@Test
-	public void testCodeActionLiteralWithClientCommand() throws CoreException {
+	public void testCodeActionLiteralWithClientCommand(MockLanguageServerFactory factory) throws CoreException {
 		IFile f = TestUtils.createUniqueTestFile(project, "error");
 
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
-		final var codeAction = new CodeAction("fixme");
-		codeAction.setCommand(new Command("editCommand", "mockEditCommand", List.of(wEdit)));
-		MockLanguageServer.INSTANCE.setCodeActions(List.of(Either.forRight(codeAction)));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		factory.withConfiguration((idx, server)-> {
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(f.getLocationURI().toString(), List.of(tEdit)));
+			final var codeAction = new CodeAction("fixme");
+			codeAction.setCommand(new Command("editCommand", "mockEditCommand", List.of(wEdit)));
+			server.setCodeActions(List.of(Either.forRight(codeAction)));
+			server.setDiagnostics(List.of(
+					new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		});
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		IMarker m = assertDiagnostics(f, "error", "fixme");
 		assertResolution(editor, m, "fixed");
 	}
 
 	@Test
-	public void testCodeActionWorkspaceEditlWithDifferentURI() throws CoreException {
+	public void testCodeActionWorkspaceEditlWithDifferentURI(MockLanguageServerFactory factory) throws CoreException {
 		IFile sourceFile = TestUtils.createUniqueTestFile(project, "error");
 		IFile targetFile = TestUtils.createUniqueTestFile(project, "fixme");
 
-		// create a diagnostic on the sourceFile with a code action
-		// that changes the targetFile
-		final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
-		final var wEdit = new WorkspaceEdit(Collections.singletonMap(targetFile.getLocationURI().toString(), List.of(tEdit)));
-		final var codeAction = new CodeAction("fixme");
-		codeAction.setCommand(new Command("editCommand", "mockEditCommand", List.of(wEdit)));
-		MockLanguageServer.INSTANCE.setCodeActions(List.of(Either.forRight(codeAction)));
-		MockLanguageServer.INSTANCE.setDiagnostics(List.of(
-				new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		factory.withConfiguration((idx, server)-> {
+			// create a diagnostic on the sourceFile with a code action
+			// that changes the targetFile
+			final var tEdit = new TextEdit(new Range(new Position(0, 0), new Position(0, 5)), "fixed");
+			final var wEdit = new WorkspaceEdit(Collections.singletonMap(targetFile.getLocationURI().toString(), List.of(tEdit)));
+			final var codeAction = new CodeAction("fixme");
+			codeAction.setCommand(new Command("editCommand", "mockEditCommand", List.of(wEdit)));
+			server.setCodeActions(List.of(Either.forRight(codeAction)));
+			server.setDiagnostics(List.of(
+					new Diagnostic(new Range(new Position(0, 0), new Position(0, 5)), "error", DiagnosticSeverity.Error, null)));
+		});
 
 		TestUtils.openEditor(sourceFile);
 		IMarker m = assertDiagnostics(sourceFile, "error", "fixme");

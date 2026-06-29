@@ -12,7 +12,8 @@
 package org.eclipse.lsp4e.test.rename;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -31,7 +32,7 @@ import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.operations.rename.LSPInlineRenameLinkedMode;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightKind;
 import org.eclipse.lsp4j.Position;
@@ -69,7 +70,7 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 	 * </p>
 	 */
 	@Test
-	void testInlineLinkedEditingSameFile() throws Exception {
+	void testInlineLinkedEditingSameFile(MockLanguageServerFactory factory) throws Exception {
 		// Ensure inline rename is enabled for this test
 		InstanceScope.INSTANCE.getNode(LanguageServerPlugin.PLUGIN_ID).putBoolean("org.eclipse.lsp4e.inlineRename", //$NON-NLS-1$
 				true);
@@ -97,7 +98,9 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 						DocumentHighlightKind.Read),
 				new DocumentHighlight(new Range(new Position(0, 0), new Position(0, idLength)),
 						DocumentHighlightKind.Text)));
-		MockLanguageServer.INSTANCE.setDocumentHighlights(highlights);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentHighlights(highlights);
+		});
 
 		// Call the internal helper directly via reflection to avoid depending on
 		// UI/command wiring
@@ -128,7 +131,7 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 	 * </p>
 	 */
 	@Test
-	void testInlineRenameEndToEndSameFile() throws Exception {
+	void testInlineRenameEndToEndSameFile(MockLanguageServerFactory factory) throws Exception {
 		// Prepare a simple document with two occurrences of the same identifier
 		var content = "compute();\ncompute();";
 		IFile file = TestUtils.createUniqueTestFile(project, content);
@@ -147,7 +150,6 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 		Position secondPos = LSPEclipseUtils.toPosition(secondOffset, document);
 
 		var prepareRange = new Range(firstPos, new Position(firstPos.getLine(), firstPos.getCharacter() + idLength));
-		MockLanguageServer.INSTANCE.getTextDocumentService().setPrepareRenameResult(Either.forLeft(prepareRange));
 
 		// WorkspaceEdit returned by textDocument/rename: both occurrences updated to
 		// typedName.
@@ -162,7 +164,10 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 				new TextEdit(
 						new Range(secondPos, new Position(secondPos.getLine(), secondPos.getCharacter() + idLength)),
 						typedName)));
-		MockLanguageServer.INSTANCE.getTextDocumentService().setRenameEdit(new WorkspaceEdit(edits));
+		factory.withConfiguration((idx, server)-> {
+			server.getTextDocumentService().setPrepareRenameResult(Either.forLeft(prepareRange));
+			server.getTextDocumentService().setRenameEdit(new WorkspaceEdit(edits));
+		});
 
 		// Open a viewer so that the document is wired to a text viewer like in real
 		// usage

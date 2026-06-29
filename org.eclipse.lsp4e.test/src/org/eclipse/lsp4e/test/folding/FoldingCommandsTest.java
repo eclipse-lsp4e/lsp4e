@@ -24,9 +24,8 @@ import org.eclipse.jface.text.source.projection.ProjectionAnnotationModel;
 import org.eclipse.jface.text.source.projection.ProjectionViewer;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.FoldingPreferencePage;
 import org.eclipse.lsp4j.FoldingRange;
 import org.eclipse.lsp4j.FoldingRangeKind;
@@ -34,7 +33,7 @@ import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.handlers.IHandlerService;
 import org.junit.jupiter.api.Test;
 
-public class FoldingCommandsTest extends AbstractTest {
+public class FoldingCommandsTest {
 
 	private static final int MAX_WAIT_MS = 5_000;
 
@@ -52,16 +51,18 @@ public class FoldingCommandsTest extends AbstractTest {
 		""";
 
 	@Test
-	public void foldAndUnfoldAllCommands() throws Exception {
+	public void foldAndUnfoldAllCommands(MockLanguageServerFactory factory) throws Exception {
 		// Ensure no auto-folding interferes with the command behavior
 		configureAutoFolding(false);
 
-		// Provide folding ranges from the Mock LS: license header and imports
-		final var foldingRangeLicense = new FoldingRange(0, 2);
-		foldingRangeLicense.setKind(FoldingRangeKind.Comment);
-		final var foldingRangeImport = new FoldingRange(3, 5);
-		foldingRangeImport.setKind(FoldingRangeKind.Imports);
-		MockLanguageServer.INSTANCE.setFoldingRanges(List.of(foldingRangeLicense, foldingRangeImport));
+		factory.withConfiguration((idx, server)-> {
+			// Provide folding ranges from the Mock LS: license header and imports
+			final var foldingRangeLicense = new FoldingRange(0, 2);
+			foldingRangeLicense.setKind(FoldingRangeKind.Comment);
+			final var foldingRangeImport = new FoldingRange(3, 5);
+			foldingRangeImport.setKind(FoldingRangeKind.Imports);
+			server.setFoldingRanges(List.of(foldingRangeLicense, foldingRangeImport));
+		});
 
 		// Open editor and wait until folding annotations are present
 		final var editor = TestUtils.openEditor(TestUtils.createUniqueTestFile(null, CONTENT));

@@ -27,7 +27,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.operations.documentLink.DocumentLinkDetector;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.DocumentLink;
 import org.eclipse.lsp4j.Position;
@@ -51,10 +51,12 @@ public class DocumentLinkTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDocumentLink() throws Exception {
+	public void testDocumentLink(MockLanguageServerFactory factory) throws Exception {
 		final var links = new ArrayList<DocumentLink>();
 		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file://test0"));
-		MockLanguageServer.INSTANCE.setDocumentLinks(links);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(links);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "not_link <link>");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -65,10 +67,12 @@ public class DocumentLinkTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDocumentLinkExternalFile(@TempDir Path tempDir) throws Exception {
+	public void testDocumentLinkExternalFile(@TempDir Path tempDir, MockLanguageServerFactory factory) throws Exception {
 		final var links = new ArrayList<DocumentLink>();
 		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file://test0"));
-		MockLanguageServer.INSTANCE.setDocumentLinks(links);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(links);
+		});
 
 		Path file = Files.createFile(tempDir.resolve("testDocumentLinkExternalFile.lspt"));
 		final var editor = (ITextEditor) IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
@@ -81,10 +85,12 @@ public class DocumentLinkTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDocumentLinkWithEncodedUri() throws Exception {
+	public void testDocumentLinkWithEncodedUri(MockLanguageServerFactory factory) throws Exception {
 		final var links = new ArrayList<DocumentLink>();
 		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file:///tmp/fi%C3%A9le.ts"));
-		MockLanguageServer.INSTANCE.setDocumentLinks(links);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(links);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "not_link <link>");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
@@ -95,10 +101,12 @@ public class DocumentLinkTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDocumentLinkWrongRegion() throws Exception {
+	public void testDocumentLinkWrongRegion(MockLanguageServerFactory factory) throws Exception {
 		final var links = new ArrayList<DocumentLink>();
 		links.add(new DocumentLink(new Range(new Position(0, 9), new Position(0, 15)), "file://test0"));
-		MockLanguageServer.INSTANCE.setDocumentLinks(links);
+		factory.withConfiguration((idx, server)-> {
+			server.setDocumentLinks(links);
+		});
 
 		IFile file = TestUtils.createUniqueTestFile(project, "not_link <link>");
 		ITextViewer viewer = TestUtils.openTextViewer(file);

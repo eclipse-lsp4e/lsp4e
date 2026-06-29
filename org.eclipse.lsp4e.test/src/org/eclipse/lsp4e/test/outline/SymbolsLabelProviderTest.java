@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.eclipse.lsp4e.outline.SymbolsLabelProvider;
 import org.eclipse.lsp4e.outline.SymbolsModel;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.eclipse.lsp4j.DocumentSymbol;
 import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Position;
@@ -27,7 +26,7 @@ import org.eclipse.lsp4j.WorkspaceSymbol;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.junit.jupiter.api.Test;
 
-public class SymbolsLabelProviderTest extends AbstractTest {
+public class SymbolsLabelProviderTest {
 
 	private static final Location LOCATION = new Location("path/to/foo", new Range(new Position(0,0), new Position(1,1)));
 	private static final Location INVALID_LOCATION = new Location("file:://///invalid_location_uri", new Range(new Position(0,0), new Position(1,1)));

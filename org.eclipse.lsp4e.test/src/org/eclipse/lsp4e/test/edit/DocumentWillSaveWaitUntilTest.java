@@ -25,7 +25,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -42,11 +42,13 @@ public class DocumentWillSaveWaitUntilTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testSave() throws Exception {
+	public void testSave(MockLanguageServerFactory factory) throws Exception {
 		final var oldText = "Hello";
 		final var newText = "hello";
 
-		MockLanguageServer.INSTANCE.setWillSaveWaitUntil(createSingleTextEditAtFileStart(newText));
+		factory.withConfiguration((idx, server)-> {
+			server.setWillSaveWaitUntil(createSingleTextEditAtFileStart(newText));
+		});
 
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		IEditorPart editor = TestUtils.openEditor(testFile);

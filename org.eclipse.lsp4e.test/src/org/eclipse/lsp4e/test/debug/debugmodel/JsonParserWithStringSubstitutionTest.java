@@ -22,10 +22,9 @@ import org.eclipse.core.variables.IStringVariableManager;
 import org.eclipse.core.variables.IValueVariable;
 import org.eclipse.core.variables.IValueVariableListener;
 import org.eclipse.lsp4e.debug.debugmodel.JsonParserWithStringSubstitution;
-import org.eclipse.lsp4e.test.utils.AbstractTest;
 import org.junit.jupiter.api.Test;
 
-public class JsonParserWithStringSubstitutionTest extends AbstractTest {
+public class JsonParserWithStringSubstitutionTest {
 
 	private static final class StringVariableManagerMock implements IStringVariableManager {
 

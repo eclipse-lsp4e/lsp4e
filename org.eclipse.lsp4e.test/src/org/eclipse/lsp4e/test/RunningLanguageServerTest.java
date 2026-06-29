@@ -27,7 +27,8 @@ import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServiceAccessor;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
-import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
+import org.eclipse.lsp4e.tests.mock.MockServerState;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IWorkbenchPage;
 import org.eclipse.ui.texteditor.AbstractTextEditor;
@@ -40,25 +41,29 @@ public class RunningLanguageServerTest extends AbstractTestWithProject {
 	 * closing the same file/editor multiple times
 	 */
 	@Test
-	public void testOpenCloseLanguageServer() throws Exception {
+	public void testOpenCloseLanguageServer(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 
 		// open and close the editor several times
-		for(int i = 1; i <= 10; i++) {
+		int iterations = 10;
+		for(int i = 0; i < iterations; i++) {
 			IEditorPart editor = TestUtils.openEditor(testFile);
 
 			assertFalse(LanguageServiceAccessor.getLSWrappers(testFile, capabilities -> true).isEmpty());
+			
+			int serverIndex = i;
 			waitForAndAssertCondition("MockLanguageServer should be started for iteration #" + i, 5_000,
-					() -> MockLanguageServer.INSTANCE.isRunning());
+					() -> factory.getServerCount() == serverIndex +1);
 
 			((AbstractTextEditor)editor).close(false);
 			waitForAndAssertCondition("MockLanguageServer should be stopped after iteration #" + i, 5_000,
-					() -> !MockLanguageServer.INSTANCE.isRunning());
+					() -> factory.getServers().get(serverIndex).getState() != MockServerState.RUNNING );
 		}
+		assertEquals(iterations, factory.getServerCount());
 	}
 
 	@Test
-	public void testDisabledLanguageServer() throws Exception {
+	public void testDisabledLanguageServer(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "lspt-disabled", "");
 
 		ContentTypeToLanguageServerDefinition lsDefinition = TestUtils.getDisabledLS();
@@ -76,7 +81,7 @@ public class RunningLanguageServerTest extends AbstractTestWithProject {
 		LanguageServiceAccessor.enableLanguageServerContentType(lsDefinition, TestUtils.getEditors());
 
 		waitForAndAssertCondition("language server should be started", 5_000,
-				() -> MockLanguageServer.INSTANCE.isRunning());
+				() -> factory.getServerCount() == 1);
 	}
 
 	@Test
@@ -94,11 +99,11 @@ public class RunningLanguageServerTest extends AbstractTestWithProject {
 	}
 
 	@Test
-	public void testDelayedStopDoesntCauseFreeze() throws Exception {
+	public void testDelayedStopDoesntCauseFreeze(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		IEditorPart editor = TestUtils.openEditor(testFile);
 		IWorkbenchPage page = editor.getSite().getPage();
-		MockLanguageServer.INSTANCE.setTimeToProceedQueries(10000);
+		factory.getServer().setTimeToProceedQueries(1100);
 		long before = System.currentTimeMillis();
 		page.closeEditor(editor, false);
 		assertTrue(System.currentTimeMillis() - before < 1000);
