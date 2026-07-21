@@ -111,13 +111,14 @@ public final class LSPFileOperationParticipantSupport {
 			final Function<FileOperationsServerCapabilities, @Nullable FileOperationOptions> optionsProvider) {
 		final var uri = LSPEclipseUtils.toUri(res);
 		final var project = res.getProject();
-		if (uri == null) {
-			// No URI means we cannot match any file operation filters; return an executor
+		if (uri == null || !"file".equalsIgnoreCase(uri.getScheme())) { //$NON-NLS-1$
+			// No URI or file scheme means we cannot match any file operation filters; return an executor
 			// that will not match any servers.
 			return LanguageServers.forProject(project).withFilter(capabilities -> false);
 		}
 
-		final var path = Path.of(uri);
+		final Path path = Path.of(uri);
+
 		return LanguageServers.forProject(project).withFilter(capabilities -> {
 			final var workspace = capabilities.getWorkspace();
 			if (workspace == null)
