@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2020 Pivotal Inc. and others.
+ * Copyright (c) 2017, 2026 Pivotal Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -47,7 +47,8 @@ public class LSJavaHoverProvider extends JavadocHover {
 		if (textViewer == null || hoverRegion == null) {
 			return null;
 		}
-		CompletableFuture<@Nullable String> lsHoverFuture = this.lsBasedHover.getHoverInfoFuture(textViewer, hoverRegion);
+		IRegion lsHoverRegion = getHoverRegion(textViewer, hoverRegion.getOffset());
+		CompletableFuture<@Nullable String> lsHoverFuture = this.lsBasedHover.getHoverInfoFuture(textViewer, lsHoverRegion == null ? hoverRegion : lsHoverRegion);
 		final var lsHtmlHoverContent = new AtomicReference<@Nullable String>();
 		final var jdtHoverControlInput = new AtomicReference<@Nullable JavadocBrowserInformationControlInput>();
 
