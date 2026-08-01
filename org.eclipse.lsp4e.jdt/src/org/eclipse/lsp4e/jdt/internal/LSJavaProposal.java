@@ -9,7 +9,7 @@
  * Contributors:
  *  - Alex Boyko (VMware Inc.) - Initial implementation
  *******************************************************************************/
-package org.eclipse.lsp4e.jdt;
+package org.eclipse.lsp4e.jdt.internal;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -37,7 +37,7 @@ import org.osgi.framework.Bundle;
 import org.osgi.framework.FrameworkUtil;
 
 @SuppressWarnings("restriction")
-class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProposal {
+public class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProposal {
 	
 	private static final int LS_DEFAULT_RELEVANCE = 18;
 	
@@ -69,7 +69,7 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 					relevance += 3;
 					break;
 				case Field:
-				case Property:	
+				case Property:
 					relevance += 5;
 					break;
 				case Method:
@@ -149,8 +149,9 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 					LanguageServerPlugin.logError(ex);
 				} finally {
 					try {
-						if (reader != null)
+						if (reader != null) {
 							reader.close();
+						}
 					} catch (IOException e) {
 					}
 				}

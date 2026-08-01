@@ -25,6 +25,7 @@ import org.eclipse.jdt.ui.text.java.IJavaCompletionProposalComputer;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.contentassist.IContextInformation;
 import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.jdt.internal.LSJavaProposal;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
 

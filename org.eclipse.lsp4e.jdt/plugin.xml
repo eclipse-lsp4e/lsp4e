@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
+   <extension-point id="org.eclipse.lsp4e.jdt.LSJavaTextBlockLanguageDetector" name="LSJavaTextBlockLanguageDetector" schema="schema/org.eclipse.lsp4e.jdt.LSJavaTextBlockLanguageDetector.exsd"/>
 
    <extension
          id="ls-based-java-completion-computer"
@@ -10,6 +11,18 @@
             activate="true"
             categoryId="org.eclipse.lsp4e.jdt.ls-based-java-completion-computer"
             class="org.eclipse.lsp4e.jdt.LSJavaCompletionProposalComputer"
+            needsSortingAfterFiltering="false"
+            requiresUIThread="false">
+      </javaCompletionProposalComputer>
+   </extension>
+   <extension
+         id="ls-based-java-text-block-completion-computer"
+         name="%lsTextBlockCompletionComputer_name"
+         point="org.eclipse.jdt.ui.javaCompletionProposalComputer">
+      <javaCompletionProposalComputer
+            activate="true"
+            categoryId="org.eclipse.lsp4e.jdt.ls-based-java-text-block-completion-computer"
+            class="org.eclipse.lsp4e.jdt.internal.JavaTextBlockProposalComputer"
             needsSortingAfterFiltering="false"
             requiresUIThread="false">
       </javaCompletionProposalComputer>
