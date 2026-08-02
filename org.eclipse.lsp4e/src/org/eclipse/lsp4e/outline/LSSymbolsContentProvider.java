@@ -48,7 +48,6 @@ import org.eclipse.jface.text.reconciler.DirtyRegion;
 import org.eclipse.jface.text.reconciler.IReconcilingStrategy;
 import org.eclipse.jface.viewers.ITreeContentProvider;
 import org.eclipse.jface.viewers.ITreeSelection;
-import org.eclipse.jface.viewers.StructuredViewer;
 import org.eclipse.jface.viewers.TreePath;
 import org.eclipse.jface.viewers.TreeSelection;
 import org.eclipse.jface.viewers.TreeViewer;
@@ -242,7 +241,7 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 					event.getDelta().accept(delta -> {
 						if (delta.getResource().equals(this.resource)) {
 							viewer.getControl().getDisplay().asyncExec(() -> {
-								if (!viewer.getControl().isDisposed() && viewer instanceof StructuredViewer) {
+								if (!viewer.getControl().isDisposed()) {
 									viewer.refresh(true);
 								}
 							});

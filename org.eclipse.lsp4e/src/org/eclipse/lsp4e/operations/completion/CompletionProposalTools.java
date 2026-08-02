@@ -67,7 +67,7 @@ public final class CompletionProposalTools {
 		int lastIndex = 0;
 		subString = subString.toLowerCase();
 		string = string.toLowerCase();
-		for (Character c : subString.toCharArray()) {
+		for (char c : subString.toCharArray()) {
 			int index = string.indexOf(c, lastIndex);
 			if (index < 0) {
 				return false;

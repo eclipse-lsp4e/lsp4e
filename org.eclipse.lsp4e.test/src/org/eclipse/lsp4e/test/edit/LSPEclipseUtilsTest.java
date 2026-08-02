@@ -34,7 +34,6 @@ import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Stream;
 
@@ -113,7 +112,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	}
 
 	private AbstractTextEditor applyWorkspaceTextEdit(TextEdit textEdit) throws CoreException {
-		IFile f = TestUtils.createFile(project, "dummy" + new Random().nextInt(), "Here");
+		IFile f = TestUtils.createUniqueTestFile(project, "Here");
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		final var workspaceEdit = new WorkspaceEdit(Collections.singletonMap(
 			LSPEclipseUtils.toUri(f).toString(),
@@ -124,7 +123,9 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 	@Test
 	public void testWorkspaceEditMultipleChanges() throws Exception {
-		IFile f = TestUtils.createFile(project, "dummy", "Here\nHere2");
+		IFile f = TestUtils.createUniqueTestFile(project, """
+			Here
+			Here2""");
 		final var editor = (AbstractTextEditor)TestUtils.openEditor(f);
 		final var edits = new LinkedList<TextEdit>();
 		// order the TextEdits from the top of the document to the bottom
@@ -134,8 +135,12 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 			LSPEclipseUtils.toUri(f).toString(), edits));
 		// they should be applied from bottom to top
 		LSPEclipseUtils.applyWorkspaceEdit(workspaceEdit);
-		assertEquals("abcHere\nabcHere2", ((StyledText) editor.getAdapter(Control.class)).getText());
-		assertEquals("abcHere\nabcHere2",
+		assertEquals("""
+				abcHere
+				abcHere2""", ((StyledText) editor.getAdapter(Control.class)).getText());
+		assertEquals("""
+				abcHere
+				abcHere2""",
 				editor.getDocumentProvider().getDocument(editor.getEditorInput()).get());
 	}
 
@@ -149,12 +154,16 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		edits.add(Either.forLeft(
 				new TextDocumentEdit(new VersionedTextDocumentIdentifier(uri, null),
 						List.of(Either.forLeft(
-								new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), "abcHere\nabcHere2"))))));
+								new TextEdit(new Range(new Position(0, 0), new Position(0, 0)), """
+										abcHere
+										abcHere2"""))))));
 		final var workspaceEdit = new WorkspaceEdit(edits);
 		// they should be applied from bottom to top
 		LSPEclipseUtils.applyWorkspaceEdit(workspaceEdit);
 		assertTrue(file.exists());
-		assertEquals("abcHere\nabcHere2", Files.readString(file.getLocation().toPath()));
+		assertEquals("""
+				abcHere
+				abcHere2""", Files.readString(file.getLocation().toPath()));
 	}
 
 	@Test
@@ -260,22 +269,30 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 	@Test
 	public void testApplyTextEditLongerThanOrigin() throws Exception {
-		IFile file = TestUtils.createUniqueTestFile(project, "line1\nlineInsertHere");
+		IFile file = TestUtils.createUniqueTestFile(project, """
+			line1
+			lineInsertHere""");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 		final var textEdit = new TextEdit(new Range(new Position(1, 4), new Position(1, 4 + "InsertHere".length())), "Inserted");
 		IDocument document = viewer.getDocument();
 		LSPEclipseUtils.applyEdit(textEdit, document);
-		assertEquals("line1\nlineInserted", document.get());
+		assertEquals("""
+				line1
+				lineInserted""", document.get());
 	}
 
 	@Test
 	public void testApplyTextEditShorterThanOrigin() throws Exception {
-		IFile file = TestUtils.createUniqueTestFile(project, "line1\nlineHERE");
+		IFile file = TestUtils.createUniqueTestFile(project, """
+			line1
+			lineHERE""");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 		final var textEdit = new TextEdit(new Range(new Position(1, 4), new Position(1, 4 + "HERE".length())), "Inserted");
 		IDocument document = viewer.getDocument();
 		LSPEclipseUtils.applyEdit(textEdit, document);
-		assertEquals("line1\nlineInserted", document.get());
+		assertEquals("""
+				line1
+				lineInserted""", document.get());
 	}
 
 	@Test
@@ -292,16 +309,27 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 
 	@Test
 	public void testTextEditSplittedLineEndings() throws Exception {
-		IFile file = TestUtils.createUniqueTestFile(project, "line1\r\nline2\r\nline3\r\n");
+		IFile file = TestUtils.createUniqueTestFile(project, """
+			line1\r
+			line2\r
+			line3\r
+			""");
 		ITextViewer viewer = TestUtils.openTextViewer(file);
 		// GIVEN a TextEdit which splits the '\r\n' line ending in the third line:
-		final var edits = new TextEdit[] { new TextEdit(new Range(new Position(0, 0), new Position(2, 6)), "line3\r\nline2\r\nline1\r") };
+		final var edits = new TextEdit[] { new TextEdit(new Range(new Position(0, 0), new Position(2, 6)), """
+			line3\r
+			line2\r
+			line1\r""") };
 		IDocument document = viewer.getDocument();
 		int linesBeforeApplyEdits = document.getNumberOfLines();
 		// WHEN the TextEdit gets applied to the document:
 		LSPEclipseUtils.applyEdits(document, List.of(edits));
 		// THEN line1 has been swapped with line 3:
-		assertEquals("line3\r\nline2\r\nline1\r\n", document.get());
+		assertEquals("""
+				line3\r
+				line2\r
+				line1\r
+				""", document.get());
 		// AND the number of lines is still the same, because we have not appended a line:
 		assertEquals(linesBeforeApplyEdits, document.getNumberOfLines());
 	}
@@ -400,14 +428,18 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		Path file = Files.createFile(tempDir.resolve("editExternalFile.whatever"));
 		final var te = new TextEdit();
 		te.setRange(new Range(new Position(0, 0), new Position(0, 0)));
-		te.setNewText("abc\ndef");
+		te.setNewText("""
+				abc
+				def""");
 		final var docEdit = new TextDocumentEdit(
 				new VersionedTextDocumentIdentifier(file.toUri().toString(), null),
 				List.of(Either.forLeft(te)));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
 		assertTrue(Files.isRegularFile(file));
-		assertEquals("abc\ndef", Files.readString(file));
+		assertEquals("""
+				abc
+				def""", Files.readString(file));
 	}
 
 	@Test
@@ -439,13 +471,17 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 				"org.eclipse.ui.genericeditor.GenericEditor");
 		final var te = new TextEdit();
 		te.setRange(new Range(new Position(0, 0), new Position(0, 0)));
-		te.setNewText("abc\ndef");
+		te.setNewText("""
+				abc
+				def""");
 		final var docEdit = new TextDocumentEdit(
 				new VersionedTextDocumentIdentifier(LSPEclipseUtils.toUri(targetFile).toString(), null),
 				List.of(Either.forLeft(te)));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
-		assertEquals("abc\ndef", ((StyledText) ((AbstractTextEditor) editor).getAdapter(Control.class)).getText());
+		assertEquals("""
+				abc
+				def""", ((StyledText) ((AbstractTextEditor) editor).getAdapter(Control.class)).getText());
 		assertTrue(editor.isDirty());
 	}
 
@@ -455,13 +491,17 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		IEditorPart editor = IDE.openInternalEditorOnFileStore(UI.getActivePage(), EFS.getStore(file.toUri()));
 		final var te = new TextEdit();
 		te.setRange(new Range(new Position(0, 0), new Position(0, 0)));
-		te.setNewText("abc\ndef");
+		te.setNewText("""
+				abc
+				def""");
 		final var docEdit = new TextDocumentEdit(
 				new VersionedTextDocumentIdentifier(file.toUri().toString(), null),
 				List.of(Either.forLeft(te)));
 		final var we = new WorkspaceEdit(List.of(Either.forLeft(docEdit)));
 		LSPEclipseUtils.applyWorkspaceEdit(we);
-		assertEquals("abc\ndef", ((StyledText) ((AbstractTextEditor) editor).getAdapter(Control.class)).getText());
+		assertEquals("""
+				abc
+				def""", ((StyledText) ((AbstractTextEditor) editor).getAdapter(Control.class)).getText());
 		assertTrue(editor.isDirty());
 	}
 
@@ -524,7 +564,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	@Test
 	public void testToCompletionParams_EmptyDocument() throws Exception {
 		// Given an empty file/document
-		var file = TestUtils.createFile(project, "dummy" + new Random().nextInt(), "");
+		var file = TestUtils.createUniqueTestFile(project, "");
 		var triggerChars = new  char[] {':', '>'};
 		// When toCompletionParams get called with offset == 0 and document.getLength() == 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 0, LSPEclipseUtils.getDocument(file), triggerChars);
@@ -535,7 +575,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	@Test
 	public void testToCompletionParams_ZeroOffset() throws Exception {
 		// Given a non empty file/document containing a non trigger character at position 3:
-		var file = TestUtils.createFile(project, "dummy" + new Random().nextInt(), "std");
+		var file = TestUtils.createUniqueTestFile(project, "std");
 		var triggerChars = new  char[] {':', '>'};
 		// When toCompletionParams get called with offset == 0 and document.getLength() > 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 0, LSPEclipseUtils.getDocument(file), triggerChars);
@@ -546,7 +586,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	@Test
 	public void testToCompletionParams_MatchingTriggerCharacter() throws Exception {
 		// Given a non empty file/document containing a trigger character at position 4:
-		var file = TestUtils.createFile(project, "dummy" + new Random().nextInt(), "std:");
+		var file = TestUtils.createUniqueTestFile(project, "std:");
 		var triggerChars = new  char[] {':', '>'};
 		// When toCompletionParams get called with offset > 0 and document.getLength() > 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 4, LSPEclipseUtils.getDocument(file), triggerChars);
@@ -559,7 +599,7 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 	@Test
 	public void testToCompletionParams_NonMatchingTriggerCharacter() throws Exception {
 		// Given a non empty file/document containing a non trigger character at position 3:
-		var file = TestUtils.createFile(project, "dummy" + new Random().nextInt(), "std");
+		var file = TestUtils.createUniqueTestFile(project, "std");
 		var triggerChars = new  char[] {':', '>'};
 		// When toCompletionParams get called with offset > 0 and document.getLength() > 0:
 		var param = LSPEclipseUtils.toCompletionParams(file.getLocationURI(), 3, LSPEclipseUtils.getDocument(file), triggerChars);

@@ -147,7 +147,7 @@ public class ColorInformationMining extends LineContentCodeMining {
 	/**
 	 * Compute width of square
 	 *
-	 * @param styledText
+	 * @param fontMetrics
 	 * @return the width of square
 	 */
 	private static int getSquareWidth(FontMetrics fontMetrics) {

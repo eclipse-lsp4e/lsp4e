@@ -22,13 +22,12 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.core.filesystem.EFS;
 import org.eclipse.core.filesystem.IFileStore;
 import org.eclipse.core.resources.IFile;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
-import org.eclipse.core.resources.IProjectDescription;
 import org.eclipse.core.resources.IWorkspace;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
@@ -61,6 +60,11 @@ import com.google.common.io.MoreFiles;
 import com.google.common.io.RecursiveDeleteOption;
 
 public class TestUtils {
+
+	/**
+	 * Used generate unique names, e.g., for projects or files.
+	 */
+	private static final AtomicInteger UNIQUE_COUNTER = new AtomicInteger();
 
 	@FunctionalInterface
 	public interface Condition {
@@ -165,30 +169,6 @@ public class TestUtils {
 		return project;
 	}
 
-	public static IProject createNestedProject(IProject parent, String projectName) throws CoreException {
-		IFolder nestedFolder = parent.getFolder(projectName);
-		nestedFolder.create(true, true, null);
-
-		IWorkspace ws = ResourcesPlugin.getWorkspace();
-		IProject project = ws.getRoot().getProject(projectName);
-		if (project.exists() && project.isOpen()) {
-			return project;
-		}
-
-		// avoids java.lang.IllegalArgumentException: Attempted to beginRule:
-		// P/WorkspaceFoldersTest_testPojectCreate_1726575959224, does not match outer scope rule: P/
-		ws.run(monitor -> {
-			if (!project.exists()) {
-				IProjectDescription desc = ws.newProjectDescription(projectName);
-				desc.setLocation(nestedFolder.getLocation());
-				project.create(desc, null);
-			}
-			project.open(null);
-		}, ws.getRoot(), IWorkspace.AVOID_UPDATE, null); // Ensure proper scheduling
-
-		return project;
-	}
-
 	public static IFile createUniqueTestFile(IProject p, String content) throws CoreException {
 		return createUniqueTestFile(p, "lspt", content);
 	}
@@ -201,18 +181,14 @@ public class TestUtils {
 		return createUniqueTestFile(p, "lsptunknown", content);
 	}
 
-	public static synchronized IFile createUniqueTestFile(IProject p, String extension, String content)
+	public static IFile createUniqueTestFile(IProject p, String extension, String content)
 			throws CoreException {
-		long fileNameSalt = System.currentTimeMillis();
 		if (p == null) {
-			p = ResourcesPlugin.getWorkspace().getRoot().getProject(Long.toString(fileNameSalt));
+			p = ResourcesPlugin.getWorkspace().getRoot().getProject(Long.toString(UNIQUE_COUNTER.getAndIncrement()));
 			p.create(null);
 			p.open(null);
 		}
-		while (p.getFile("test" + fileNameSalt + '.' + extension).exists()) {
-			fileNameSalt++;
-		}
-		return createFile(p, "test" + fileNameSalt + '.' + extension, content);
+		return createFile(p, "test" + UNIQUE_COUNTER.getAndIncrement() + '.' + extension, content);
 	}
 
 	public static IFile createFile(IProject p, String name, String content) throws CoreException {

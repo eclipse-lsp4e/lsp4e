@@ -293,7 +293,7 @@ public class LSCompletionProposal
 				String subString = getDocumentFilter(offset).toLowerCase();
 				int lastIndex = 0;
 				String lowerRawString = rawString.toLowerCase();
-				for (Character c : subString.toCharArray()) {
+				for (char c : subString.toCharArray()) {
 					int index = lowerRawString.indexOf(c, lastIndex);
 					if (index < 0) {
 						return res;

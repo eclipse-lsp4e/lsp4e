@@ -133,9 +133,9 @@ public class OpenDeclarationHyperlinkDetector extends AbstractHyperlinkDetector 
 	/**
 	 * Returns a list of {@link LSBasedHyperlink} using the given LSP locations
 	 *
-	 * @param document
+	 * @param doc
 	 *            the document
-	 * @param linkRegion
+	 * @param region
 	 *            the region
 	 * @param locations
 	 *            the LSP locations
