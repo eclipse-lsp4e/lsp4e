@@ -93,7 +93,7 @@ jobs:
 
 
     - name: "Install: JDK ${{ env.JAVA_VERSION }} ☕"
-      uses: actions/setup-java@v5.6.0  # https://github.com/actions/setup-java
+      uses: actions/setup-java@v5.7.0  # https://github.com/actions/setup-java
       if: matrix.language == 'java'
       with:
         distribution: temurin
