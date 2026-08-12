@@ -45,8 +45,8 @@
 							<goal>wget</goal>
 						</goals>
 						<configuration>
-							<url>https://unpkg.com/@highlightjs/cdn-assets@11.11.1/highlight.min.js</url>
-							<sha256>c4a399dd6f488bc97a3546e3476747b3e714c99c57b9473154c6fb8d259b9381</sha256>
+							<url>https://unpkg.com/@highlightjs/cdn-assets@11.12.0/highlight.min.js</url>
+							<sha256>8ab71eb09c51f501e5e25157d9cff100e46cc29bcbfc744d0b746d451fca7f53</sha256>
 							<outputDirectory>resources/highlight.min.js</outputDirectory>
 						</configuration>
 					</execution>
@@ -57,7 +57,7 @@
 							<goal>wget</goal>
 						</goals>
 						<configuration>
-							<url>https://unpkg.com/@highlightjs/cdn-assets@11.11.1/styles/default.min.css</url>
+							<url>https://unpkg.com/@highlightjs/cdn-assets@11.12.0/styles/default.min.css</url>
 							<sha256>fbde0ac0921d86c356c41532e7319c887a23bd1b8ff00060cab447249f03c7cf</sha256>
 							<outputDirectory>resources/highlight.min.js/styles</outputDirectory>
 						</configuration>
@@ -69,7 +69,7 @@
 							<goal>wget</goal>
 						</goals>
 						<configuration>
-							<url>https://unpkg.com/@highlightjs/cdn-assets@11.11.1/styles/dark.min.css</url>
+							<url>https://unpkg.com/@highlightjs/cdn-assets@11.12.0/styles/dark.min.css</url>
 							<sha256>bf437be81145907d1d081f1b52be1c1d254df00ff309a3a8a4cb92989595ff9c</sha256>
 							<outputDirectory>resources/highlight.min.js/styles</outputDirectory>
 						</configuration>
