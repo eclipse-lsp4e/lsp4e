@@ -11,8 +11,13 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.completion;
 
+import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.lsp4j.ParameterInformation;
+import org.eclipse.lsp4j.SignatureInformation;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.jsonrpc.messages.Tuple.Two;
 
 public final class CompletionProposalTools {
 
@@ -200,4 +205,33 @@ public final class CompletionProposalTools {
 		}
 		return i;
 	}
+
+	/**
+	 * Extract the location of the active parameter from the given signature information.
+	 * The returned {@link LocationInString} describes the start index and length of the active parameter in the signature label.
+	 * @param information
+	 * @return
+	 */
+	public static @Nullable LocationInString extractActiveParameter(SignatureInformation information) {
+		if (information.getActiveParameter() instanceof Integer active && information.getParameters() != null
+				&& active >= 0 && active < information.getParameters().size()) {
+			ParameterInformation parameterInformation = information.getParameters().get(active);
+			Either<String, Two<Integer, Integer>> labelInfo = parameterInformation.getLabel();
+			if (labelInfo.isLeft()) {
+				String label = information.getLabel();
+				String activeName = labelInfo.getLeft();
+				int start = label.indexOf(activeName);
+				if (start == -1) {
+					// Given parameter is not present in signature
+					return null;
+				}
+				return new LocationInString(start, activeName.length());
+			} else if (labelInfo.isRight()) {
+				Two<Integer, Integer> startEnd = labelInfo.getRight();
+				return new LocationInString(startEnd.getFirst(), startEnd.getSecond() - startEnd.getFirst());
+			}
+		}
+		return null;
+	}
+
 }

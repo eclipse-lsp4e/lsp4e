@@ -13,10 +13,13 @@ package org.eclipse.lsp4e.test.completion;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
@@ -24,9 +27,15 @@ import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.contentassist.IContextInformation;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.operations.completion.LSContentAssistProcessor;
+import org.eclipse.lsp4e.operations.completion.LSContextInformation;
+import org.eclipse.lsp4e.operations.completion.LSContextInformationValidator;
 import org.eclipse.lsp4e.test.utils.TestUtils;
+import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
+import org.eclipse.lsp4e.tests.mock.MockTextDocumentService;
+import org.eclipse.lsp4j.ParameterInformation;
 import org.eclipse.lsp4j.SignatureHelp;
+import org.eclipse.lsp4j.SignatureHelpParams;
 import org.eclipse.lsp4j.SignatureInformation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,6 +80,72 @@ public class ContextInformationTest extends AbstractCompletionTest {
 				.append(LSPEclipseUtils.getDocString(information.getDocumentation()))
 				.toString();
 		assertEquals(expected, infos[0].getInformationDisplayString());
+	}
+	
+	@Test
+	public void testContextInformationWithActiveParameter(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server) -> {
+			server.setTextDocumentService(createDocumentServiceWithSignatureHelp(server));
+		});
+
+		IFile testFile = TestUtils.createUniqueTestFile(project, "func(arg1, arg2)");
+		ITextViewer viewer = TestUtils.openTextViewer(testFile);
+
+		IContextInformation[] infos = contentAssistProcessor.computeContextInformation(viewer, 10);
+		assertEquals(1, infos.length);
+		LSContextInformation lsInfo = (LSContextInformation) infos[0];
+
+		// 'par2' is the active parameter
+		assertEquals(7, lsInfo.getActiveParameter().start());
+		assertEquals(4, lsInfo.getActiveParameter().length());
+	}
+
+	@Test
+	public void testContextInformationValidationUpdatesActiveParameter(MockLanguageServerFactory factory) throws CoreException {
+		factory.withConfiguration((idx, server) -> {
+			server.setTextDocumentService(createDocumentServiceWithSignatureHelp(server));
+		});
+
+		IFile testFile = TestUtils.createUniqueTestFile(project, "func(arg1, arg2)");
+		ITextViewer viewer = TestUtils.openTextViewer(testFile);
+
+		IContextInformation[] infos = contentAssistProcessor.computeContextInformation(viewer, 5);
+		assertEquals(1, infos.length);
+		LSContextInformation lsInfo = (LSContextInformation) infos[0];
+
+		LSContextInformationValidator validator = new LSContextInformationValidator(contentAssistProcessor);
+		validator.install(lsInfo, viewer, 5);
+		assertTrue(validator.isContextInformationValid(5));
+		assertEquals(1, lsInfo.getActiveParameter().start());
+
+		assertTrue(validator.isContextInformationValid(10));
+		assertEquals(7, lsInfo.getActiveParameter().start());
+
+		assertFalse(validator.isContextInformationValid(15));
+	}
+
+	private MockTextDocumentService createDocumentServiceWithSignatureHelp(MockLanguageServer server) {
+		return new MockTextDocumentService(server::buildMaybeDelayedFuture) {
+			@Override
+			public CompletableFuture<SignatureHelp> signatureHelp(SignatureHelpParams position) {
+				final var signatureHelp = new SignatureHelp();
+				final var information = new SignatureInformation("(par1, par2)", "documentation", List.of(
+						new ParameterInformation("par1", "par1 doc"), new ParameterInformation("par2", "par2 doc")));
+				int pos = position.getPosition().getCharacter();
+				if (pos >= 5 && pos < 9) {
+					// in 'arg1'
+					information.setActiveParameter(0);
+				} else if (pos >= 9 && pos < 15) {
+					// in ', arg2'
+					information.setActiveParameter(1);
+				} else {
+					// Not in signature
+					return CompletableFuture.completedFuture(signatureHelp);
+				}
+				signatureHelp.setSignatures(List.of(information));
+				return CompletableFuture.completedFuture(signatureHelp);
+			}
+		};
 	}
 
 	@Test

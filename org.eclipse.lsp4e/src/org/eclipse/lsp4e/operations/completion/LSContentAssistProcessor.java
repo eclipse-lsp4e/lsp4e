@@ -37,8 +37,6 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.contentassist.CompletionProposal;
-import org.eclipse.jface.text.contentassist.ContextInformation;
-import org.eclipse.jface.text.contentassist.ContextInformationValidator;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.contentassist.IContentAssistProcessor;
 import org.eclipse.jface.text.contentassist.IContextInformation;
@@ -340,7 +338,9 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 		if (docString != null && !docString.isEmpty()) {
 			signature.append('\n').append(docString);
 		}
-		return new ContextInformation(information.getLabel(), signature.toString());
+
+		LocationInString activeParameter = CompletionProposalTools.extractActiveParameter(information);
+		return new LSContextInformation(information.getLabel(), signature.toString(), activeParameter);
 	}
 
 	private void getFuture(@Nullable CompletableFuture<?> future) {
@@ -408,6 +408,6 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 
 	@Override
 	public @Nullable IContextInformationValidator getContextInformationValidator() {
-		return new ContextInformationValidator(this);
+		return new LSContextInformationValidator(this);
 	}
 }
