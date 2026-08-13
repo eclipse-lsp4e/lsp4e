@@ -32,7 +32,9 @@ import org.eclipse.core.resources.IResourceChangeEvent;
 import org.eclipse.core.resources.IResourceChangeListener;
 import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.ICoreRunnable;
 import org.eclipse.core.runtime.IPath;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences.IPreferenceChangeListener;
 import org.eclipse.core.runtime.preferences.IEclipsePreferences.PreferenceChangeEvent;
@@ -118,7 +120,12 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 
 	private final class DocumentChangedOutlineUpdater implements IDocumentListener, IOutlineUpdater {
 
+		/** matches the default delay of {@link AbstractReconciler} used by {@link ReconcilerOutlineUpdater} */
+		private static final int REFRESH_DELAY_MS = 500;
+
 		private final IDocument document;
+		private final Job refreshJob = Job.createSystem("Refresh Outline", //$NON-NLS-1$
+				(ICoreRunnable) monitor -> refreshTreeContentFromLS());
 
 		DocumentChangedOutlineUpdater(IDocument document) {
 			this.document = document;
@@ -133,6 +140,7 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 		@Override
 		public void uninstall() {
 			document.removeDocumentListener(this);
+			refreshJob.cancel();
 		}
 
 		@Override
@@ -142,7 +150,10 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 
 		@Override
 		public void documentChanged(DocumentEvent event) {
-			refreshTreeContentFromLS();
+			// coalesce bursts of edits into a single request, one refresh per keystroke is
+			// far more than the language server or the tree can keep up with
+			refreshJob.cancel();
+			refreshJob.schedule(REFRESH_DELAY_MS);
 		}
 
 	}
