@@ -294,6 +294,9 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 
 		this.viewer = (TreeViewer) viewer;
 
+		// avoid the deep, subtree-recursive DocumentSymbol.hashCode/equals on every refresh
+		this.viewer.setComparer(new SymbolsElementComparer());
+
 		// this enables limiting the number of outline entries to mitigate UI freezes
 		WorkbenchViewerSetup.setupViewer(this.viewer);
 
