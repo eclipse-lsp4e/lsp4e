@@ -806,7 +806,7 @@ public class LSCompletionProposal
 
 	@Override
 	public @Nullable IContextInformation getContextInformation() {
-		return this;
+		return null;
 	}
 
 	@Override

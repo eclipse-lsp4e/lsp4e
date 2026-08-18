@@ -46,6 +46,7 @@ import org.eclipse.lsp4j.InlayHintCapabilities;
 import org.eclipse.lsp4j.InsertTextMode;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.OnTypeFormattingCapabilities;
+import org.eclipse.lsp4j.ParameterInformationCapabilities;
 import org.eclipse.lsp4j.PublishDiagnosticsCapabilities;
 import org.eclipse.lsp4j.RangeFormattingCapabilities;
 import org.eclipse.lsp4j.ReferencesCapabilities;
@@ -54,6 +55,7 @@ import org.eclipse.lsp4j.ResourceOperationKind;
 import org.eclipse.lsp4j.SelectionRangeCapabilities;
 import org.eclipse.lsp4j.ShowDocumentCapabilities;
 import org.eclipse.lsp4j.SignatureHelpCapabilities;
+import org.eclipse.lsp4j.SignatureInformationCapabilities;
 import org.eclipse.lsp4j.SymbolCapabilities;
 import org.eclipse.lsp4j.SymbolKind;
 import org.eclipse.lsp4j.SymbolKindCapabilities;
@@ -144,7 +146,15 @@ public class SupportedFeatures {
 		final var renameCapabilities = new RenameCapabilities();
 		renameCapabilities.setPrepareSupport(true);
 		textDocumentClientCapabilities.setRename(renameCapabilities);
-		textDocumentClientCapabilities.setSignatureHelp(new SignatureHelpCapabilities());
+
+		SignatureHelpCapabilities signatureHelpCapabilities = new SignatureHelpCapabilities();
+		SignatureInformationCapabilities signatureInformationCapabilities = new SignatureInformationCapabilities(
+				List.of(MarkupKind.PLAINTEXT, MarkupKind.MARKDOWN));
+		signatureInformationCapabilities.setActiveParameterSupport(true);
+		signatureInformationCapabilities.setParameterInformation(new ParameterInformationCapabilities(true));
+		signatureHelpCapabilities.setSignatureInformation(signatureInformationCapabilities);
+
+		textDocumentClientCapabilities.setSignatureHelp(signatureHelpCapabilities);
 		textDocumentClientCapabilities.setSynchronization(new SynchronizationCapabilities(true, true, true));
 		final var selectionRange = new SelectionRangeCapabilities();
 		textDocumentClientCapabilities.setSelectionRange(selectionRange);
