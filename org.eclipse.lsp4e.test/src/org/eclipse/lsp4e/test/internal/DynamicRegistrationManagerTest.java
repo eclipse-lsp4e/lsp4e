@@ -34,15 +34,30 @@ import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CodeActionRegistrationOptions;
+import org.eclipse.lsp4j.CompletionOptions;
+import org.eclipse.lsp4j.CompletionRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DocumentFilter;
+import org.eclipse.lsp4j.DocumentFormattingOptions;
+import org.eclipse.lsp4j.DocumentFormattingRegistrationOptions;
+import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
+import org.eclipse.lsp4j.DocumentOnTypeFormattingRegistrationOptions;
+import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
+import org.eclipse.lsp4j.DocumentRangeFormattingRegistrationOptions;
+import org.eclipse.lsp4j.ExecuteCommandOptions;
+import org.eclipse.lsp4j.ExecuteCommandRegistrationOptions;
 import org.eclipse.lsp4j.FileSystemWatcher;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.RelativePattern;
+import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
 import org.eclipse.lsp4j.Unregistration;
 import org.eclipse.lsp4j.UnregistrationParams;
+import org.eclipse.lsp4j.WorkspaceServerCapabilities;
+import org.eclipse.lsp4j.WorkspaceSymbolOptions;
+import org.eclipse.lsp4j.WorkspaceSymbolRegistrationOptions;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.junit.jupiter.api.Test;
 
@@ -361,5 +376,152 @@ class DynamicRegistrationManagerTest {
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
 		unregister("r1", CODE_ACTION);
 		assertCodeActionsUnsupported(RUST_FILE);
+	}
+
+	// One decode-and-apply test per remaining supported method: not exhaustive, but each one proves
+	// the wire payload is unserialized into the method's registration options type and applied to
+	// the effective capabilities.
+
+	private ServerCapabilities effectiveCapabilities() {
+		final ServerCapabilities caps = manager.getCapabilities();
+		assertNotNull(caps);
+		return caps;
+	}
+
+	@Test
+	void completionRegistrationIsDecodedAndApplied() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var options = new CompletionRegistrationOptions();
+		options.setTriggerCharacters(List.of("."));
+		options.setAllCommitCharacters(List.of(";"));
+		options.setResolveProvider(Boolean.TRUE);
+		register("r1", "textDocument/completion", options);
+
+		final CompletionOptions provider = effectiveCapabilities().getCompletionProvider();
+		assertNotNull(provider);
+		assertEquals(List.of("."), provider.getTriggerCharacters());
+		assertEquals(List.of(";"), provider.getAllCommitCharacters());
+		assertEquals(Boolean.TRUE, provider.getResolveProvider());
+
+		unregister("r1", "textDocument/completion");
+		assertNull(effectiveCapabilities().getCompletionProvider());
+	}
+
+	@Test
+	void formattingRegistrationIsDecodedAndApplied() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var options = new DocumentFormattingRegistrationOptions();
+		options.setWorkDoneProgress(Boolean.TRUE);
+		register("r1", "textDocument/formatting", options);
+
+		final Either<Boolean, DocumentFormattingOptions> provider = effectiveCapabilities()
+				.getDocumentFormattingProvider();
+		assertNotNull(provider);
+		assertTrue(provider.isRight());
+		assertEquals(Boolean.TRUE, provider.getRight().getWorkDoneProgress());
+
+		unregister("r1", "textDocument/formatting");
+		assertNull(effectiveCapabilities().getDocumentFormattingProvider());
+	}
+
+	@Test
+	void rangeFormattingRegistrationPreservesRangesSupport() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var options = new DocumentRangeFormattingRegistrationOptions();
+		options.setRangesSupport(Boolean.TRUE);
+		register("r1", "textDocument/rangeFormatting", options);
+
+		final Either<Boolean, DocumentRangeFormattingOptions> provider = effectiveCapabilities()
+				.getDocumentRangeFormattingProvider();
+		assertNotNull(provider);
+		assertTrue(provider.isRight());
+		assertEquals(Boolean.TRUE, provider.getRight().getRangesSupport());
+	}
+
+	@Test
+	void onTypeFormattingRegistrationIsDecodedAndApplied() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var options = new DocumentOnTypeFormattingRegistrationOptions();
+		options.setFirstTriggerCharacter("}");
+		options.setMoreTriggerCharacter(List.of(";"));
+		register("r1", "textDocument/onTypeFormatting", options);
+
+		final DocumentOnTypeFormattingOptions provider = effectiveCapabilities().getDocumentOnTypeFormattingProvider();
+		assertNotNull(provider);
+		assertEquals("}", provider.getFirstTriggerCharacter());
+		assertEquals(List.of(";"), provider.getMoreTriggerCharacter());
+	}
+
+	@Test
+	void onTypeFormattingRegistrationWithoutFirstTriggerCharacterIsIgnored() {
+		manager.setStaticCapabilities(staticCapabilities());
+		register("r1", "textDocument/onTypeFormatting", new DocumentOnTypeFormattingRegistrationOptions());
+		assertNull(effectiveCapabilities().getDocumentOnTypeFormattingProvider());
+	}
+
+	@Test
+	void selectionRangeAndTypeHierarchyRegistrationsAreDecodedAndApplied() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var selectionRangeOptions = new SelectionRangeRegistrationOptions();
+		selectionRangeOptions.setWorkDoneProgress(Boolean.TRUE);
+		register("r1", "textDocument/selectionRange", selectionRangeOptions);
+		final var typeHierarchyOptions = new TypeHierarchyRegistrationOptions();
+		typeHierarchyOptions.setWorkDoneProgress(Boolean.TRUE);
+		register("r2", "textDocument/typeHierarchy", typeHierarchyOptions);
+
+		final ServerCapabilities caps = effectiveCapabilities();
+		assertNotNull(caps.getSelectionRangeProvider());
+		assertTrue(caps.getSelectionRangeProvider().isRight());
+		assertEquals(Boolean.TRUE, caps.getSelectionRangeProvider().getRight().getWorkDoneProgress());
+		assertNotNull(caps.getTypeHierarchyProvider());
+		assertTrue(caps.getTypeHierarchyProvider().isRight());
+		assertEquals(Boolean.TRUE, caps.getTypeHierarchyProvider().getRight().getWorkDoneProgress());
+	}
+
+	@Test
+	void workspaceSymbolRegistrationIsDecodedAndApplied() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var options = new WorkspaceSymbolRegistrationOptions();
+		options.setResolveProvider(Boolean.TRUE);
+		register("r1", "workspace/symbol", options);
+
+		final Either<Boolean, WorkspaceSymbolOptions> provider = effectiveCapabilities().getWorkspaceSymbolProvider();
+		assertNotNull(provider);
+		assertTrue(provider.isRight());
+		assertEquals(Boolean.TRUE, provider.getRight().getResolveProvider());
+	}
+
+	@Test
+	void executeCommandRegistrationsAreDecodedAndAdditive() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var first = new ExecuteCommandRegistrationOptions();
+		first.setCommands(List.of("a", "b"));
+		register("r1", "workspace/executeCommand", first);
+		final var second = new ExecuteCommandRegistrationOptions();
+		second.setCommands(List.of("b", "c"));
+		register("r2", "workspace/executeCommand", second);
+
+		ExecuteCommandOptions provider = effectiveCapabilities().getExecuteCommandProvider();
+		assertNotNull(provider);
+		assertEquals(List.of("a", "b", "c"), provider.getCommands());
+
+		unregister("r1", "workspace/executeCommand");
+		provider = effectiveCapabilities().getExecuteCommandProvider();
+		assertNotNull(provider);
+		assertEquals(List.of("b", "c"), provider.getCommands());
+	}
+
+	@Test
+	void workspaceFoldersRegistrationEnablesSupport() {
+		manager.setStaticCapabilities(staticCapabilities());
+		register("r1", "workspace/didChangeWorkspaceFolders", null);
+
+		final WorkspaceServerCapabilities workspace = effectiveCapabilities().getWorkspace();
+		assertNotNull(workspace);
+		assertNotNull(workspace.getWorkspaceFolders());
+		assertEquals(Boolean.TRUE, workspace.getWorkspaceFolders().getSupported());
+
+		unregister("r1", "workspace/didChangeWorkspaceFolders");
+		assertNull(effectiveCapabilities().getWorkspace());
 	}
 }

@@ -31,9 +31,11 @@ import org.eclipse.lsp4j.CodeActionRegistrationOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.CompletionRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
+import org.eclipse.lsp4j.DocumentFormattingOptions;
 import org.eclipse.lsp4j.DocumentFormattingRegistrationOptions;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
 import org.eclipse.lsp4j.DocumentOnTypeFormattingRegistrationOptions;
+import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
 import org.eclipse.lsp4j.DocumentRangeFormattingRegistrationOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.ExecuteCommandRegistrationOptions;
@@ -341,14 +343,27 @@ public final class DynamicRegistrationManager {
 		FORMATTING("textDocument/formatting", DocumentFormattingRegistrationOptions.class, false) { //$NON-NLS-1$
 			@Override
 			void applyTo(final ServerCapabilities caps, final @Nullable Object options) {
-				caps.setDocumentFormattingProvider(Boolean.TRUE);
+				if (options instanceof DocumentFormattingRegistrationOptions o) {
+					final var formattingOptions = new DocumentFormattingOptions();
+					formattingOptions.setWorkDoneProgress(o.getWorkDoneProgress());
+					caps.setDocumentFormattingProvider(formattingOptions);
+				} else {
+					caps.setDocumentFormattingProvider(Boolean.TRUE);
+				}
 			}
 		},
 
 		RANGE_FORMATTING("textDocument/rangeFormatting", DocumentRangeFormattingRegistrationOptions.class, false) { //$NON-NLS-1$
 			@Override
 			void applyTo(final ServerCapabilities caps, final @Nullable Object options) {
-				caps.setDocumentRangeFormattingProvider(Boolean.TRUE);
+				if (options instanceof DocumentRangeFormattingRegistrationOptions o) {
+					final var rangeFormattingOptions = new DocumentRangeFormattingOptions();
+					rangeFormattingOptions.setWorkDoneProgress(o.getWorkDoneProgress());
+					rangeFormattingOptions.setRangesSupport(o.getRangesSupport());
+					caps.setDocumentRangeFormattingProvider(rangeFormattingOptions);
+				} else {
+					caps.setDocumentRangeFormattingProvider(Boolean.TRUE);
+				}
 			}
 		},
 
