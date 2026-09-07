@@ -78,6 +78,13 @@ public class DSPVariable extends DSPDebugElement implements IVariable {
 		return this.dspValue;
 	}
 
+	/**
+	 * @return The variable ID sent by the server that underlies this object
+	 */
+	public Integer getParentVariablesReferenceId() {
+		return this.parentVariablesReference;
+	}
+
 	@Override
 	public String getName() throws DebugException {
 		return name;
