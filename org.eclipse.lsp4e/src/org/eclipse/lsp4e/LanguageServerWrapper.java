@@ -24,6 +24,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -86,6 +87,9 @@ import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
 import org.eclipse.lsp4e.internal.JsonUtil;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
 import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
+import org.eclipse.lsp4e.logging.LoggingStreamConnectionProviderProxy;
+import org.eclipse.lsp4e.logging.LoggingUtils;
+import org.eclipse.lsp4e.logging.LoggingWriter;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.ClientCapabilities;
@@ -426,7 +430,7 @@ public class LanguageServerWrapper {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
 					final StreamConnectionProvider lspStreamProvider;
-					if (LoggingStreamConnectionProviderProxy.shouldLog(serverDefinition.id)) {
+					if (LoggingUtils.shouldLog(serverDefinition.id)) {
 						lspStreamProvider = workingContext.lspStreamProvider = new LoggingStreamConnectionProviderProxy(
 								serverDefinition.createConnectionProvider(), serverDefinition.id);
 					} else {
@@ -464,6 +468,12 @@ public class LanguageServerWrapper {
 					};
 					initParams.setWorkspaceFolders(getRelevantWorkspaceFolders());
 					final var lspStreamProvider = castNonNull(workingContext.lspStreamProvider);
+
+					PrintWriter logger = null;
+					if (LoggingUtils.shouldLog(serverDefinition.id)) {
+						logger = new PrintWriter(new LoggingWriter(serverDefinition.id));
+					}
+
 					Launcher<LanguageServer> launcher = serverDefinition.createLauncherBuilder() //
 							.setLocalService(languageClient)//
 							.setRemoteInterface(serverDefinition.getServerInterface())//
@@ -471,6 +481,7 @@ public class LanguageServerWrapper {
 							.setOutput(lspStreamProvider.getOutputStream())//
 							.setExecutorService(listener)//
 							.wrapMessages(wrapper)//
+							.traceMessages(logger)
 							.create();
 					final var languageServer = workingContext.languageServer = launcher.getRemoteProxy();
 					languageClient.connect(languageServer, this);

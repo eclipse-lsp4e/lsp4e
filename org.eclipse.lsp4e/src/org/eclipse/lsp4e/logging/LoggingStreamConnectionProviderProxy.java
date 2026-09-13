@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Red Hat Inc. and others.
+ * Copyright (c) 2018, 2026 Red Hat Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -9,9 +9,8 @@
  * Contributors:
  *  Lucas Bullen (Red Hat Inc.) - initial implementation
  *******************************************************************************/
-package org.eclipse.lsp4e;
+package org.eclipse.lsp4e.logging;
 
-import java.io.File;
 import java.io.FilterInputStream;
 import java.io.FilterOutputStream;
 import java.io.IOException;
@@ -19,98 +18,34 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.StandardOpenOption;
 import java.time.OffsetDateTime;
 
-import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.Adapters;
 import org.eclipse.core.runtime.IAdaptable;
-import org.eclipse.core.runtime.IPath;
 import org.eclipse.jdt.annotation.Nullable;
-import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.jsonrpc.messages.Message;
 import org.eclipse.lsp4j.services.LanguageServer;
-import org.eclipse.ui.console.ConsolePlugin;
-import org.eclipse.ui.console.IConsole;
-import org.eclipse.ui.console.IConsoleManager;
-import org.eclipse.ui.console.MessageConsole;
-import org.eclipse.ui.console.MessageConsoleStream;
 
+/**
+ * A {@link StreamConnectionProvider} proxy which can be used to log the raw bytes sent
+ * between LSP4E and a Language Server.
+ */
 public class LoggingStreamConnectionProviderProxy implements StreamConnectionProvider, IAdaptable {
-
-	public static @Nullable File getLogDirectory() {
-		IPath root = ResourcesPlugin.getWorkspace().getRoot().getLocation();
-		if (root == null) {
-			return null;
-		}
-		final var logFolder = new File(root.addTrailingSeparator().toPortableString(), "languageServers-log"); //$NON-NLS-1$
-		if (!(logFolder.exists() || logFolder.mkdirs()) || !logFolder.isDirectory() || !logFolder.canWrite()) {
-			return null;
-		}
-		return logFolder;
-	}
-
-	private static final String FILE_KEY = "file.logging.enabled"; //$NON-NLS-1$
-	private static final String STDERR_KEY = "stderr.logging.enabled"; //$NON-NLS-1$
 
 	private final StreamConnectionProvider provider;
 	private @Nullable InputStream inputStream;
 	private @Nullable OutputStream outputStream;
 	private @Nullable InputStream errorStream;
 	private final String id;
-	private final @Nullable File logFile;
-	private boolean logToFile;
-	private boolean logToConsole;
-
-	/**
-	 * Converts a language server ID to the preference ID for logging communications
-	 * to file from the language server
-	 *
-	 * @return language server's preference ID for file logging
-	 */
-	public static String lsToFileLoggingId(String serverId) {
-		return serverId + "." + FILE_KEY;//$NON-NLS-1$
-	}
-
-	/**
-	 * Converts a language server ID to the preference ID for logging communications
-	 * to console from the language server
-	 *
-	 * @return language server's preference ID for console logging
-	 */
-	public static String lsToConsoleLoggingId(String serverId) {
-		return serverId + "." + STDERR_KEY;//$NON-NLS-1$
-	}
-
-	/**
-	 * Returns whether currently created connections should be logged to file or the
-	 * standard error stream.
-	 *
-	 * @return If connections should be logged
-	 */
-	public static boolean shouldLog(String serverId) {
-		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		return store.getBoolean(lsToFileLoggingId(serverId)) || store.getBoolean(lsToConsoleLoggingId(serverId));
-	}
+	private final MessageLogger messageLogger;
 
 	public LoggingStreamConnectionProviderProxy(StreamConnectionProvider provider, String serverId) {
 		this.id = serverId;
 		this.provider = provider;
-
-		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
-		logToFile = store.getBoolean(lsToFileLoggingId(serverId));
-		logToConsole = store.getBoolean(lsToConsoleLoggingId(serverId));
-		store.addPropertyChangeListener(event -> {
-			if (event.getProperty().equals(FILE_KEY) && event.getNewValue() instanceof Boolean newValue) {
-				logToFile = newValue;
-			} else if (event.getProperty().equals(STDERR_KEY) && event.getNewValue() instanceof Boolean newValue) {
-				logToConsole = newValue;
-			}
-		});
-		this.logFile = getLogFile();
+		this.messageLogger = new MessageLogger(serverId, Messages.LSLogSourceRaw);
 	}
 
 	private enum Direction { LANGUAGE_SERVER_TO_LSP4E, LSP4E_TO_LANGUAGE_SERVER, ERROR_FROM_LANGUAGE_SERVER }
@@ -145,14 +80,9 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 					int bytes = super.read(b, off, len);
 					final var payload = new byte[bytes];
 					System.arraycopy(b, off, payload, 0, bytes);
-					if (logToConsole || logToFile) {
+					if (messageLogger.shouldLog()) {
 						String s = message(Direction.LANGUAGE_SERVER_TO_LSP4E, payload);
-						if (logToConsole) {
-							logToConsole(s);
-						}
-						if (logToFile) {
-							logToFile(s);
-						}
+						messageLogger.log(s);
 					}
 					return bytes;
 				}
@@ -181,14 +111,9 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 					int bytes = super.read(b, off, len);
 					final var payload = new byte[bytes];
 					System.arraycopy(b, off, payload, 0, bytes);
-					if (logToConsole || logToFile) {
+					if (messageLogger.shouldLog()) {
 						String s = errorMessage(payload);
-						if (logToConsole) {
-							logToConsole(s);
-						}
-						if (logToFile) {
-							logToFile(s);
-						}
+						messageLogger.log(s);
 					}
 					return bytes;
 				}
@@ -206,14 +131,9 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 			outputStream = new FilterOutputStream(provider.getOutputStream()) {
 				@Override
 				public void write(byte[] b) throws IOException {
-					if (logToConsole || logToFile) {
+					if (messageLogger.shouldLog()) {
 						String s = message(Direction.LSP4E_TO_LANGUAGE_SERVER, b);
-						if (logToConsole) {
-							logToConsole(s);
-						}
-						if (logToFile) {
-							logToFile(s);
-						}
+						messageLogger.log(s);
 					}
 					super.write(b);
 				}
@@ -266,65 +186,12 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 		} catch (IOException e) {
 			LanguageServerPlugin.logError(e);
 		}
-	}
 
-	private void logToConsole(String string) {
-		var consoleStream = this.consoleStream;
-		if (consoleStream == null || consoleStream.isClosed()) {
-			consoleStream = this.consoleStream = findConsole().newMessageStream();
-		}
-		consoleStream.println(string);
-	}
-
-	private @Nullable MessageConsoleStream consoleStream;
-	private MessageConsole findConsole() {
-		ConsolePlugin plugin = ConsolePlugin.getDefault();
-		IConsoleManager conMan = plugin.getConsoleManager();
-		for (IConsole existing : conMan.getConsoles()) {
-			if (Messages.LSConsoleName.equals(existing.getName()))
-				return (MessageConsole) existing;
-		}
-		// no console found, so create a new one
-		final var myConsole = new MessageConsole(Messages.LSConsoleName, null);
-		myConsole.setWaterMarks(80_000, 800_000); // limit text buffer size to prevent OOM
-		conMan.addConsoles(new IConsole[] { myConsole });
-		return myConsole;
-	}
-
-	private void logToFile(String string) {
-		final var logFile = this.logFile;
-		if (logFile == null) {
-			return;
-		}
-		if (!logFile.exists()) {
-			try {
-				if (!logFile.createNewFile()) {
-					throw new IOException(String.format("Failed to create file %s", logFile)); //$NON-NLS-1$
-				}
-			} catch (IOException e) {
-				LanguageServerPlugin.logError(e);
-			}
-		}
 		try {
-			Files.write(logFile.toPath(), string.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
+			messageLogger.dispose();
 		} catch (IOException e) {
-			LanguageServerPlugin.logError(e);
+			LanguageServerPlugin.logError("Failed to dipose message logger", e); //$NON-NLS-1$
 		}
-	}
-
-	private @Nullable File getLogFile() {
-		if (logFile != null) {
-			return logFile;
-		}
-		File logFolder = getLogDirectory();
-		if (logFolder == null) {
-			return null;
-		}
-		final var file = new File(logFolder, id + ".log"); //$NON-NLS-1$
-		if (file.exists() && !(file.isFile() && file.canWrite())) {
-			return null;
-		}
-		return file;
 	}
 
 }
