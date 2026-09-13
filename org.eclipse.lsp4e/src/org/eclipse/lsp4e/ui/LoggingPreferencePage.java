@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Red Hat Inc. and others.
+ * Copyright (c) 2018, 2026 Red Hat Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -15,10 +15,12 @@ package org.eclipse.lsp4e.ui;
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.lateNonNull;
 import static org.eclipse.swt.events.SelectionListener.widgetSelectedAdapter;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.dialogs.IDialogConstants;
@@ -40,7 +42,7 @@ import org.eclipse.lsp4e.ContentTypeToLSPLaunchConfigEntry;
 import org.eclipse.lsp4e.ContentTypeToLanguageServerDefinition;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServersRegistry;
-import org.eclipse.lsp4e.LoggingStreamConnectionProviderProxy;
+import org.eclipse.lsp4e.logging.LoggingUtils;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.GridData;
@@ -215,11 +217,14 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 		infoLabel.setText(Messages.preferencesPage_logging_info);
 		infoLabel.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 3, 1));
 		final var logFolderLabel = new Link(loggingComposite, SWT.NONE);
-		logFolderLabel.setText(NLS.bind(Messages.preferencesPage_logging_fileLogsLocation, LoggingStreamConnectionProviderProxy.getLogDirectory()));
+		logFolderLabel.setText(NLS.bind(Messages.preferencesPage_logging_fileLogsLocation, Objects.toString(LoggingUtils.getLogDirectory())));
 		logFolderLabel.setLayoutData(new GridData(SWT.LEFT, SWT.CENTER, false, false, 3, 1));
 		logFolderLabel.addSelectionListener(widgetSelectedAdapter(e -> {
 			final var importWizard = new SmartImportWizard();
-			importWizard.setInitialImportSource(LoggingStreamConnectionProviderProxy.getLogDirectory());
+			Path logDirectory = LoggingUtils.getLogDirectory();
+			if (logDirectory != null) {
+				importWizard.setInitialImportSource(logDirectory.toFile());
+			}
 			WizardDialog dialog = new WizardDialog(logFolderLabel.getShell(), importWizard);
 			dialog.open();
 		}));
@@ -265,17 +270,17 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 	@Override
 	protected void performDefaults() {
 		serverEnableLoggingToFile.forEach((s, b) -> serverEnableLoggingToFile.put(s,
-				store.getBoolean(LoggingStreamConnectionProviderProxy.lsToFileLoggingId(s))));
+				store.getBoolean(LoggingUtils.lsToFileLoggingId(s))));
 		serverEnableLoggingToConsole.forEach((s, b) -> serverEnableLoggingToConsole.put(s,
-				store.getBoolean(LoggingStreamConnectionProviderProxy.lsToConsoleLoggingId(s))));
+				store.getBoolean(LoggingUtils.lsToConsoleLoggingId(s))));
 		launchConfigurationViewer.refresh();
 		languageServerViewer.refresh();
 		super.performDefaults();
 	}
 
 	private void applyLoggingEnablment() {
-		serverEnableLoggingToFile.forEach((s, b) -> store.setValue(LoggingStreamConnectionProviderProxy.lsToFileLoggingId(s), b));
-		serverEnableLoggingToConsole.forEach((s, b) -> store.setValue(LoggingStreamConnectionProviderProxy.lsToConsoleLoggingId(s), b));
+		serverEnableLoggingToFile.forEach((s, b) -> store.setValue(LoggingUtils.lsToFileLoggingId(s), b));
+		serverEnableLoggingToConsole.forEach((s, b) -> store.setValue(LoggingUtils.lsToConsoleLoggingId(s), b));
 		hasLoggingBeenChanged = false;
 	}
 
@@ -307,9 +312,9 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 			if (languageServerIDs.add(id)) {
 				contentTypeToLSPLaunchConfigEntries.add(o);
 				serverEnableLoggingToFile.put(id, serverEnableLoggingToFile.getOrDefault(id,
-						store.getBoolean(LoggingStreamConnectionProviderProxy.lsToFileLoggingId(id))));
+						store.getBoolean(LoggingUtils.lsToFileLoggingId(id))));
 				serverEnableLoggingToConsole.put(id, serverEnableLoggingToConsole.getOrDefault(id,
-						store.getBoolean(LoggingStreamConnectionProviderProxy.lsToConsoleLoggingId(id))));
+						store.getBoolean(LoggingUtils.lsToConsoleLoggingId(id))));
 			}
 		});
 
@@ -323,9 +328,9 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 			if (languageServerIDs.add(id)) {
 				contentTypeToLanguageServerDefinitions.add(o);
 				serverEnableLoggingToFile.put(id, serverEnableLoggingToFile.getOrDefault(id,
-						store.getBoolean(LoggingStreamConnectionProviderProxy.lsToFileLoggingId(id))));
+						store.getBoolean(LoggingUtils.lsToFileLoggingId(id))));
 				serverEnableLoggingToConsole.put(id, serverEnableLoggingToConsole.getOrDefault(id,
-						store.getBoolean(LoggingStreamConnectionProviderProxy.lsToConsoleLoggingId(id))));
+						store.getBoolean(LoggingUtils.lsToConsoleLoggingId(id))));
 			}
 		});
 
