@@ -89,11 +89,11 @@ jobs:
 
 
     - name: Git Checkout
-      uses: actions/checkout@v7  # https://github.com/actions/checkout
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
 
     - name: "Install: JDK ${{ env.JAVA_VERSION }} ☕"
-      uses: actions/setup-java@v6.0.1  # https://github.com/actions/setup-java
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
       if: matrix.language == 'java'
       with:
         distribution: temurin
@@ -101,7 +101,7 @@ jobs:
 
 
     - name: "Cache: Local Maven Repository"
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       if: matrix.language == 'java'
       with:
         # Excluded sub directory not working https://github.com/actions/toolkit/issues/713
@@ -115,7 +115,7 @@ jobs:
 
 
     - name: "Cache: Local Tycho Repository"
-      uses: actions/cache/restore@v6
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       if: matrix.language == 'java'
       with:
         path: |
@@ -127,7 +127,7 @@ jobs:
 
     # https://docs.github.com/en/code-security/code-scanning
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v4.38.0  # https://github.com/github/codeql-action
+      uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
       with:
         languages: ${{ matrix.language }}
         # https://github.com/github/codeql-action#build-modes
@@ -160,6 +160,6 @@ jobs:
 
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v4.38.0  # https://github.com/github/codeql-action
+      uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63 # v4.38.0
       with:
         category: "/language:${{matrix.language}}"
