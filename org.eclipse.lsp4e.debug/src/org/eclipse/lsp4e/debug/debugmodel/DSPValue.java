@@ -85,4 +85,8 @@ public final class DSPValue extends DSPDebugElement implements IValue {
 	public boolean hasVariables() throws DebugException {
 		return variablesReference != null && variablesReference > 0;
 	}
+
+	public Integer getVariablesReferenceId() {
+		return variablesReference;
+	}
 }
