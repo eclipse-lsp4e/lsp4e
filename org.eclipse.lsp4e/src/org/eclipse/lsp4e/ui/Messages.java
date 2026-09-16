@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Red Hat Inc. and others.
+ * Copyright (c) 2017, 2026 Red Hat Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -100,6 +100,8 @@ public final class Messages extends NLS {
 	public static String CreateFile_confirm_message;
 	public static String LSPProgressManager_BackgroundJobName;
 	public static String LSConsoleName;
+	public static String LSLogSourceRaw;
+	public static String LSLogSourceMessages;
 	public static String CH_no_call_hierarchy;
 	public static String CH_finding_callers;
 	public static String TH_no_type_hierarchy;
