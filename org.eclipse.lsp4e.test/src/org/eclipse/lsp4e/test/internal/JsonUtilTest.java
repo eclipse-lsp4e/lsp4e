@@ -12,10 +12,21 @@
 package org.eclipse.lsp4e.test.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
+import java.util.List;
 
 import org.eclipse.lsp4e.internal.JsonUtil;
+import org.eclipse.lsp4j.CodeActionKind;
+import org.eclipse.lsp4j.CodeActionRegistrationOptions;
+import org.eclipse.lsp4j.Registration;
+import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.FileSystemWatcher;
 import org.eclipse.lsp4j.WatchKind;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.junit.jupiter.api.Test;
 
 public class JsonUtilTest {
@@ -34,6 +45,49 @@ public class JsonUtilTest {
 		
 		FileSystemWatcher copy = JsonUtil.LSP4J_GSON.fromJson(json, FileSystemWatcher.class);
 		assertEquals(original, copy);
+	}
+
+	@Test
+	void testRegistrationOptionsFromJson() {
+		final var options = new CodeActionRegistrationOptions();
+		options.setCodeActionKinds(List.of(CodeActionKind.QuickFix, CodeActionKind.Refactor));
+		options.setResolveProvider(Boolean.FALSE);
+		final var registration = new Registration("abc123", "textDocument/codeAction", options);
+
+		// Round-trip through JSON as the transport would: registerOptions arrives as a raw JsonElement
+		final Registration received = JsonUtil.LSP4J_GSON.fromJson(JsonUtil.LSP4J_GSON.toJson(registration),
+				Registration.class);
+		assertEquals("abc123", received.getId());
+
+		final CodeActionRegistrationOptions decoded = JsonUtil.registrationOptions(received,
+				CodeActionRegistrationOptions.class);
+		assertEquals(List.of(CodeActionKind.QuickFix, CodeActionKind.Refactor), decoded.getCodeActionKinds());
+		assertFalse(decoded.getResolveProvider());
+	}
+
+	@Test
+	void testRegistrationOptionsPassThroughAndNull() {
+		final var options = new CodeActionRegistrationOptions();
+		// an in-process server may hand over the Java object directly
+		assertSame(options, JsonUtil.registrationOptions(new Registration("1", "textDocument/codeAction", options),
+				CodeActionRegistrationOptions.class));
+		// registerOptions is optional
+		assertNull(JsonUtil.registrationOptions(new Registration("2", "textDocument/codeAction", null),
+				CodeActionRegistrationOptions.class));
+	}
+
+	@Test
+	void testDeepCopy() {
+		final var original = new ServerCapabilities();
+		original.setCodeActionProvider(Boolean.TRUE);
+		original.setWorkspaceSymbolProvider(Either.forLeft(Boolean.FALSE));
+
+		final ServerCapabilities copy = JsonUtil.deepCopy(original, ServerCapabilities.class);
+		assertNotSame(original, copy);
+		assertEquals(original, copy);
+
+		copy.setCodeActionProvider(Boolean.FALSE);
+		assertEquals(Boolean.TRUE, original.getCodeActionProvider().getLeft());
 	}
 
 }

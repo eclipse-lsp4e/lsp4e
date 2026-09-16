@@ -178,7 +178,7 @@ public class LanguageServiceAccessor {
 	private static CompletableFuture<@Nullable LanguageServer> getInitializedLanguageServer(IResource resource,
 			LanguageServerDefinition lsDefinition, @Nullable Predicate<ServerCapabilities> capabilitiesPredicate) {
 		LanguageServerWrapper wrapper = getLSWrapper(resource.getProject(), lsDefinition, resource.getFullPath());
-		return capabilitiesComplyAsync(wrapper, capabilitiesPredicate)
+		return capabilitiesComplyAsync(wrapper, resource.getLocationURI(), capabilitiesPredicate)
 				.thenCompose(complies -> complies ? wrapper.getInitializedServer() : null);
 	}
 
@@ -192,21 +192,26 @@ public class LanguageServiceAccessor {
 	 * @param wrapper
 	 *            the server that's capabilities are tested with
 	 *            {@code capabilitiesPredicate}
+	 * @param uri
+	 *            the URI of the document the capabilities are queried for, or {@code null} for a
+	 *            document-independent query in which every dynamic capability registration applies
 	 * @param capabilitiesPredicate
 	 *            predicate testing the capabilities of {@code wrapper}.
 	 * @return The result of applying the capabilities of {@code wrapper} to
 	 *         {@code capabilitiesPredicate}, or {@code true} if
 	 *         {@code capabilitiesPredicate == null} or
-	 *         {@code wrapper.getServerCapabilities() == null}
+	 *         {@code wrapper.getServerCapabilities(uri) == null}
 	 */
-	private static boolean capabilitiesComply(LanguageServerWrapper wrapper,
+	private static boolean capabilitiesComply(LanguageServerWrapper wrapper, @Nullable URI uri,
 			@Nullable Predicate<ServerCapabilities> capabilitiesPredicate) {
-		return capabilitiesPredicate == null
-				/*
-				 * next null check is workaround for https://github.com/TypeFox/ls-api/issues/47
-				 */
-				|| wrapper.getServerCapabilities() == null
-				|| capabilitiesPredicate.test(castNonNull(wrapper.getServerCapabilities()));
+		if (capabilitiesPredicate == null) {
+			return true;
+		}
+		ServerCapabilities capabilities = wrapper.getServerCapabilities(uri);
+		/*
+		 * next null check is workaround for https://github.com/TypeFox/ls-api/issues/47
+		 */
+		return capabilities == null || capabilitiesPredicate.test(capabilities);
 	}
 
 	/**
@@ -216,6 +221,9 @@ public class LanguageServiceAccessor {
 	 * @param wrapper
 	 *            the server that's capabilities are tested with
 	 *            {@code capabilitiesPredicate}
+	 * @param uri
+	 *            the URI of the document the capabilities are queried for, or {@code null} for a
+	 *            document-independent query in which every dynamic capability registration applies
 	 * @param capabilitiesPredicate
 	 *            predicate testing the capabilities of {@code wrapper}.
 	 * @return The result of applying the capabilities of {@code wrapper} to
@@ -223,10 +231,10 @@ public class LanguageServiceAccessor {
 	 *         {@code capabilitiesPredicate == null}
 	 */
 	private static CompletableFuture<Boolean> capabilitiesComplyAsync(final LanguageServerWrapper wrapper,
-			final @Nullable Predicate<ServerCapabilities> capabilitiesPredicate) {
+			final @Nullable URI uri, final @Nullable Predicate<ServerCapabilities> capabilitiesPredicate) {
 		return capabilitiesPredicate == null //
 				? CompletableFuture.completedFuture(true) //
-				: wrapper.getServerCapabilitiesAsync().thenApply(sC -> sC != null && capabilitiesPredicate.test(sC));
+				: wrapper.getServerCapabilitiesAsync(uri).thenApply(sC -> sC != null && capabilitiesPredicate.test(sC));
 	}
 
 	/**
@@ -251,7 +259,7 @@ public class LanguageServiceAccessor {
 			return Collections.emptyList();
 		}
 
-		List<LanguageServerWrapper> wrappers = getStartedWrappers(file.getProject(), request, true);
+		List<LanguageServerWrapper> wrappers = getStartedWrappers(w -> w.canOperate(project), fileURI, request, true);
 		wrappers.removeIf(
 				wrapper -> !wrapper.isConnectedTo(fileURI) || !lsRegistry.matches(file, wrapper.serverDefinition));
 
@@ -272,7 +280,7 @@ public class LanguageServiceAccessor {
 				}
 				final LanguageServerDefinition serverDefinition = mapping.getValue();
 				final var wrapper = getLSWrapper(project, serverDefinition, file.getFullPath());
-				if (!wrappers.contains(wrapper) && capabilitiesComply(wrapper, request)) {
+				if (!wrappers.contains(wrapper) && capabilitiesComply(wrapper, fileURI, request)) {
 					wrappers.add(wrapper);
 				}
 			}
@@ -420,7 +428,7 @@ public class LanguageServiceAccessor {
 	 */
 	public static List<LanguageServerWrapper> getStartedWrappers(@Nullable Predicate<ServerCapabilities> request,
 			boolean onlyActiveLS) {
-		return getStartedWrappers(w -> true, request, onlyActiveLS);
+		return getStartedWrappers(w -> true, null, request, onlyActiveLS);
 	}
 
 	/**
@@ -429,7 +437,7 @@ public class LanguageServiceAccessor {
 	 */
 	public static List<LanguageServerWrapper> getStartedWrappers(@Nullable IProject project,
 			@Nullable Predicate<ServerCapabilities> request, boolean onlyActiveLS) {
-		return getStartedWrappers(w -> w.canOperate(project), request, onlyActiveLS);
+		return getStartedWrappers(w -> w.canOperate(project), null, request, onlyActiveLS);
 	}
 
 	/**
@@ -438,15 +446,15 @@ public class LanguageServiceAccessor {
 	 */
 	public static List<LanguageServerWrapper> getStartedWrappers(IDocument document,
 			Predicate<ServerCapabilities> request, boolean onlyActiveLS) {
-		return getStartedWrappers(w -> w.canOperate(document), request, onlyActiveLS);
+		return getStartedWrappers(w -> w.canOperate(document), LSPEclipseUtils.toUri(document), request, onlyActiveLS);
 	}
 
 	private static List<LanguageServerWrapper> getStartedWrappers(Predicate<LanguageServerWrapper> canOperatePredicate,
-			@Nullable Predicate<ServerCapabilities> capabilitiesPredicate, boolean onlyActiveLS) {
+			@Nullable URI uri, @Nullable Predicate<ServerCapabilities> capabilitiesPredicate, boolean onlyActiveLS) {
 		final var result = new ArrayList<LanguageServerWrapper>();
 		for (LanguageServerWrapper wrapper : startedServers) {
 			if ((!onlyActiveLS || wrapper.isActive()) && canOperatePredicate.test(wrapper)
-					&& capabilitiesComply(wrapper, capabilitiesPredicate)) {
+					&& capabilitiesComply(wrapper, uri, capabilitiesPredicate)) {
 				result.add(wrapper);
 			}
 		}
@@ -455,27 +463,28 @@ public class LanguageServiceAccessor {
 
 	public static Map<LanguageServerDefinition, CompletableFuture<@Nullable LanguageServerWrapper>> getStartedWrappersAsync(
 			final @Nullable Predicate<ServerCapabilities> request, final boolean onlyActiveLS) {
-		return getStartedWrappersAsync(w -> true, request, onlyActiveLS);
+		return getStartedWrappersAsync(w -> true, null, request, onlyActiveLS);
 	}
 
 	public static Map<LanguageServerDefinition, CompletableFuture<@Nullable LanguageServerWrapper>> getStartedWrappersAsync(
 			final @Nullable IProject project, final @Nullable Predicate<ServerCapabilities> request,
 			final boolean onlyActiveLS) {
-		return getStartedWrappersAsync(w -> w.canOperate(project), request, onlyActiveLS);
+		return getStartedWrappersAsync(w -> w.canOperate(project), null, request, onlyActiveLS);
 	}
 
 	public static Map<LanguageServerDefinition, CompletableFuture<@Nullable LanguageServerWrapper>> getStartedWrappersAsync(final IDocument document,
 			final Predicate<ServerCapabilities> request, final boolean onlyActiveLS) {
-		return getStartedWrappersAsync(w -> w.canOperate(document), request, onlyActiveLS);
+		return getStartedWrappersAsync(w -> w.canOperate(document), LSPEclipseUtils.toUri(document), request,
+				onlyActiveLS);
 	}
 
 	private static Map<LanguageServerDefinition, CompletableFuture<@Nullable LanguageServerWrapper>> getStartedWrappersAsync(
-			final Predicate<LanguageServerWrapper> canOperatePredicate,
+			final Predicate<LanguageServerWrapper> canOperatePredicate, final @Nullable URI uri,
 			final @Nullable Predicate<ServerCapabilities> capabilitiesPredicate, final boolean onlyActiveLS) {
 		final Map<LanguageServerDefinition, CompletableFuture<@Nullable LanguageServerWrapper>> result = new LinkedHashMap<>();
 		for (final LanguageServerWrapper wrapper : startedServers) {
 			if ((!onlyActiveLS || wrapper.isActive()) && canOperatePredicate.test(wrapper)) {
-				result.put(wrapper.serverDefinition, capabilitiesComplyAsync(wrapper, capabilitiesPredicate)
+				result.put(wrapper.serverDefinition, capabilitiesComplyAsync(wrapper, uri, capabilitiesPredicate)
 						.thenApply(complies -> complies ? wrapper : null));
 			}
 		}
@@ -570,8 +579,8 @@ public class LanguageServiceAccessor {
 		if (fileUri != null) {
 			try {
 				getLSWrappers(document).stream() //
-						.filter(wrapper -> wrapper.getServerCapabilities() == null
-								|| capabilityRequest.test(castNonNull(wrapper.getServerCapabilities())))
+						.filter(wrapper -> wrapper.getServerCapabilities(fileUri) == null
+								|| capabilityRequest.test(castNonNull(wrapper.getServerCapabilities(fileUri))))
 						.forEach(wrapper -> {
 							wrapper.connectDocument(document);
 							res.add(new LSPDocumentInfo(fileUri, document, wrapper));

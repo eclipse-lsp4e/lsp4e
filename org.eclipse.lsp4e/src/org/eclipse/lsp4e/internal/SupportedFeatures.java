@@ -64,6 +64,7 @@ import org.eclipse.lsp4j.SymbolTagSupportCapabilities;
 import org.eclipse.lsp4j.SynchronizationCapabilities;
 import org.eclipse.lsp4j.TextDocumentClientCapabilities;
 import org.eclipse.lsp4j.TypeDefinitionCapabilities;
+import org.eclipse.lsp4j.TypeHierarchyCapabilities;
 import org.eclipse.lsp4j.WindowClientCapabilities;
 import org.eclipse.lsp4j.WindowShowMessageRequestCapabilities;
 import org.eclipse.lsp4j.WorkspaceClientCapabilities;
@@ -141,7 +142,7 @@ public class SupportedFeatures {
 				MarkupKind.PLAINTEXT));
 		textDocumentClientCapabilities.setHover(hoverCapabilities);
 		textDocumentClientCapabilities.setOnTypeFormatting(new OnTypeFormattingCapabilities(true));
-		textDocumentClientCapabilities.setRangeFormatting(new RangeFormattingCapabilities());
+		textDocumentClientCapabilities.setRangeFormatting(new RangeFormattingCapabilities(true));
 		textDocumentClientCapabilities.setReferences(new ReferencesCapabilities());
 		final var renameCapabilities = new RenameCapabilities();
 		renameCapabilities.setPrepareSupport(true);
@@ -156,8 +157,9 @@ public class SupportedFeatures {
 
 		textDocumentClientCapabilities.setSignatureHelp(signatureHelpCapabilities);
 		textDocumentClientCapabilities.setSynchronization(new SynchronizationCapabilities(true, true, true));
-		final var selectionRange = new SelectionRangeCapabilities();
+		final var selectionRange = new SelectionRangeCapabilities(true);
 		textDocumentClientCapabilities.setSelectionRange(selectionRange);
+		textDocumentClientCapabilities.setTypeHierarchy(new TypeHierarchyCapabilities(true));
 		return textDocumentClientCapabilities;
 	}
 

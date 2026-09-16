@@ -120,6 +120,7 @@ public class MockTextDocumentService implements TextDocumentService {
 	private Location[] mockReferences = new Location[0];
 	private List<Diagnostic> diagnostics;
 	private List<Either<Command, CodeAction>> mockCodeActions;
+	private Function<CodeAction, CodeAction> codeActionResolver = Function.identity();
 	private List<ColorInformation> mockDocumentColors;
 	private WorkspaceEdit mockRenameEdit;
 	private Either3<Range, PrepareRenameResult, PrepareRenameDefaultBehavior> mockPrepareRenameResult;
@@ -336,7 +337,7 @@ public class MockTextDocumentService implements TextDocumentService {
 
 	@Override
 	public CompletableFuture<CodeAction> resolveCodeAction(CodeAction unresolved) {
-		return CompletableFuture.completedFuture(unresolved);
+		return CompletableFuture.completedFuture(codeActionResolver.apply(unresolved));
 	}
 
 	public void setMockCompletionList(CompletionList completionList) {
@@ -397,6 +398,11 @@ public class MockTextDocumentService implements TextDocumentService {
 
 	public void setCodeActions(List<Either<Command, CodeAction>> codeActions) {
 		this.mockCodeActions = codeActions;
+	}
+
+	/** Installs a function invoked by {@code codeAction/resolve}; defaults to identity. */
+	public void setCodeActionResolver(Function<CodeAction, CodeAction> resolver) {
+		this.codeActionResolver = resolver;
 	}
 
 	public void setSignatureHelp(SignatureHelp signatureHelp) {

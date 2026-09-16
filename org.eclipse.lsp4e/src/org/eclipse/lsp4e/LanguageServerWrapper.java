@@ -27,7 +27,9 @@ import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -63,13 +65,12 @@ import org.eclipse.core.resources.IResourceDelta;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.resources.WorkspaceJob;
 import org.eclipse.core.runtime.Adapters;
-import org.eclipse.core.runtime.Assert;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProduct;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.SubMonitor;
@@ -82,49 +83,35 @@ import org.eclipse.lsp4e.LanguageServersRegistry.LanguageServerDefinition;
 import org.eclipse.lsp4e.client.DefaultLanguageClient;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4e.internal.CancellationUtil;
+import org.eclipse.lsp4e.internal.DynamicRegistrationManager;
 import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
-import org.eclipse.lsp4e.internal.JsonUtil;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
 import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.ClientInfo;
-import org.eclipse.lsp4j.CodeActionOptions;
-import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
-import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
-import org.eclipse.lsp4j.DocumentFormattingOptions;
-import org.eclipse.lsp4j.DocumentOnTypeFormattingOptions;
-import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
-import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.FileChangeType;
 import org.eclipse.lsp4j.FileEvent;
 import org.eclipse.lsp4j.InitializeParams;
 import org.eclipse.lsp4j.InitializeResult;
 import org.eclipse.lsp4j.InitializedParams;
-import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
-import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.ServerInfo;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
-import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
 import org.eclipse.lsp4j.UnregistrationParams;
 import org.eclipse.lsp4j.WatchKind;
 import org.eclipse.lsp4j.WindowClientCapabilities;
 import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.WorkspaceFoldersChangeEvent;
-import org.eclipse.lsp4j.WorkspaceFoldersOptions;
-import org.eclipse.lsp4j.WorkspaceServerCapabilities;
-import org.eclipse.lsp4j.WorkspaceSymbolOptions;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
-import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.lsp4j.jsonrpc.messages.Message;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.lsp4j.jsonrpc.messages.ResponseMessage;
@@ -134,7 +121,6 @@ import org.eclipse.swt.widgets.Display;
 
 import com.google.common.base.Functions;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.gson.JsonObject;
 
 public class LanguageServerWrapper {
 
@@ -264,7 +250,6 @@ public class LanguageServerWrapper {
 	private @Nullable CompletableFuture<@Nullable Void> initializeFuture;
 
 	private volatile @Nullable InitializeResult initializeResult;
-	private volatile @Nullable ServerCapabilities serverCapabilities;
 	private volatile @Nullable ServerInfo serverInfo;
 
 	private final AtomicReference<@Nullable IProgressMonitor> initializeFutureMonitorRef = new AtomicReference<>();
@@ -280,15 +265,33 @@ public class LanguageServerWrapper {
 
 	private LanguageServerContext context = new LanguageServerContext();
 
-	/**
-	 * Map containing unregistration handlers for dynamic capability registrations.
-	 */
-	private final Map<String, Runnable> dynamicRegistrations = new HashMap<>();
 	private boolean initiallySupportsWorkspaceFolders = false;
 	private final IResourceChangeListener workspaceFolderUpdater = new WorkspaceFolderListener();
 
-	private final FileSystemWatcherManager fileSystemWatcherManager;
+	/**
+	 * Tracks the static and dynamically registered server capabilities; owns the
+	 * {@link FileSystemWatcherManager}.
+	 */
+	private final DynamicRegistrationManager registrationManager;
 	private final WatchedFilesListener watchedFilesListener = new WatchedFilesListener();
+
+	private static final int LANGUAGE_ID_CACHE_SIZE = 100;
+
+	/**
+	 * Caches the language id computed for not-yet-connected documents by {@link #getLanguageId(URI)}
+	 * (for connected documents the id sent in {@code didOpen} is used directly). The language id of a
+	 * URI is stable, so this cache survives dynamic (un)registrations; it is bounded because
+	 * capability queries can pass arbitrarily many URIs over a server's lifetime.
+	 */
+	private final Map<URI, String> languageIdsByUri = Collections
+			.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				protected boolean removeEldestEntry(final Map.@Nullable Entry<URI, String> eldest) {
+					return size() > LANGUAGE_ID_CACHE_SIZE;
+				}
+			});
 
 	/* Backwards compatible constructor */
 	public LanguageServerWrapper(IProject project, LanguageServerDefinition serverDefinition) {
@@ -329,7 +332,8 @@ public class LanguageServerWrapper {
 		this.errorProcessor = Executors
 				.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat(errorsThreadNameFormat).build());
 
-		this.fileSystemWatcherManager = new FileSystemWatcherManager(initialProject);
+		this.registrationManager = new DynamicRegistrationManager(new FileSystemWatcherManager(initialProject),
+				this::getLanguageId, this::capabilitiesChanged);
 		// Read preference to determine whether to enable the workspace resource fallback for this server.
 		this.resourceFallbackEnabled = isNonBufferedFileListenerEnabled();
 	}
@@ -503,9 +507,9 @@ public class LanguageServerWrapper {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
 					initializeResult = res;
-					serverCapabilities = res.getCapabilities();
+					registrationManager.setStaticCapabilities(res.getCapabilities());
 					serverInfo = res.getServerInfo();
-					this.initiallySupportsWorkspaceFolders = supportsWorkspaceFolders(serverCapabilities);
+					this.initiallySupportsWorkspaceFolders = supportsWorkspaceFolders(res.getCapabilities());
 				}
 			}).thenRun(() -> {
 				synchronized (workingContext) {
@@ -757,12 +761,10 @@ public class LanguageServerWrapper {
 			this.languageClient.dispose();
 		}
 
-		this.serverCapabilities = null;
-		this.dynamicRegistrations.clear();
+		registrationManager.clear();
 
 		ResourcesPlugin.getWorkspace().removeResourceChangeListener(workspaceFolderUpdater);
 		ResourcesPlugin.getWorkspace().removeResourceChangeListener(watchedFilesListener);
-		fileSystemWatcherManager.clear();
 
 		CompletableFuture.runAsync(workingContext::close);
 
@@ -862,7 +864,7 @@ public class LanguageServerWrapper {
 				LanguageServerPlugin.logWarning("Could not get if the workspace folder capability is supported due to timeout after 1 second"); //$NON-NLS-1$
 			}
 		}
-		return initiallySupportsWorkspaceFolders || supportsWorkspaceFolders(serverCapabilities);
+		return initiallySupportsWorkspaceFolders || supportsWorkspaceFolders(registrationManager.getCapabilities());
 	}
 
 	/**
@@ -889,12 +891,16 @@ public class LanguageServerWrapper {
 		}
 		final IDocument theDocument = document;
 		return castNonNull(initializeFuture).thenAcceptAsync(theVoid -> {
+			// Computed outside the connectedDocuments monitor: getCapabilities(uri) takes the
+			// registration monitor, under which capability queries resolve a document's language id
+			// by reading connectedDocuments - taking the monitors in the opposite order here would
+			// risk a deadlock.
+			TextDocumentSyncKind syncKind = initializeFuture == null ? null
+					: castNonNull(registrationManager.getCapabilities(uri)).getTextDocumentSync().map(Functions.identity(), TextDocumentSyncOptions::getChange);
 			synchronized (connectedDocuments) {
 				if (this.connectedDocuments.containsKey(uri)) {
 					return;
 				}
-				TextDocumentSyncKind syncKind = initializeFuture == null ? null
-						: castNonNull(serverCapabilities).getTextDocumentSync().map(Functions.identity(), TextDocumentSyncOptions::getChange);
 				final var listener = new DocumentContentSynchronizer(this, castNonNull(context.languageServer), theDocument, syncKind);
 				theDocument.addPrenotifiedDocumentListener(listener);
 				LanguageServerWrapper.this.connectedDocuments.put(uri, listener);
@@ -1096,10 +1102,24 @@ public class LanguageServerWrapper {
 	 * <b>IMPORTANT:</b> If the server isn't yet initialized this method will be
 	 * blocking for up to 10 seconds!
 	 *
-	 * @return the server capabilities, or null if initialization job didn't
-	 *         complete
+	 * @return the server capabilities assuming every dynamic capability registration applies (the
+	 *         union view), or null if initialization job didn't complete
 	 */
 	public @Nullable ServerCapabilities getServerCapabilities() {
+		return getServerCapabilities(null);
+	}
+
+	/**
+	 * <b>IMPORTANT:</b> If the server isn't yet initialized this method will be
+	 * blocking for up to 10 seconds!
+	 *
+	 * @param uri the URI of the document the capabilities are queried for: dynamic capability
+	 *            registrations only contribute where their {@code documentSelector} matches it.
+	 *            {@code null} yields the union view in which every registration applies.
+	 * @return the effective server capabilities for the given document, or null if initialization
+	 *         job didn't complete
+	 */
+	public @Nullable ServerCapabilities getServerCapabilities(@Nullable URI uri) {
 		try {
 			getInitializedServer().get(10, TimeUnit.SECONDS);
 		} catch (TimeoutException e) {
@@ -1113,17 +1133,32 @@ public class LanguageServerWrapper {
 			LanguageServerPlugin.logError(e);
 		}
 
-		return this.serverCapabilities;
+		return registrationManager.getCapabilities(uri);
 	}
 
 	/**
-	 * @return a {@link CompletableFuture} that provides the {@link ServerCapabilities}.
+	 * @return a {@link CompletableFuture} that provides the {@link ServerCapabilities}, assuming
+	 * every dynamic capability registration applies (the union view).
 	 * <p>
 	 * The {@link ServerCapabilities} will be {@code null} if the server shuts down
 	 * immediately after initialization or if it fails to start.
 	 */
 	public CompletableFuture<@Nullable ServerCapabilities> getServerCapabilitiesAsync() {
-		return getInitializedServer().thenCompose(ls -> CompletableFuture.completedFuture(this.serverCapabilities));
+		return getServerCapabilitiesAsync(null);
+	}
+
+	/**
+	 * @param uri the URI of the document the capabilities are queried for: dynamic capability
+	 *            registrations only contribute where their {@code documentSelector} matches it.
+	 *            {@code null} yields the union view in which every registration applies.
+	 * @return a {@link CompletableFuture} that provides the effective {@link ServerCapabilities}
+	 * for the given document.
+	 * <p>
+	 * The {@link ServerCapabilities} will be {@code null} if the server shuts down
+	 * immediately after initialization or if it fails to start.
+	 */
+	public CompletableFuture<@Nullable ServerCapabilities> getServerCapabilitiesAsync(@Nullable URI uri) {
+		return getInitializedServer().thenCompose(ls -> CompletableFuture.completedFuture(registrationManager.getCapabilities(uri)));
 	}
 
 	public CompletableFuture<@Nullable ServerInfo> getServerInfoAsync() {
@@ -1144,222 +1179,123 @@ public class LanguageServerWrapper {
 		return null;
 	}
 
-	public void registerCapability(RegistrationParams params) {
-		final var serverCapabilities = this.serverCapabilities;
-		Assert.isNotNull(serverCapabilities,
-				"Dynamic capability registration failed! Server not yet initialized?"); //$NON-NLS-1$
-		params.getRegistrations().forEach(reg -> {
-			switch (reg.getMethod()) {
-			case "workspace/didChangeWatchedFiles": { //$NON-NLS-1$
-				try {
-					DidChangeWatchedFilesRegistrationOptions options = toDidChangeWatchedFilesRegistrationOptions(
-							reg.getRegisterOptions());
-					if (options != null && !options.getWatchers().isEmpty()) {
-						fileSystemWatcherManager.registerFileSystemWatchers(reg.getId(), options.getWatchers());
-						enableWatchedFiles();
-						addRegistration(reg, () -> {
-							fileSystemWatcherManager.unregisterFileSystemWatchers(reg.getId());
-							disableWatchedFiles();
-						});
-					} else {
-						// No usable watchers - still track registration so it can be unregistered cleanly
-						addRegistration(reg, this::disableWatchedFiles);
-					}
-				} catch (final Exception ex) {
-					LanguageServerPlugin.logError(ex);
-					addRegistration(reg, this::disableWatchedFiles);
-				}
-				break;
+	/**
+	 * Returns the LSP language id of the document at the given URI for this server: for a connected
+	 * document the id that was sent in {@code textDocument/didOpen}, otherwise the id that would be
+	 * sent if the document were opened. Used to match the {@code documentSelector}s of dynamic
+	 * capability registrations, which must agree with what the server was told at {@code didOpen}.
+	 * <p>
+	 * Answers for unconnected documents are served read-through from {@link #languageIdsByUri}, so
+	 * repeated capability queries do not repeat the content-type lookup.
+	 */
+	String getLanguageId(URI uri) {
+		synchronized (connectedDocuments) {
+			DocumentContentSynchronizer synchronizer = connectedDocuments.get(uri);
+			if (synchronizer != null) {
+				return synchronizer.getLanguageId();
 			}
-			case "workspace/didChangeWorkspaceFolders":  //$NON-NLS-1$
-				if (initiallySupportsWorkspaceFolders) {
-					// Can treat this as a NOP since nothing can disable it dynamically if it was
-					// enabled on initialization.
-				} else if (supportsWorkspaceFolders(serverCapabilities)) {
-					LanguageServerPlugin.logWarning(
-							"Dynamic registration of 'workspace/didChangeWorkspaceFolders' ignored. It was already enabled before"); //$NON-NLS-1$
-				} else {
-					addRegistration(reg, () -> setWorkspaceFoldersEnablement(false));
-					setWorkspaceFoldersEnablement(true);
-				}
-				break;
-			case "workspace/executeCommand": //$NON-NLS-1$
-				try {
-					ExecuteCommandOptions executeCommandOptions = castNonNull(JsonUtil.LSP4J_GSON.fromJson((JsonObject) reg.getRegisterOptions(),
-							ExecuteCommandOptions.class));
-					List<String> newCommands = executeCommandOptions.getCommands();
-					if (!newCommands.isEmpty()) {
-						addRegistration(reg, () -> unregisterCommands(newCommands));
-						registerCommands(newCommands);
-					}
-				} catch (final Exception ex) {
-					LanguageServerPlugin.logError(ex);
-				}
-				break;
-			case "textDocument/formatting": //$NON-NLS-1$
-				Either<Boolean, DocumentFormattingOptions> documentFormattingProvider = serverCapabilities
-						.getDocumentFormattingProvider();
-				if (documentFormattingProvider == null || documentFormattingProvider.isLeft()) {
-					serverCapabilities.setDocumentFormattingProvider(Boolean.TRUE);
-				} else {
-					serverCapabilities.setDocumentFormattingProvider(documentFormattingProvider.getRight());
-				}
-				addRegistration(reg, () -> serverCapabilities.setDocumentFormattingProvider(documentFormattingProvider));
-				break;
-			case "textDocument/rangeFormatting": //$NON-NLS-1$
-				Either<Boolean, DocumentRangeFormattingOptions> documentRangeFormattingProvider = serverCapabilities
-						.getDocumentRangeFormattingProvider();
-				if (documentRangeFormattingProvider == null || documentRangeFormattingProvider.isLeft()) {
-					serverCapabilities.setDocumentRangeFormattingProvider(Boolean.TRUE);
-				} else {
-					serverCapabilities.setDocumentRangeFormattingProvider(documentRangeFormattingProvider.getRight());
-				}
-				addRegistration(reg, () -> serverCapabilities.setDocumentRangeFormattingProvider(documentRangeFormattingProvider));
-				break;
-			case "textDocument/codeAction": //$NON-NLS-1$
-				final Either<Boolean, CodeActionOptions> beforeRegistration = serverCapabilities.getCodeActionProvider();
-				serverCapabilities.setCodeActionProvider(Boolean.TRUE);
-				addRegistration(reg, () -> serverCapabilities.setCodeActionProvider(beforeRegistration));
-				break;
-			case "textDocument/completion": { //$NON-NLS-1$
-				CompletionOptions previous = serverCapabilities.getCompletionProvider();
-				try {
-					final var completionOpts = JsonUtil.LSP4J_GSON.fromJson((JsonObject) reg.getRegisterOptions(),
-							CompletionOptions.class);
-					serverCapabilities.setCompletionProvider(completionOpts);
-					addRegistration(reg, () -> serverCapabilities.setCompletionProvider(previous));
-				} catch (final Exception ex) {
-					LanguageServerPlugin.logError(ex);
-				}
-				break;
-			}
-			case "workspace/symbol": //$NON-NLS-1$
-				final Either<Boolean, WorkspaceSymbolOptions> workspaceSymbolBeforeRegistration = serverCapabilities.getWorkspaceSymbolProvider();
-				serverCapabilities.setWorkspaceSymbolProvider(Boolean.TRUE);
-				addRegistration(reg, () -> serverCapabilities.setWorkspaceSymbolProvider(workspaceSymbolBeforeRegistration));
-				break;
-			case "textDocument/selectionRange": //$NON-NLS-1$
-				Either<Boolean, SelectionRangeRegistrationOptions> selectionRangeProvider = serverCapabilities
-						.getSelectionRangeProvider();
-				if (selectionRangeProvider == null || selectionRangeProvider.isLeft()) {
-					serverCapabilities.setSelectionRangeProvider(Boolean.TRUE);
-				} else {
-					serverCapabilities.setSelectionRangeProvider(selectionRangeProvider.getRight());
-				}
-				addRegistration(reg, () -> serverCapabilities.setSelectionRangeProvider(selectionRangeProvider));
-				break;
-			case "textDocument/typeHierarchy": //$NON-NLS-1$
-				final Either<Boolean, TypeHierarchyRegistrationOptions> typeHierarchyBeforeRegistration = serverCapabilities.getTypeHierarchyProvider();
-				serverCapabilities.setTypeHierarchyProvider(Boolean.TRUE);
-				addRegistration(reg, () -> serverCapabilities.setTypeHierarchyProvider(typeHierarchyBeforeRegistration));
-				break;
-			case "textDocument/onTypeFormatting": //$NON-NLS-1$
-				final var onTypeFormattingBeforeRegistration = serverCapabilities.getDocumentOnTypeFormattingProvider();
-				serverCapabilities.setDocumentOnTypeFormattingProvider(reg.getRegisterOptions() instanceof DocumentOnTypeFormattingOptions opts ? opts : null);
-				addRegistration(reg, () -> serverCapabilities.setDocumentOnTypeFormattingProvider(onTypeFormattingBeforeRegistration));
-				break;
-		}});
-	}
-
-	private static @Nullable DidChangeWatchedFilesRegistrationOptions toDidChangeWatchedFilesRegistrationOptions(
-			@Nullable Object registerOptions) {
-		if (registerOptions == null)
-			return null;
-		if (registerOptions instanceof DidChangeWatchedFilesRegistrationOptions direct)
-			return direct;
-		if (registerOptions instanceof JsonObject jsonObject) {
-			return JsonUtil.LSP4J_GSON.fromJson(jsonObject, DidChangeWatchedFilesRegistrationOptions.class);
 		}
-		return null;
+		return castNonNull(languageIdsByUri.computeIfAbsent(uri, u -> computeLanguageIdImpl(u, null)));
 	}
 
-	private void addRegistration(Registration reg, Runnable unregistrationHandler) {
-		String regId = reg.getId();
-		synchronized (dynamicRegistrations) {
-			if (dynamicRegistrations.containsKey(regId)) {
-				ILog.get().warn("A registration with id " + regId + " already exists. Unregistering may not fully work in this case.\n"); //$NON-NLS-1$ //$NON-NLS-2$
-			} else {
-				dynamicRegistrations.put(regId, unregistrationHandler);
+	/**
+	 * Computes the LSP language id to send in {@code textDocument/didOpen} for the given document:
+	 * the {@code languageId} declared in this server's content-type mappings if any, otherwise the
+	 * file extension, falling back to the last segment of the URI.
+	 * <p>
+	 * Deliberately not served from {@link #languageIdsByUri}: with the document in hand, content-type
+	 * detection is content-based and thus more authoritative than a cached name-based answer from an
+	 * earlier {@link #getLanguageId(URI)} call, so this always computes and overwrites the cache —
+	 * keeping post-disconnect queries consistent with what {@code didOpen} last sent.
+	 */
+	String computeLanguageId(URI uri, IDocument document) {
+		String languageId = computeLanguageIdImpl(uri, document);
+		languageIdsByUri.put(uri, languageId);
+		return languageId;
+	}
+
+	private String computeLanguageIdImpl(URI uri, @Nullable IDocument document) {
+		List<IContentType> contentTypes = document != null //
+				? LSPEclipseUtils.getDocumentContentTypes(document)
+				: getContentTypes(uri);
+		String languageId = getLanguageId(contentTypes.toArray(IContentType[]::new));
+		if (languageId == null && uri.getPath() != null) {
+			IPath path = Path.fromPortableString(uri.getPath());
+			languageId = path.getFileExtension();
+			if (languageId == null) {
+				languageId = path.lastSegment();
 			}
+		}
+		if (languageId == null && !uri.getSchemeSpecificPart().isEmpty()) {
+			String part = uri.getSchemeSpecificPart();
+			int lastSeparatorIndex = Math.max(part.lastIndexOf('.'), part.lastIndexOf('/'));
+			languageId = part.substring(lastSeparatorIndex + 1);
+		}
+		if (languageId == null) {
+			String uriString = uri.toString();
+			int lastSeparatorIndex = Math.max(uriString.lastIndexOf('.'), uriString.lastIndexOf('/'));
+			languageId = uriString.substring(lastSeparatorIndex + 1);
+		}
+		return languageId;
+	}
+
+	/**
+	 * Resolves content types for a not-yet-connected document by file name only. Deliberately no
+	 * content-based detection: this runs on capability-query threads (possibly the UI thread) and
+	 * under the registration monitor, where reading file contents is not acceptable. The resulting
+	 * language id is a best-effort answer for pre-connection selector matching; the authoritative,
+	 * content-based id is computed when the document is opened and overwrites the cache (see
+	 * {@link #computeLanguageId(URI, IDocument)}).
+	 */
+	private static List<IContentType> getContentTypes(URI uri) {
+		String fileName = LSPEclipseUtils.getFileName(uri);
+		if (fileName != null) {
+			return List.of(Platform.getContentTypeManager().findContentTypesFor(fileName));
+		}
+		return List.of();
+	}
+
+	/**
+	 * Applies the dynamic capability registrations sent by the server via
+	 * {@code client/registerCapability}. See {@link DynamicRegistrationManager} for the
+	 * capability-recomputation model and its limitations.
+	 */
+	public void registerCapability(RegistrationParams params) {
+		registrationManager.registerCapability(params);
+	}
+
+	public void unregisterCapability(UnregistrationParams params) {
+		registrationManager.unregisterCapability(params);
+	}
+
+	/**
+	 * Applies the side effects of a change to the effective server capabilities: (de)activates
+	 * the watched-files listener and starts watching projects if workspace folders have become
+	 * supported.
+	 */
+	private void capabilitiesChanged(final @Nullable ServerCapabilities oldCapabilities,
+			final ServerCapabilities newCapabilities) {
+		if (registrationManager.getFileSystemWatcherManager().hasFilePatterns()) {
+			enableWatchedFiles();
+		} else {
+			disableWatchedFiles();
+		}
+		final boolean supportedWorkspaceFoldersBefore = initiallySupportsWorkspaceFolders
+				|| supportsWorkspaceFolders(oldCapabilities);
+		if (!supportedWorkspaceFoldersBefore && supportsWorkspaceFolders(newCapabilities)) {
+			watchProjects();
 		}
 	}
 
 	synchronized void disableWatchedFiles() {
-		if (!fileSystemWatcherManager.hasFilePatterns()) {
+		if (!registrationManager.getFileSystemWatcherManager().hasFilePatterns()) {
 			ResourcesPlugin.getWorkspace().removeResourceChangeListener(watchedFilesListener);
 		}
 	}
 
 	synchronized void enableWatchedFiles() {
-		if (fileSystemWatcherManager.hasFilePatterns()) {
+		if (registrationManager.getFileSystemWatcherManager().hasFilePatterns()) {
 			ResourcesPlugin.getWorkspace().addResourceChangeListener(watchedFilesListener, IResourceChangeEvent.POST_CHANGE);
-		}
-	}
-
-	synchronized void setWorkspaceFoldersEnablement(boolean enable) {
-		if (enable == supportsWorkspaceFolderCapability()) {
-			return;
-		}
-		var serverCapabilities = this.serverCapabilities;
-		if (serverCapabilities == null) {
-			serverCapabilities = this.serverCapabilities = new ServerCapabilities();
-		}
-		WorkspaceServerCapabilities workspace = serverCapabilities.getWorkspace();
-		if (workspace == null) {
-			workspace = new WorkspaceServerCapabilities();
-			serverCapabilities.setWorkspace(workspace);
-		}
-		WorkspaceFoldersOptions folders = workspace.getWorkspaceFolders();
-		if (folders == null) {
-			folders = new WorkspaceFoldersOptions();
-			workspace.setWorkspaceFolders(folders);
-		}
-		folders.setSupported(enable);
-		if (enable) {
-			watchProjects();
-		}
-	}
-
-	synchronized void registerCommands(List<String> newCommands) {
-		ServerCapabilities caps = this.getServerCapabilities();
-		if (caps != null) {
-			ExecuteCommandOptions commandProvider = caps.getExecuteCommandProvider();
-			if (commandProvider == null) {
-				commandProvider = new ExecuteCommandOptions(new ArrayList<>());
-				caps.setExecuteCommandProvider(commandProvider);
-			}
-			List<String> existingCommands = commandProvider.getCommands();
-			for (String newCmd : newCommands) {
-				Assert.isLegal(!existingCommands.contains(newCmd), "Command already registered '" + newCmd + "'"); //$NON-NLS-1$ //$NON-NLS-2$
-				existingCommands.add(newCmd);
-			}
-		} else {
-			throw new IllegalStateException("Dynamic command registration failed! Server not yet initialized?"); //$NON-NLS-1$
-		}
-	}
-
-	public void unregisterCapability(UnregistrationParams params) {
-		params.getUnregisterations().forEach(reg -> {
-			String id = reg.getId();
-			Runnable unregistrator;
-			synchronized (dynamicRegistrations) {
-				unregistrator = dynamicRegistrations.get(id);
-				dynamicRegistrations.remove(id);
-			}
-			if (unregistrator != null) {
-				unregistrator.run();
-			}
-		});
-	}
-
-	void unregisterCommands(List<String> cmds) {
-		ServerCapabilities caps = this.getServerCapabilities();
-		if (caps != null) {
-			ExecuteCommandOptions commandProvider = caps.getExecuteCommandProvider();
-			if (commandProvider != null) {
-				List<String> existingCommands = commandProvider.getCommands();
-				existingCommands.removeAll(cmds);
-			}
 		}
 	}
 
@@ -1525,7 +1461,7 @@ public class LanguageServerWrapper {
 		@Override
 		public void resourceChanged(final IResourceChangeEvent event) {
 			// Fast-path: if no watchers are registered, skip work entirely
-			if (!fileSystemWatcherManager.hasFilePatterns())
+			if (!registrationManager.getFileSystemWatcherManager().hasFilePatterns())
 				return;
 
 			final List<WatchedFileChange> changes = collectChanges(event);
@@ -1551,7 +1487,7 @@ public class LanguageServerWrapper {
 				final var fileEvents = new ArrayList<FileEvent>();
 				for (final WatchedFileChange change : changes) {
 					final int watchKind = toWatchKind(change.changeType());
-					if (!fileSystemWatcherManager.isMatchFilePattern(change.uri(), watchKind)) {
+					if (!registrationManager.getFileSystemWatcherManager().isMatchFilePattern(change.uri(), watchKind)) {
 						continue;
 					}
 					final var fileEvent = new FileEvent();

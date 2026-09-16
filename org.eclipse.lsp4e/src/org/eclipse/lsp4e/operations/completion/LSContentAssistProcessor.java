@@ -238,10 +238,11 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			completionTriggerChars = NO_CHARS;
 			contextTriggerChars = NO_CHARS;
 
+			final URI uri = LSPEclipseUtils.toUri(document);
 			completionTriggerCharsFuture = LanguageServers.forDocument(document)
 				.withFilter(capabilities -> capabilities.getCompletionProvider() != null) //
 				.collectAll((w, ls) -> {
-					List<String> triggerChars = castNonNull(w.getServerCapabilities()).getCompletionProvider().getTriggerCharacters();
+					List<String> triggerChars = castNonNull(w.getServerCapabilities(uri)).getCompletionProvider().getTriggerCharacters();
 					completionTriggerChars = mergeTriggers(completionTriggerChars,triggerChars);
 					return CompletableFuture.completedFuture(null);
 			});
@@ -250,7 +251,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			contextInformationTriggerCharsFuture = LanguageServers.forDocument(document)
 				.withFilter(capabilities -> capabilities.getSignatureHelpProvider() != null) //
 				.collectAll((w, ls) -> {
-					List<String> triggerChars = castNonNull(w.getServerCapabilities()).getSignatureHelpProvider().getTriggerCharacters();
+					List<String> triggerChars = castNonNull(w.getServerCapabilities(uri)).getSignatureHelpProvider().getTriggerCharacters();
 					contextTriggerChars = mergeTriggers(contextTriggerChars, triggerChars);
 					return CompletableFuture.completedFuture(null);
 			});

@@ -23,9 +23,67 @@ import java.util.List;
 import java.util.Objects;
 
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4j.RelativePattern;
+import org.eclipse.lsp4j.WorkspaceFolder;
+import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 // Based on https://github.com/redhat-developer/lsp4ij/blob/6f41f6d22a7146f31e0218cb459513abd5dc16d3/src/main/java/com/redhat/devtools/lsp4ij/features/files/PathPatternMatcher.java
 public final class PathPatternMatcher {
+
+	/**
+	 * Creates a matcher from an LSP glob pattern as used by both {@code FileSystemWatcher.globPattern}
+	 * and {@code DocumentFilter.pattern}.
+	 * <p>
+	 * A plain string pattern is combined with the given {@code stringPatternBasePath} (which may be
+	 * {@code null} for absolute-path matching); a {@link RelativePattern} always uses the base path
+	 * derived from its own {@code baseUri}.
+	 *
+	 * @return the matcher, or {@code null} if the pattern or a relative pattern's base URI is invalid
+	 */
+	public static @Nullable PathPatternMatcher fromGlobPattern(final Either<String, RelativePattern> globPattern,
+			final @Nullable Path stringPatternBasePath) {
+		if (globPattern.isLeft()) {
+			final String pattern = globPattern.getLeft();
+			return pattern.isBlank() //
+					? null // Invalid pattern, ignore it
+					: new PathPatternMatcher(pattern, stringPatternBasePath);
+		}
+		final RelativePattern relativePattern = globPattern.getRight();
+		final String pattern = relativePattern.getPattern();
+		if (pattern.isBlank())
+			return null; // Invalid pattern, ignore it
+
+		final Path relativeBasePath = getRelativeBasePath(relativePattern.getBaseUri());
+		if (relativeBasePath == null) {
+			// Invalid baseUri, ignore the pattern
+			return null;
+		}
+		return new PathPatternMatcher(pattern, relativeBasePath);
+	}
+
+	private static @Nullable Path getRelativeBasePath(final @Nullable Either<WorkspaceFolder, String> baseUri) {
+		if (baseUri == null)
+			return null;
+
+		String baseDir = null;
+		if (baseUri.isRight()) {
+			baseDir = baseUri.getRight();
+		} else if (baseUri.isLeft()) {
+			final var workspaceFolder = baseUri.getLeft();
+			baseDir = workspaceFolder.getUri();
+		}
+		if (baseDir == null || baseDir.isBlank())
+			return null;
+
+		try {
+			return Paths.get(URI.create(baseDir));
+		} catch (final Exception ex) {
+			// Invalid baseUri, ignore the pattern
+			LanguageServerPlugin.logWarning(ex.getMessage(), ex);
+		}
+		return null;
+	}
 
 	private record Parts(List<String> parts, List<Integer> cols) {
 	}

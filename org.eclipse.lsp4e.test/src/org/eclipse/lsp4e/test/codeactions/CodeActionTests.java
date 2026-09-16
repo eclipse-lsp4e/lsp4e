@@ -269,11 +269,11 @@ public class CodeActionTests extends AbstractTestWithProject {
 		assertEquals(new FileEditorInput(targetFile), ((AbstractTextEditor)activeEditorPart).getEditorInput());
 	}
 
-	private static IMarker assertDiagnostics(IFile f, String markerMessage, String resolutionLabel) throws CoreException {
+	public static IMarker assertDiagnostics(IFile f, String markerMessage, String resolutionLabel) throws CoreException {
 		return assertDiagnostics(f, markerMessage, resolutionLabel, true);
 	}
 
-	private static IMarker assertDiagnostics(IFile f, String markerMessage, String resolutionLabel, boolean resolutionExpected) throws CoreException {
+	public static IMarker assertDiagnostics(IFile f, String markerMessage, String resolutionLabel, boolean resolutionExpected) throws CoreException {
 		waitForAndAssertCondition(2_000, () -> {
 			IMarker[] markers = f.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
 					IResource.DEPTH_ZERO);
@@ -294,7 +294,7 @@ public class CodeActionTests extends AbstractTestWithProject {
 		return m;
 	}
 
-	private static void assertResolution(AbstractTextEditor editor, IMarker m, String newText) {
+	public static void assertResolution(AbstractTextEditor editor, IMarker m, String newText) {
 		IDE.getMarkerHelpRegistry().getResolutions(m)[0].run(m);
 
 		waitForCondition(1_000,
