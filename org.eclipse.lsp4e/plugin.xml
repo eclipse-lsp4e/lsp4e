@@ -79,7 +79,8 @@
    <extension point="org.eclipse.ui.ide.markerResolution">
       <markerResolutionGenerator
             class="org.eclipse.lsp4e.operations.codeactions.LSPCodeActionMarkerResolution"
-            markerType="org.eclipse.lsp4e.diagnostic" />
+            markerType="org.eclipse.lsp4e.diagnostic"
+            matchChildren="true" />
    </extension>
 
 
