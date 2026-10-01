@@ -79,9 +79,12 @@ public class DSPVariable extends DSPDebugElement implements IVariable {
 	}
 
 	/**
-	 * @return The variable ID sent by the server that underlies this object
+	 * @return variables reference of the parent container that underlies this
+	 *         object. Note that this is only valid while the thread owning its
+	 *         stack frame remains stopped: see
+	 *         {@link https://microsoft.github.io/debug-adapter-protocol/overview}
 	 */
-	public Integer getParentVariablesReferenceId() {
+	public Integer getParentVariablesReference() {
 		return this.parentVariablesReference;
 	}
 

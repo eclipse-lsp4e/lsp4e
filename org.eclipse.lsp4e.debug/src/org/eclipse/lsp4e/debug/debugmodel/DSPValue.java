@@ -86,7 +86,14 @@ public final class DSPValue extends DSPDebugElement implements IValue {
 		return variablesReference != null && variablesReference > 0;
 	}
 
-	public Integer getVariablesReferenceId() {
+	/**
+	 * @return The variable reference corresponding to this node in the DAP variable
+	 *         hierarchy; will be null for a leaf node with no further children. See
+	 *         {@link https://microsoft.github.io/debug-adapter-protocol/overview}:
+	 *         variable handles only stay valid whilst the thread owning the stack
+	 *         frame remains stopped
+	 */
+	public @Nullable Integer getVariablesReference() {
 		return variablesReference;
 	}
 }
