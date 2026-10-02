@@ -19,6 +19,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 
 import org.eclipse.core.runtime.Adapters;
 import org.eclipse.core.runtime.IAdaptable;
@@ -78,10 +79,8 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 				@Override
 				public int read(byte[] b, int off, int len) throws IOException {
 					int bytes = super.read(b, off, len);
-					final var payload = new byte[bytes];
-					System.arraycopy(b, off, payload, 0, bytes);
-					if (messageLogger.shouldLog()) {
-						String s = message(Direction.LANGUAGE_SERVER_TO_LSP4E, payload);
+					if (bytes > 0 && messageLogger.shouldLog()) {
+						String s = message(Direction.LANGUAGE_SERVER_TO_LSP4E, Arrays.copyOfRange(b, off, off + bytes));
 						messageLogger.log(s);
 					}
 					return bytes;
@@ -109,10 +108,8 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 				@Override
 				public int read(byte[] b, int off, int len) throws IOException {
 					int bytes = super.read(b, off, len);
-					final var payload = new byte[bytes];
-					System.arraycopy(b, off, payload, 0, bytes);
-					if (messageLogger.shouldLog()) {
-						String s = errorMessage(payload);
+					if (bytes > 0 && messageLogger.shouldLog()) {
+						String s = errorMessage(Arrays.copyOfRange(b, off, off + bytes));
 						messageLogger.log(s);
 					}
 					return bytes;
