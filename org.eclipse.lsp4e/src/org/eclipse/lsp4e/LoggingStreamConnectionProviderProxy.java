@@ -62,8 +62,8 @@ public class LoggingStreamConnectionProviderProxy implements StreamConnectionPro
 	private @Nullable InputStream errorStream;
 	private final String id;
 	private final @Nullable File logFile;
-	private boolean logToFile;
-	private boolean logToConsole;
+	private volatile boolean logToFile;
+	private volatile boolean logToConsole;
 
 	/**
 	 * Converts a language server ID to the preference ID for logging communications
