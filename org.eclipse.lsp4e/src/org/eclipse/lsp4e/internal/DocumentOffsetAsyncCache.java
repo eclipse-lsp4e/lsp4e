@@ -11,6 +11,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.internal;
 
+import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
+
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
@@ -36,7 +38,8 @@ import org.eclipse.jface.text.IDocumentExtension4;
  * background.
  * <li>Eviction: TTL-based using {@link System#nanoTime()} and document-change
  * invalidation when a stable modification stamp is available.
- * <li>In-flight de-duplication: only one running task per document+offset.
+ * <li>In-flight de-duplication: only one running task per document+offset;
+ * a task started for an older document stamp is not handed out anymore.
  * <li>Stale-result protection: if the document changes while a value is being
  * computed, the result is delivered to callers but is not cached.
  */
@@ -52,9 +55,17 @@ public final class DocumentOffsetAsyncCache<V> {
 		}
 	}
 
+	private record InFlight<V>(CompletableFuture<V> future, long docModStamp) {
+		boolean stale(final long currentDocStamp) {
+			return docModStamp != IDocumentExtension4.UNKNOWN_MODIFICATION_STAMP
+					&& currentDocStamp != IDocumentExtension4.UNKNOWN_MODIFICATION_STAMP
+					&& docModStamp != currentDocStamp;
+		}
+	}
+
 	private final Map<IDocument, ConcurrentMap<Integer, Entry<V>>> cache = Collections
 			.synchronizedMap(new WeakHashMap<>());
-	private final Map<IDocument, ConcurrentMap<Integer, CompletableFuture<V>>> inFlight = Collections
+	private final Map<IDocument, ConcurrentMap<Integer, InFlight<V>>> inFlight = Collections
 			.synchronizedMap(new WeakHashMap<>());
 
 	private final long ttlNanos;
@@ -76,26 +87,26 @@ public final class DocumentOffsetAsyncCache<V> {
 		if (cachedNow != null)
 			return CompletableFuture.completedFuture(cachedNow);
 
-		final ConcurrentMap<Integer, CompletableFuture<V>> byOffset = inFlight.computeIfAbsent(doc,
+		final ConcurrentMap<Integer, InFlight<V>> byOffset = inFlight.computeIfAbsent(doc,
 				d -> new ConcurrentHashMap<>());
-		return byOffset.computeIfAbsent(offset, k -> {
-			final long startStamp = DocumentUtil.getDocumentModificationStamp(doc);
-			final CompletableFuture<V> cf = supplier.get();
-			cf.whenComplete((v, t) -> {
-				// Always clean up the in-flight entry by key. Only one future exists
-				// per offset due to computeIfAbsent, so this is safe and avoids capturing
-				// a specific future instance.
-				byOffset.remove(offset);
-				if (t == null && v != null) {
-					final long nowStamp = DocumentUtil.getDocumentModificationStamp(doc);
-					if (startStamp == IDocumentExtension4.UNKNOWN_MODIFICATION_STAMP
-							|| nowStamp == IDocumentExtension4.UNKNOWN_MODIFICATION_STAMP || nowStamp == startStamp) {
-						put(doc, offset, v);
-					}
+		final long startStamp = DocumentUtil.getDocumentModificationStamp(doc);
+		final var started = new boolean[1];
+		final InFlight<V> entry = castNonNull(byOffset.compute(offset, (k, running) -> {
+			if (running != null && !running.stale(startStamp))
+				return running;
+			started[0] = true;
+			return new InFlight<>(supplier.get(), startStamp);
+		}));
+		if (started[0]) {
+			// registered outside compute() since an already completed future runs the callback inline
+			entry.future().whenComplete((v, t) -> {
+				byOffset.remove(offset, entry);
+				if (t == null && v != null && !entry.stale(DocumentUtil.getDocumentModificationStamp(doc))) {
+					put(doc, offset, v);
 				}
 			});
-			return cf;
-		});
+		}
+		return entry.future();
 	}
 
 	/**
@@ -123,7 +134,7 @@ public final class DocumentOffsetAsyncCache<V> {
 		cache.remove(doc); // synchronizedMap handles its own locking
 		final var map = inFlight.remove(doc); // remove returns the per-doc map, if any
 		if (map != null) {
-			map.values().forEach(f -> f.cancel(true));
+			map.values().forEach(f -> f.future().cancel(true));
 		}
 	}
 
