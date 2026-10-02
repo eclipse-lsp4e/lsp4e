@@ -179,7 +179,7 @@ public class LSCompletionProposal
 		this.selection = p.selection;
 		this.firstPosition = p.firstPosition;
 		this.rankCategory = p.rankCategory;
-		this.rankCategory = p.rankScore;
+		this.rankScore = p.rankScore;
 		this.documentFilter = p.documentFilter;
 		this.documentFilterAddition = p.documentFilterAddition;
 	}

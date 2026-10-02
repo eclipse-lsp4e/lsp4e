@@ -8,7 +8,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.references;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -90,12 +89,7 @@ public class FileAndURIMatchLabelProvider extends DecoratingStyledCellLabelProvi
 				return resourceMatchDelegate.getImage(element);
 			}
 			if (element instanceof URI uri && "file".equals(uri.getScheme())) { //$NON-NLS-1$
-				File file = new File(uri);
-				if (file.isDirectory()) {
-					return PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FOLDER);
-				} else {
-					return PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FOLDER);
-				}
+				return PlatformUI.getWorkbench().getSharedImages().getImage(ISharedImages.IMG_OBJ_FILE);
 			}
 			return null;
 		}
