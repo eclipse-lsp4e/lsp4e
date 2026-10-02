@@ -13,8 +13,10 @@
 package org.eclipse.lsp4e.operations.documentLink;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -31,10 +33,19 @@ import org.eclipse.jface.text.hyperlink.IHyperlink;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.DocumentOffsetAsyncCache;
 import org.eclipse.lsp4j.DocumentLink;
 import org.eclipse.lsp4j.DocumentLinkParams;
 
 public class DocumentLinkDetector extends AbstractHyperlinkDetector {
+
+	private static final long UI_BLOCKING_BUDGET_MS = 200;
+
+	// document links do not depend on the hovered offset, so one entry per document is enough
+	private static final int DOCUMENT_KEY = 0;
+
+	private static final DocumentOffsetAsyncCache<List<DocumentLink>> CACHE = new DocumentOffsetAsyncCache<>(
+			Duration.ofSeconds(10));
 
 	public static class DocumentHyperlink implements IHyperlink {
 
@@ -96,21 +107,20 @@ public class DocumentLinkDetector extends AbstractHyperlinkDetector {
 		if (uri == null) {
 			return null;
 		}
-		final var params = new DocumentLinkParams(LSPEclipseUtils.toTextDocumentIdentifier(uri));
-		try {
+		final CompletableFuture<List<DocumentLink>> request = CACHE.computeIfAbsent(document, DOCUMENT_KEY, () -> {
+			final var params = new DocumentLinkParams(LSPEclipseUtils.toTextDocumentIdentifier(uri));
 			return LanguageServers.forDocument(document)
 					.withFilter(capabilities -> capabilities.getDocumentLinkProvider() != null)
 					.collectAll(languageServer -> languageServer.getTextDocumentService().documentLink(params))
-					.thenApply(links -> {
-						IHyperlink[] res = links.stream().flatMap(List<DocumentLink>::stream).filter(Objects::nonNull)
-								.filter(link -> link.getTarget() != null).map(link -> toHyperlink(region, document, link))
-								.filter(Objects::nonNull).toArray(IHyperlink[]::new);
-						if (res.length == 0) {
-							return null;
-						} else {
-							return res;
-						}
-					}).get(4, TimeUnit.SECONDS);
+					.thenApply(links -> links.stream().flatMap(List<DocumentLink>::stream).filter(Objects::nonNull)
+							.filter(link -> link.getTarget() != null).toList());
+		});
+		try {
+			// a slow server must not freeze the UI; the request keeps running and serves the next mouse move
+			IHyperlink[] res = request.get(UI_BLOCKING_BUDGET_MS, TimeUnit.MILLISECONDS).stream()
+					.map(link -> toHyperlink(region, document, link)).filter(Objects::nonNull)
+					.toArray(IHyperlink[]::new);
+			return res.length == 0 ? null : res;
 		} catch (ExecutionException e) {
 			LanguageServerPlugin.logError(e);
 			return null;
@@ -119,7 +129,6 @@ public class DocumentLinkDetector extends AbstractHyperlinkDetector {
 			Thread.currentThread().interrupt();
 			return null;
 		} catch (TimeoutException e) {
-			LanguageServerPlugin.logWarning("Could not detect hyperlinks due to timeout after 4 seconds"); //$NON-NLS-1$
 			return null;
 		}
 	}
