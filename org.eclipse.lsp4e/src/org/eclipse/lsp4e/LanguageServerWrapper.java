@@ -408,7 +408,7 @@ public class LanguageServerWrapper {
 	private synchronized void start(boolean forceRestart) {
 		final var filesToReconnect = new HashMap<URI, IDocument>();
 		if (this.context.languageServer != null) {
-			if (isActive() && !forceRestart) {
+			if ((isActive() || isLaunching()) && !forceRestart) {
 				return;
 			} else {
 				for (Entry<URI, DocumentContentSynchronizer> entry : this.connectedDocuments.entrySet()) {
@@ -686,6 +686,12 @@ public class LanguageServerWrapper {
 		} else if (LanguageServerPlugin.DEBUG) {
 			LanguageServerPlugin.logInfo(message.getClass().getSimpleName() + '\n' + message);
 		}
+	}
+
+	/** The launcher is not started yet, so {@link #isActive()} is still false although the startup is running. */
+	private synchronized boolean isLaunching() {
+		final var initFuture = initializeFuture;
+		return context.launcherFuture == null && initFuture != null && !initFuture.isDone();
 	}
 
 	/**
