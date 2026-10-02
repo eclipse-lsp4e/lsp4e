@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.jface.text.IDocument;
@@ -205,12 +206,19 @@ public class CompletionOrderingTests extends AbstractCompletionTest {
 		final int repeat = 5;
 		final ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "abcdefgh"));
 
+		// warm up JIT and class loading outside the measured runs
+		for (int size : batchSizes) {
+			timeToDisplayCompletionList(viewer, size, factory.getServer());
+		}
+
 		for (int i = 0; i < batchSizes.length; i++) {
-			long resultSum = 0;
+			final var times = new long[repeat];
 			for (int j = 0; j < repeat; j++) {
-				resultSum += timeToDisplayCompletionList(viewer, batchSizes[i], factory.getServer());
+				times[j] = timeToDisplayCompletionList(viewer, batchSizes[i], factory.getServer());
 			}
-			resultAverages[i] = (int) (resultSum / repeat);
+			// median, so one GC pause or scheduling hiccup does not skew the point
+			Arrays.sort(times);
+			resultAverages[i] = (int) times[repeat / 2];
 		}
 		double pearsonCorrelation = isLinearCorelation(batchSizes, resultAverages);
 		assertTrue(pearsonCorrelation > 0.99);

@@ -107,6 +107,15 @@ public class FindReferencesTest extends AbstractTestWithProject {
 					new Location(testFile.getLocationURI().toString(), new Range(new Position(1, 6), new Position(1, 11))));
 		
 		
+		final var handler = new LSFindReferences();
+		final var evaluationService = PlatformUI.getWorkbench().getService(IEvaluationService.class);
+
+		// first-time search view creation and class loading must not count as a UI freeze
+		final var warmupListener = registerSearchResultListener();
+		handler.execute(new ExecutionEvent(null, new HashMap<>(), null, evaluationService.getCurrentState()));
+		waitForAndAssertSearchResult(warmupListener, 0, 5_000);
+		ensureSearchResultViewIsClosed();
+
 		final int uiFreezeThreshold = 300;
 		final int findReferencesFakeDuration = uiFreezeThreshold * 5;
 
@@ -117,8 +126,6 @@ public class FindReferencesTest extends AbstractTestWithProject {
 
 		factory.getServer().setTimeToProceedQueries(findReferencesFakeDuration);
 		try {
-			final var handler = new LSFindReferences();
-			final var evaluationService = PlatformUI.getWorkbench().getService(IEvaluationService.class);
 			final var searchResultListener = registerSearchResultListener();
 
 			long startTime = System.currentTimeMillis();
