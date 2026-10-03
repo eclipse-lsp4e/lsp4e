@@ -56,7 +56,7 @@ public class LSPFormatter {
 		// advertise formatting but return no edits (empty list) are treated as "no result" and formatting
 		// can fall through to the next server (e.g. Vue LS after TS LS on .vue files).
 		long modificationStamp = DocumentUtil.getDocumentModificationStamp(document);
-		return executor.computeFirst((w, ls) -> w.getServerCapabilitiesAsync().thenCompose(capabilities -> {
+		return executor.computeFirst((w, ls) -> w.getServerCapabilitiesAsync(uri).thenCompose(capabilities -> {
 			if (capabilities == null) {
 				return CompletableFuture.completedFuture(null);
 			}

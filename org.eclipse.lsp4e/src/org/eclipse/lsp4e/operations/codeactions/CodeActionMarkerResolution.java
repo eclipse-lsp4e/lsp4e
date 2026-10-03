@@ -14,6 +14,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.codeactions;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -78,7 +79,8 @@ public class CodeActionMarkerResolution extends WorkbenchMarkerResolution implem
 		}
 		LanguageServerWrapper wrapper = getLanguageServerWrapper(marker);
 		if (wrapper != null) {
-			resolveCodeAction(wrapper);
+			IResource resource = marker.getResource();
+			resolveCodeAction(wrapper, resource == null ? null : LSPEclipseUtils.toUri(resource));
 			if (codeAction.getEdit() != null) {
 				LSPEclipseUtils.applyWorkspaceEdit(codeAction.getEdit(), codeAction.getTitle());
 			}
@@ -93,7 +95,6 @@ public class CodeActionMarkerResolution extends WorkbenchMarkerResolution implem
 							.exceptionally(t -> reportServerError(serverDefinition, t))
 					);
 				} else  {
-					IResource resource = marker.getResource();
 					if (resource != null) {
 						CommandExecutor.executeCommandClientSide(command, resource);
 					}
@@ -162,10 +163,23 @@ public class CodeActionMarkerResolution extends WorkbenchMarkerResolution implem
 	 *            the wrapper for the language server to send the resolve request to.
 	 */
 	public void resolveCodeAction(LanguageServerWrapper wrapper) {
+		resolveCodeAction(wrapper, null);
+	}
+
+	/**
+	 * Resolve the code action using the given language server wrapper.
+	 *
+	 * @param wrapper
+	 *            the wrapper for the language server to send the resolve request to.
+	 * @param uri
+	 *            the URI of the document the code action belongs to, used to evaluate
+	 *            document-selector-scoped dynamic capability registrations; may be {@code null}
+	 */
+	public void resolveCodeAction(LanguageServerWrapper wrapper, @Nullable URI uri) {
 		if (codeAction.getEdit() != null) {
 			return;
 		}
-		if (CodeActionCompletionProposal.isCodeActionResolveSupported(wrapper.getServerCapabilities())) {
+		if (CodeActionCompletionProposal.isCodeActionResolveSupported(wrapper.getServerCapabilities(uri))) {
 			try {
 				CodeAction resolvedCodeAction = wrapper.execute(ls -> ls.getTextDocumentService().resolveCodeAction(codeAction)).get(2, TimeUnit.SECONDS);
 				if (resolvedCodeAction != null) {
