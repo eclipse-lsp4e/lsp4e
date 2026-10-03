@@ -12,16 +12,19 @@
 package org.eclipse.lsp4e.test.edit;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.NullProgressMonitor;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.lsp4e.LSPEclipseUtils;
+import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
@@ -71,5 +74,37 @@ public class DocumentWillSaveWaitUntilTest extends AbstractTestWithProject {
 				return false;
 			}
 		});
+	}
+
+	@Test
+	public void testCancelOnTimeout(MockLanguageServerFactory factory) throws Exception {
+		final var oldText = "Hello";
+		final String timeoutKey = "org.eclipse.lsp4e.test.server.timeout.willSaveWaitUntil";
+		IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		store.setValue(timeoutKey, 1);
+		try {
+			factory.withConfiguration((idx, server) -> {
+				server.setWillSaveWaitUntil(createSingleTextEditAtFileStart("hello"));
+			});
+
+			IFile testFile = TestUtils.createUniqueTestFile(project, "");
+			IEditorPart editor = TestUtils.openEditor(testFile);
+			ITextViewer viewer = LSPEclipseUtils.getTextViewer(editor);
+
+			// Force LS to initialize and open file
+			IDocument document = LSPEclipseUtils.getDocument(testFile);
+			assertNotNull(document);
+			LanguageServers.forDocument(document).anyMatching();
+
+			factory.getServer().setTimeToProceedQueries(3_000);
+			viewer.getDocument().replace(0, 0, oldText);
+			editor.doSave(new NullProgressMonitor());
+
+			waitForAndAssertCondition("willSaveWaitUntil request has not been cancelled", 2_000,
+					() -> !factory.cancellations.isEmpty());
+			assertEquals(oldText, viewer.getDocument().get());
+		} finally {
+			store.setToDefault(timeoutKey);
+		}
 	}
 }

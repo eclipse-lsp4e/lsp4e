@@ -318,7 +318,7 @@ public class MockTextDocumentService implements TextDocumentService {
 	@Override
 	public CompletableFuture<List<TextEdit>> willSaveWaitUntil(WillSaveTextDocumentParams params) {
 		if (mockWillSaveWaitUntilTextEdits != null) {
-			return CompletableFuture.completedFuture(mockWillSaveWaitUntilTextEdits);
+			return futureFactory(mockWillSaveWaitUntilTextEdits);
 		}
 		return null;
 	}
