@@ -44,6 +44,13 @@ public class OutlineSorter extends ViewerComparator {
 		return HumanFriendlyComparator.DEFAULT.compare(name1, name2);
 	}
 
+	@Override
+	public void sort(final @Nullable Viewer viewer, final Object[] elements) {
+		if (!isSortingEnabled())
+			return;
+		super.sort(viewer, elements);
+	}
+
 	private @Nullable String getName(@Nullable Object element) {
 		if (element == null)
 			return null;
