@@ -12,8 +12,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.outline;
 
-import static org.eclipse.lsp4e.LSPEclipseUtils.findResourceFor;
-
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -94,7 +92,7 @@ public class SymbolsLabelProvider extends LabelProvider
 		}
 	};
 
-	private final Map<Object /*URI|String*/, @Nullable IResource> resourceCache = new HashMap<>();
+	private final Map<Either<URI, String>, @Nullable IResource> resourceCache = new HashMap<>();
 	private volatile boolean cachedMissesStale;
 
 	private final boolean showLocation;
@@ -177,19 +175,17 @@ public class SymbolsLabelProvider extends LabelProvider
 	}
 
 	private int getMaxSeverity(final Object element) {
-		IResource file = null;
-		if (element instanceof SymbolInformation info) {
-			file = getCachedResource(info.getLocation().getUri());
-		} else if (element instanceof WorkspaceSymbol symbol) {
-			file = getCachedResource(getUri(symbol));
-		} else if (element instanceof DocumentSymbolWithURI symbolWithURI) {
-			file = getCachedResource(symbolWithURI.uri);
-		}
+		Either<URI, String> key = switch (element) {
+		case SymbolInformation symbol -> Either.forRight(symbol.getLocation().getUri());
+		case WorkspaceSymbol symbol -> Either.forRight(getUri(symbol));
+		case DocumentSymbolWithURI symbol -> Either.forLeft(symbol.uri);
+	    default -> null;
+		};
 
 		/*
 		 * Implementation node: for problem decoration, maybe consider using a ILabelDecorator/IDelayedLabelDecorator?
 		 */
-		if (file != null) {
+		if (key != null) {
 			Range range = null;
 			if (element instanceof SymbolInformation symbol) {
 				range = symbol.getLocation().getRange();
@@ -202,17 +198,20 @@ public class SymbolsLabelProvider extends LabelProvider
 			}
 
 			if (range != null) {
-				try {
-					// use existing documents only to calculate the severity
-					// to avoid extra documents being created (and connected
-					// to the language server just for this (bug 550968)
-					IDocument doc = LSPEclipseUtils.getExistingDocument(file);
+				IResource file =  getCachedResource(key);
+				if (file != null) {
+					try {
+						// use existing documents only to calculate the severity
+						// to avoid extra documents being created (and connected
+						// to the language server just for this (bug 550968)
+						IDocument doc = LSPEclipseUtils.getExistingDocument(file);
 
-					if (doc != null) {
-						return getMaxSeverity(file, doc, range);
+						if (doc != null) {
+							return getMaxSeverity(file, doc, range);
+						}
+					} catch (CoreException | BadLocationException e) {
+						LanguageServerPlugin.logError(e);
 					}
-				} catch (CoreException | BadLocationException e) {
-					LanguageServerPlugin.logError(e);
 				}
 			}
 		}
@@ -220,7 +219,7 @@ public class SymbolsLabelProvider extends LabelProvider
 	}
 
 	/** Caches misses too, since a document outside the workspace would otherwise be looked up once per symbol. */
-	private @Nullable IResource getCachedResource(final Object uri) {
+	private @Nullable IResource getCachedResource(final Either<URI, String> uri) {
 		if (cachedMissesStale) {
 			cachedMissesStale = false;
 			resourceCache.values().removeIf(Objects::isNull);
@@ -229,7 +228,7 @@ public class SymbolsLabelProvider extends LabelProvider
 		if (cachedResource != null || resourceCache.containsKey(uri)) {
 			return cachedResource;
 		}
-		IResource resource = uri instanceof URI u ? findResourceFor(u) : findResourceFor((String) uri);
+		IResource resource = uri.map(LSPEclipseUtils::findResourceFor, LSPEclipseUtils::findResourceFor);
 		resourceCache.put(uri, resource);
 		return resource;
 	}
