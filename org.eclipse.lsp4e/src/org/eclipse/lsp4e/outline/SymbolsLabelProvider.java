@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IResource;
@@ -82,6 +83,9 @@ public class SymbolsLabelProvider extends LabelProvider
 					if (d.getMarkerDeltas().length > 0) {
 						severities.remove(d.getResource());
 					}
+					if (d.getKind() == IResourceDelta.ADDED || (d.getFlags() & IResourceDelta.OPEN) != 0) {
+						cachedMissesStale = true;
+					}
 					return true;
 				});
 			}
@@ -90,7 +94,8 @@ public class SymbolsLabelProvider extends LabelProvider
 		}
 	};
 
-	private final Map<Object /*URI|String*/, IResource> resourceCache = new HashMap<>();
+	private final Map<Object /*URI|String*/, @Nullable IResource> resourceCache = new HashMap<>();
+	private volatile boolean cachedMissesStale;
 
 	private final boolean showLocation;
 
@@ -174,11 +179,11 @@ public class SymbolsLabelProvider extends LabelProvider
 	private int getMaxSeverity(final Object element) {
 		IResource file = null;
 		if (element instanceof SymbolInformation info) {
-			file = resourceCache.computeIfAbsent(info.getLocation().getUri(), uri -> findResourceFor((String) uri));
+			file = getCachedResource(info.getLocation().getUri());
 		} else if (element instanceof WorkspaceSymbol symbol) {
-			file = resourceCache.computeIfAbsent(getUri(symbol), uri -> findResourceFor((String) uri));
+			file = getCachedResource(getUri(symbol));
 		} else if (element instanceof DocumentSymbolWithURI symbolWithURI) {
-			file = resourceCache.computeIfAbsent(symbolWithURI.uri, uri -> findResourceFor((URI) uri));
+			file = getCachedResource(symbolWithURI.uri);
 		}
 
 		/*
@@ -212,6 +217,21 @@ public class SymbolsLabelProvider extends LabelProvider
 			}
 		}
 		return -1;
+	}
+
+	/** Caches misses too, since a document outside the workspace would otherwise be looked up once per symbol. */
+	private @Nullable IResource getCachedResource(final Object uri) {
+		if (cachedMissesStale) {
+			cachedMissesStale = false;
+			resourceCache.values().removeIf(Objects::isNull);
+		}
+		IResource cachedResource = resourceCache.get(uri);
+		if (cachedResource != null || resourceCache.containsKey(uri)) {
+			return cachedResource;
+		}
+		IResource resource = uri instanceof URI u ? findResourceFor(u) : findResourceFor((String) uri);
+		resourceCache.put(uri, resource);
+		return resource;
 	}
 
 	protected int getMaxSeverity(final IResource resource, final IDocument doc, final Range range)

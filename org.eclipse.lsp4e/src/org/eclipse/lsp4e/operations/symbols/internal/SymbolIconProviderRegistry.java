@@ -42,6 +42,12 @@ public class SymbolIconProviderRegistry {
 	// symbol icon providers from extensions, cached per content type ID
 	private final Map<String, SymbolIconProvider> cachedIconProviders = new HashMap<>();
 
+	private record FileNameForUri(URI uri, @Nullable String fileName) {
+	}
+
+	// all symbols of one outline share a URI, and resolving its file name can scan the whole workspace
+	private volatile @Nullable FileNameForUri lastFileName;
+
 	private SymbolIconProviderRegistry() {
 		loadExtensions();
 	}
@@ -106,7 +112,7 @@ public class SymbolIconProviderRegistry {
 			return defaultIconProvider;
 		}
 
-		String fileName = LSPEclipseUtils.getFileName(uri);
+		String fileName = getFileName(uri);
 		if (fileName == null) {
 			return defaultIconProvider;
 		}
@@ -124,6 +130,15 @@ public class SymbolIconProviderRegistry {
 		}
 
 		return defaultIconProvider;
+	}
+
+	private @Nullable String getFileName(URI uri) {
+		FileNameForUri last = lastFileName;
+		if (last == null || !last.uri().equals(uri)) {
+			last = new FileNameForUri(uri, LSPEclipseUtils.getFileName(uri));
+			lastFileName = last;
+		}
+		return last.fileName();
 	}
 
 	private @Nullable URI getUri(Object symbol) {
