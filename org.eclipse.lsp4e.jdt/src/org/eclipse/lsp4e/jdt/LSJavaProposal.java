@@ -11,30 +11,18 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.jdt;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
-
-import org.eclipse.core.runtime.FileLocator;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jdt.internal.codeassist.RelevanceConstants;
-import org.eclipse.jdt.internal.ui.text.java.AbstractJavaCompletionProposal;
 import org.eclipse.jdt.internal.ui.text.java.hover.JavadocHover;
-import org.eclipse.jdt.ui.PreferenceConstants;
 import org.eclipse.jdt.ui.text.java.IJavaCompletionProposal;
 import org.eclipse.jface.internal.text.html.HTMLPrinter;
 import org.eclipse.jface.resource.ColorRegistry;
 import org.eclipse.jface.resource.JFaceResources;
 import org.eclipse.jface.text.IInformationControlCreator;
-import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
-import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.RGB;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.FrameworkUtil;
 
 @SuppressWarnings("restriction")
 class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProposal {
@@ -48,8 +36,6 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 
 	private static final int RANGE_WITHIN_CATEGORY = Math.round((MAX_BASE_RELEVANCE - DEFAULT_RELEVANCE) / 4f);
 
-	private static @Nullable String fgCSSStyles = null;
-	
 	private boolean relevanceComputed = false;
 	private int relevance = -1;
 
@@ -112,7 +98,7 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 		ColorRegistry registry= JFaceResources.getColorRegistry();
 		RGB fgRGB= registry.getRGB("org.eclipse.jdt.ui.Javadoc.foregroundColor"); //$NON-NLS-1$
 		RGB bgRGB= registry.getRGB("org.eclipse.jdt.ui.Javadoc.backgroundColor"); //$NON-NLS-1$
-		HTMLPrinter.insertPageProlog(buffer, 0, fgRGB, bgRGB, getCSSStyles());
+		HTMLPrinter.insertPageProlog(buffer, 0, fgRGB, bgRGB, LSJavaHoverProvider.getStyleSheet());
 		HTMLPrinter.addPageEpilog(buffer);
 		return buffer.toString();
 	}
@@ -121,49 +107,4 @@ class LSJavaProposal extends LSCompletionProposal implements IJavaCompletionProp
 	public @NonNull String getInformationDisplayString() {
 		return item.getLabel();
 	}
-
-	/**
-	 * Returns the style information for displaying HTML (Javadoc) content.
-	 * Copied from org.eclipse.jdt.internal.ui.text.java.AbstractJavaCompletionProposal.getCSSStyles()
-	 *
-	 * @return the CSS styles
-	 */
-	private @Nullable String getCSSStyles() {
-		if (fgCSSStyles == null) {
-			Bundle bundle= FrameworkUtil.getBundle(AbstractJavaCompletionProposal.class);
-			URL url= bundle == null ? null : bundle.getEntry("/JavadocHoverStyleSheet.css"); //$NON-NLS-1$
-			if (url != null) {
-				BufferedReader reader= null;
-				try {
-					url= FileLocator.toFileURL(url);
-					reader= new BufferedReader(new InputStreamReader(url.openStream()));
-					StringBuilder buffer= new StringBuilder(200);
-					String line= reader.readLine();
-					while (line != null) {
-						buffer.append(line);
-						buffer.append('\n');
-						line= reader.readLine();
-					}
-					fgCSSStyles= buffer.toString();
-				} catch (IOException ex) {
-					LanguageServerPlugin.logError(ex);
-				} finally {
-					try {
-						if (reader != null)
-							reader.close();
-					} catch (IOException e) {
-					}
-				}
-
-			}
-		}
-		String css= fgCSSStyles;
-		if (css != null) {
-			FontData fontData= JFaceResources.getFontRegistry().getFontData(PreferenceConstants.APPEARANCE_JAVADOC_FONT)[0];
-			css= HTMLPrinter.convertTopLevelFont(css, fontData);
-		}
-		return css;
-	}
-
-
 }

@@ -168,7 +168,7 @@ public class LSJavaHoverProvider extends JavadocHover {
 	 * Taken from {@link JavadocHover}. It's <code>private</code>. See {@link JavadocHover#getStyleSheet()}.
 	 * @return CSS as string
 	 */
-	private static @Nullable String getStyleSheet() {
+	static @Nullable String getStyleSheet() {
 		if (fgStyleSheet == null) {
 			fgStyleSheet= JavadocHover.loadStyleSheet("/JavadocHoverStyleSheet.css"); //$NON-NLS-1$
 		}
