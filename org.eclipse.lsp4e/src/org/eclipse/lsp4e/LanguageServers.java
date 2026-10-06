@@ -12,6 +12,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -254,12 +255,28 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 
 		private final IDocument document;
 
+		private volatile @Nullable URI uri;
+		private volatile boolean uriComputed;
+
 		protected LanguageServerDocumentExecutor(final IDocument document) {
 			this.document = document;
 		}
 
 		public IDocument getDocument() {
 			return this.document;
+		}
+
+		/**
+		 * The document's URI, computed lazily and at most once per executor: {@link #getServers()}
+		 * evaluates the capability filter for every candidate server, and resolving the URI involves
+		 * a file-buffer lookup.
+		 */
+		private @Nullable URI uri() {
+			if (!uriComputed) {
+				uri = LSPEclipseUtils.toUri(document);
+				uriComputed = true;
+			}
+			return uri;
 		}
 
 		CompletableFuture<@Nullable LanguageServerWrapper> connect(CompletableFuture<@Nullable LanguageServerWrapper> wrapperFuture) {
@@ -276,10 +293,12 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 
 
 		/**
-		 * Test whether this server supports the requested <code>ServerCapabilities</code>.
+		 * Test whether this server supports the requested <code>ServerCapabilities</code> for this
+		 * executor's document: dynamic capability registrations only count where their
+		 * {@code documentSelector} matches the document.
 		 */
 		private CompletableFuture<@Nullable LanguageServerWrapper> filter(LanguageServerWrapper wrapper) {
-			return wrapper.getServerCapabilitiesAsync() //
+			return wrapper.getServerCapabilitiesAsync(uri()) //
 					.thenApply(sc -> sc != null && getFilter().test(sc) ? wrapper : null);
 		}
 

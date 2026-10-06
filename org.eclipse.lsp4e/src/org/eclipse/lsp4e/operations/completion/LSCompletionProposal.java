@@ -363,7 +363,8 @@ public class LSCompletionProposal
 
 	@Override
 	public Object getAdditionalProposalInfo(IProgressMonitor monitor) {
-		if (languageServerWrapper.isActive() && resolvesCompletionItem(languageServerWrapper.getServerCapabilities())) {
+		if (languageServerWrapper.isActive()
+				&& resolvesCompletionItem(languageServerWrapper.getServerCapabilities(LSPEclipseUtils.toUri(document)))) {
 			resolveItem();
 		}
 

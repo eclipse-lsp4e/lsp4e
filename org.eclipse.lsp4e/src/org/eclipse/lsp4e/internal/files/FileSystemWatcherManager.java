@@ -28,9 +28,7 @@ import org.eclipse.core.resources.IProject;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4j.FileSystemWatcher;
-import org.eclipse.lsp4j.RelativePattern;
 import org.eclipse.lsp4j.WatchKind;
-import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 
 // Based on https://github.com/redhat-developer/lsp4ij/blob/6f41f6d22a7146f31e0218cb459513abd5dc16d3/src/main/java/com/redhat/devtools/lsp4ij/features/files/watcher/FileSystemWatcherManager.java
@@ -200,7 +198,7 @@ public final class FileSystemWatcherManager {
 
 		final var matchers = new HashMap<Integer, List<PathPatternMatcher>>();
 		for (final FileSystemWatcher watcher : watchers) {
-			final PathPatternMatcher matcher = getPathPatternMatcher(watcher, basePath);
+			final PathPatternMatcher matcher = PathPatternMatcher.fromGlobPattern(watcher.getGlobPattern(), basePath);
 			if (matcher != null) {
 				final Integer kind = watcher.getKind();
 				tryAddingMatcher(matcher, matchers, kind, WatchKind.Create);
@@ -316,53 +314,6 @@ public final class FileSystemWatcherManager {
 
 		// Path is not under base path, cache negative result
 		basePathToRelativePath.put(basePath, Either.forRight(Boolean.FALSE));
-		return null;
-	}
-
-	private static @Nullable PathPatternMatcher getPathPatternMatcher(final FileSystemWatcher fileSystemMatcher,
-			final @Nullable Path basePath) {
-		final Either<String, RelativePattern> globPattern = fileSystemMatcher.getGlobPattern();
-		if (globPattern.isLeft()) {
-			final String pattern = globPattern.getLeft();
-			return pattern.isBlank() //
-					? null // Invalid pattern, ignore the watcher
-					: new PathPatternMatcher(pattern, basePath);
-		}
-		final RelativePattern relativePattern = globPattern.getRight();
-		// Implement relative pattern like glob string pattern
-		// by waiting for finding a concrete use case.
-		final String pattern = relativePattern.getPattern();
-		if (pattern.isBlank())
-			return null; // Invalid pattern, ignore the watcher
-
-		final Path relativeBasePath = getRelativeBasePath(relativePattern.getBaseUri());
-		if (relativeBasePath == null) {
-			// Invalid baseUri, ignore the watcher
-			return null;
-		}
-		return new PathPatternMatcher(pattern, relativeBasePath);
-	}
-
-	private static @Nullable Path getRelativeBasePath(final @Nullable Either<WorkspaceFolder, String> baseUri) {
-		if (baseUri == null)
-			return null;
-
-		String baseDir = null;
-		if (baseUri.isRight()) {
-			baseDir = baseUri.getRight();
-		} else if (baseUri.isLeft()) {
-			final var workspaceFolder = baseUri.getLeft();
-			baseDir = workspaceFolder.getUri();
-		}
-		if (baseDir == null || baseDir.isBlank())
-			return null;
-
-		try {
-			return Paths.get(URI.create(baseDir));
-		} catch (final Exception ex) {
-			// Invalid baseUri, ignore the watcher
-			LanguageServerPlugin.logWarning(ex.getMessage(), ex);
-		}
 		return null;
 	}
 

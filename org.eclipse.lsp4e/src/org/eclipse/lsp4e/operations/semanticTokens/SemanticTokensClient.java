@@ -46,12 +46,17 @@ public final class SemanticTokensClient {
 						&& LSPEclipseUtils.hasCapability(serverCapabilities.getSemanticTokensProvider().getFull())) //
 				.computeFirst((w, ls) -> ls.getTextDocumentService()
 						.semanticTokensFull(new SemanticTokensParams(LSPEclipseUtils.toTextDocumentIdentifier(uri)))
-						.thenApply(semanticTokens -> callback.apply(getSemanticTokensLegend(w), semanticTokens)));
+						.thenApply(semanticTokens -> callback.apply(getSemanticTokensLegend(w, uri), semanticTokens)));
 	}
 
 	// public for testing
 	public @Nullable SemanticTokensLegend getSemanticTokensLegend(final LanguageServerWrapper wrapper) {
-		ServerCapabilities serverCapabilities = wrapper.getServerCapabilities();
+		return getSemanticTokensLegend(wrapper, null);
+	}
+
+	public @Nullable SemanticTokensLegend getSemanticTokensLegend(final LanguageServerWrapper wrapper,
+			final @Nullable URI uri) {
+		ServerCapabilities serverCapabilities = wrapper.getServerCapabilities(uri);
 		if (serverCapabilities != null) {
 			SemanticTokensWithRegistrationOptions semanticTokensProvider = serverCapabilities
 					.getSemanticTokensProvider();
