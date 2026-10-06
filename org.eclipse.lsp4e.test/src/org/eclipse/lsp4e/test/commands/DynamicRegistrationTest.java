@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
@@ -31,6 +32,7 @@ import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.tests.mock.MockWorkspaceService;
+import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.FileChangeType;
@@ -49,6 +51,30 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 	private static final String WORKSPACE_EXECUTE_COMMAND = "workspace/executeCommand";
 	private static final String WORKSPACE_DID_CHANGE_FOLDERS = "workspace/didChangeWorkspaceFolders";
 	private static final String WORKSPACE_DID_CHANGE_WATCHED_FILES = "workspace/didChangeWatchedFiles";
+	private static final String TEXT_DOCUMENT_DIAGNOSTIC = "textDocument/diagnostic";
+
+	@Test
+	public void testDiagnosticRegistration(MockLanguageServerFactory factory) throws Exception {
+		IFile testFile = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
+		// Make sure mock language server is created...
+		IDocument document = LSPEclipseUtils.getDocument(testFile);
+		assertNotNull(document);
+		// wait until the server is initialized and connected, so it can send registrations
+		LanguageServers.forDocument(document).collectAll(ls -> CompletableFuture.completedFuture(ls))
+				.get(5, TimeUnit.SECONDS);
+
+		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> c.getDiagnosticProvider() != null));
+
+		UUID registration = registerDiagnostics(factory.getServer());
+		try {
+			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> c.getDiagnosticProvider() != null
+					&& "dynamic".equals(c.getDiagnosticProvider().getIdentifier())
+					&& c.getDiagnosticProvider().isWorkspaceDiagnostics()));
+		} finally {
+			unregister(registration, TEXT_DOCUMENT_DIAGNOSTIC, factory.getServer());
+		}
+		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> c.getDiagnosticProvider() != null));
+	}
 
 	@Test
 	public void testCommandRegistration(MockLanguageServerFactory factory) throws Exception {
@@ -56,9 +82,9 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		// Make sure mock language server is created...
 		IDocument document = LSPEclipseUtils.getDocument(testFile);
 		assertNotNull(document);
-		LanguageServers.forDocument(document).anyMatching();
-		
-		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
+		// wait until the server is initialized and connected, so it can send registrations
+		LanguageServers.forDocument(document).collectAll(ls -> CompletableFuture.completedFuture(ls))
+				.get(5, TimeUnit.SECONDS);
 		
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
@@ -163,6 +189,19 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		registration.setMethod(WORKSPACE_DID_CHANGE_FOLDERS);
 		client.registerCapability(new RegistrationParams(List.of(registration)))
 			.get(1, TimeUnit.SECONDS);
+		return id;
+	}
+
+	private UUID registerDiagnostics(MockLanguageServer server) throws Exception {
+		UUID id = UUID.randomUUID();
+		LanguageClient client = server.getRemoteProxy();
+		final var registration = new Registration();
+		registration.setId(id.toString());
+		registration.setMethod(TEXT_DOCUMENT_DIAGNOSTIC);
+		final var options = new DiagnosticRegistrationOptions(false, true);
+		options.setIdentifier("dynamic");
+		registration.setRegisterOptions(options);
+		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
 		return id;
 	}
 

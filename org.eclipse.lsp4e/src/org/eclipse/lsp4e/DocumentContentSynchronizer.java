@@ -76,6 +76,7 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 	private final IDocument document;
 	private final URI fileUri;
 	private final TextDocumentSyncKind syncKind;
+	private final String languageId;
 
 	private int version = 0;
 	private @Nullable DidChangeTextDocumentParams changeParams;
@@ -133,6 +134,7 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 			languageId = uriString.substring(lastSeparatorIndex + 1);
 		}
 
+		this.languageId = languageId;
 		textDocument.setLanguageId(languageId);
 		textDocument.setVersion(++version);
 		languageServer.getTextDocumentService().didOpen(new DidOpenTextDocumentParams(textDocument));
@@ -392,6 +394,10 @@ final class DocumentContentSynchronizer implements IDocumentListener {
 
 	int getVersion() {
 		return version;
+	}
+
+	String getLanguageId() {
+		return languageId;
 	}
 
 	private void checkEvent(DocumentEvent event) {

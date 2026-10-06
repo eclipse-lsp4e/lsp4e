@@ -96,7 +96,7 @@ import org.eclipse.lsp4j.ClientCapabilities;
 import org.eclipse.lsp4j.ClientInfo;
 import org.eclipse.lsp4j.CodeActionOptions;
 import org.eclipse.lsp4j.CompletionOptions;
-import org.eclipse.lsp4j.DiagnosticServerCapabilities;
+import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWatchedFilesParams;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DidChangeWorkspaceFoldersParams;
@@ -115,7 +115,6 @@ import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.ServerInfo;
-import org.eclipse.lsp4j.TextDocumentServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
 import org.eclipse.lsp4j.TextDocumentSyncOptions;
 import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
@@ -522,10 +521,6 @@ public class LanguageServerWrapper {
 					markInitializationProgress(workingContext);
 					initializeResult = res;
 					serverCapabilities = res.getCapabilities();
-					final var finalCapabilities = serverCapabilities;
-					if (finalCapabilities.getTextDocument() == null) {
-						finalCapabilities.setTextDocument(new TextDocumentServerCapabilities());
-					}
 					serverInfo = res.getServerInfo();
 					this.initiallySupportsWorkspaceFolders = supportsWorkspaceFolders(serverCapabilities);
 				}
@@ -1286,12 +1281,27 @@ public class LanguageServerWrapper {
 				serverCapabilities.setDocumentOnTypeFormattingProvider(reg.getRegisterOptions() instanceof DocumentOnTypeFormattingOptions opts ? opts : null);
 				addRegistration(reg, () -> serverCapabilities.setDocumentOnTypeFormattingProvider(onTypeFormattingBeforeRegistration));
 				break;
-			case "textDocument/diagnostic": //$NON-NLS-1$
-				final var diagnosticBeforeRegistration = serverCapabilities.getTextDocument() == null ? null : serverCapabilities.getTextDocument().getDiagnostic();
-				serverCapabilities.getTextDocument().setDiagnostic(new DiagnosticServerCapabilities());
-				addRegistration(reg, () -> serverCapabilities.getTextDocument().setDiagnostic(diagnosticBeforeRegistration));
+			case "textDocument/diagnostic": { //$NON-NLS-1$
+				final DiagnosticRegistrationOptions diagnosticBeforeRegistration = serverCapabilities.getDiagnosticProvider();
+				DiagnosticRegistrationOptions diagnosticRegistrationOptions = toDiagnosticRegistrationOptions(reg);
+				serverCapabilities.setDiagnosticProvider(diagnosticRegistrationOptions);
+				addRegistration(reg, () -> serverCapabilities.setDiagnosticProvider(diagnosticBeforeRegistration));
 				break;
+			}
 		}});
+	}
+
+	private static DiagnosticRegistrationOptions toDiagnosticRegistrationOptions(Registration reg) {
+		final Object registerOptions = reg.getRegisterOptions();
+		final DiagnosticRegistrationOptions diagnosticOptions;
+		if (registerOptions instanceof DiagnosticRegistrationOptions opts) {
+			diagnosticOptions = opts;
+		} else if (registerOptions instanceof JsonObject json) {
+			diagnosticOptions = castNonNull(JsonUtil.LSP4J_GSON.fromJson(json, DiagnosticRegistrationOptions.class));
+		} else {
+			diagnosticOptions = new DiagnosticRegistrationOptions();
+		}
+		return diagnosticOptions;
 	}
 
 	private static @Nullable DidChangeWatchedFilesRegistrationOptions toDidChangeWatchedFilesRegistrationOptions(
@@ -1405,6 +1415,15 @@ public class LanguageServerWrapper {
 			return documentContentSynchronizer.getVersion();
 		}
 		return -1;
+	}
+
+	/**
+	 * @return the language ID sent to the server when the document with the given URI was opened, or
+	 *         {@code null} if that document isn't connected
+	 */
+	public @Nullable String getTextDocumentLanguageId(URI uri) {
+		DocumentContentSynchronizer documentContentSynchronizer = connectedDocuments.get(uri);
+		return documentContentSynchronizer != null ? documentContentSynchronizer.getLanguageId() : null;
 	}
 
 	@Override
