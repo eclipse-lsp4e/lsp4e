@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
@@ -46,6 +47,8 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.text.BadLocationException;
+import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -691,6 +694,17 @@ public class LSPEclipseUtilsTest extends AbstractTestWithProject {
 		
 		String actualFileName = assertDoesNotThrow(() -> LSPEclipseUtils.getFileName(uri));
 		assertEquals(expectedFileName, actualFileName);
+	}
+
+	@Test
+	void testToPosition() throws BadLocationException {
+		IDocument document = new Document("ab\r\n\r\ncde\r\nf");
+		assertEquals(new Position(0, 0), LSPEclipseUtils.toPosition(0, document));
+		assertEquals(new Position(2, 2), LSPEclipseUtils.toPosition(8, document));
+		assertEquals(new Position(1, 0), LSPEclipseUtils.toPosition(4, document));
+		assertEquals(new Position(2, 0), LSPEclipseUtils.toPosition(6, document));
+		assertEquals(new Position(3, 1), LSPEclipseUtils.toPosition(document.getLength(), document));
+		assertThrows(BadLocationException.class, () -> LSPEclipseUtils.toPosition(document.getLength() + 1, document));
 	}
 
 }

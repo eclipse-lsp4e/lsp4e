@@ -198,8 +198,9 @@ public final class LSPEclipseUtils {
 
 	public static Position toPosition(int offset, IDocument document) throws BadLocationException {
 		final var res = new Position();
-		res.setLine(document.getLineOfOffset(offset));
-		res.setCharacter(offset - document.getLineInformationOfOffset(offset).getOffset());
+		final int line = document.getLineOfOffset(offset);
+		res.setLine(line);
+		res.setCharacter(offset - document.getLineOffset(line));
 		return res;
 	}
 
