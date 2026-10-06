@@ -67,26 +67,6 @@ public class SymbolsUtil {
 		return getSymbolTags(documentSymbolWithUri.symbol);
 	}
 
-	public static boolean hasSymbolTag(List<SymbolTag> tagList, SymbolTag tag) {
-		return tagList.contains(tag);
-	}
-
-	public static boolean hasSymbolTag(SymbolInformation symbolInformation, SymbolTag tag) {
-		return getSymbolTags(symbolInformation).contains(tag);
-	}
-
-	public static boolean hasSymbolTag(WorkspaceSymbol workspaceSymbol, SymbolTag tag) {
-		return getSymbolTags(workspaceSymbol).contains(tag);
-	}
-
-	public static boolean hasSymbolTag(DocumentSymbol documentSymbol, SymbolTag tag) {
-		return getSymbolTags(documentSymbol).contains(tag);
-	}
-
-	public static boolean hasSymbolTag(DocumentSymbolWithURI documentSymbolWithUri, SymbolTag tag) {
-		return getSymbolTags(documentSymbolWithUri).contains(tag);
-	}
-
 	public static boolean isDeprecated(SymbolInformation symbolInformation) {
 		boolean deprecated = isDeprecated(getSymbolTags(symbolInformation));
 		return deprecated || Boolean.TRUE.equals(symbolInformation.getDeprecated());
@@ -106,91 +86,7 @@ public class SymbolsUtil {
 	}
 
 	public static boolean isDeprecated(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Deprecated);
-	}
-
-	public static boolean isPrivate(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Private);
-	}
-
-	public static boolean isPackage(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Package);
-	}
-
-	public static boolean isProtected(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Protected);
-	}
-
-	public static boolean isPublic(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Public);
-	}
-
-	public static boolean isInternal(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Internal);
-	}
-
-	public static boolean isFileVisible(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.File);
-	}
-
-	public static boolean isStatic(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Static);
-	}
-
-	public static boolean isAbstract(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Abstract);
-	}
-
-	public static boolean isFinal(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Final);
-	}
-
-	public static boolean isSealed(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Sealed);
-	}
-
-	public static boolean isTransient(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Transient);
-	}
-
-	public static boolean isVolatile(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Volatile);
-	}
-
-	public static boolean isSynchronized(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Synchronized);
-	}
-
-	public static boolean isVirtual(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Virtual);
-	}
-
-	public static boolean isNullable(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Nullable);
-	}
-
-	public static boolean isNonNull(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.NonNull);
-	}
-
-	public static boolean isDeclaration(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Declaration);
-	}
-
-	public static boolean isDefinition(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Definition);
-	}
-
-	public static boolean isReadOnly(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.ReadOnly);
-	}
-
-	public static boolean isOverrides(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Overrides);
-	}
-
-	public static boolean isImplements(List<SymbolTag> tags) {
-		return SymbolsUtil.hasSymbolTag(tags, SymbolTag.Implements);
+		return tags.contains(SymbolTag.Deprecated);
 	}
 
 }
