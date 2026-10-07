@@ -11,6 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.diagnostics;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
@@ -43,7 +46,10 @@ public class PullDiagnosticsReconcilingStrategy implements IReconcilingStrategy,
 	@Override
 	public void setDocument(@Nullable IDocument document) {
 		this.document = document;
-		updateDiagnostics();
+		// delay update on document set as server could be initializing and the registration options for textdocument/diagnostic
+		// capability not yet sent. Delaying can then prevent from synchronization issues without being perceived as annoyance
+		// by users at this stage as the editor is initializing in other ways as well.
+		CompletableFuture.runAsync(this::updateDiagnostics, CompletableFuture.delayedExecutor(2000, TimeUnit.MILLISECONDS));
 	}
 
 	private void updateDiagnostics() {
