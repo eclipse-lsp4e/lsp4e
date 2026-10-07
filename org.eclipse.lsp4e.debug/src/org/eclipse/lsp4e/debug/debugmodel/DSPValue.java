@@ -8,8 +8,6 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.debug.debugmodel;
 
-import java.util.ArrayList;
-
 import org.eclipse.debug.core.DebugException;
 import org.eclipse.debug.core.model.IValue;
 import org.eclipse.debug.core.model.IVariable;
@@ -22,18 +20,18 @@ public final class DSPValue extends DSPDebugElement implements IValue {
 	private static final IVariable[] NO_VARIABLES = new IVariable[0];
 
 	private final @Nullable DSPVariable modelVariable;
-	private final Integer variablesReference;
+	private final @Nullable Integer variablesReference;
 	private final String value;
 	private IVariable @Nullable [] cachedVariables;
 
-	public DSPValue(DSPVariable variable, Integer variablesReference, String value) {
+	public DSPValue(DSPVariable variable, @Nullable Integer variablesReference, String value) {
 		super(variable.getDebugTarget());
 		this.modelVariable = variable;
 		this.variablesReference = variablesReference;
 		this.value = value;
 	}
 
-	public DSPValue(DSPDebugTarget debugger, Integer variablesReference, String value) {
+	public DSPValue(DSPDebugTarget debugger, @Nullable Integer variablesReference, String value) {
 		super(debugger);
 		this.modelVariable = null;
 		this.variablesReference = variablesReference;
@@ -42,7 +40,8 @@ public final class DSPValue extends DSPDebugElement implements IValue {
 
 	@Override
 	public IVariable @Nullable [] getVariables() throws DebugException {
-		if (!hasVariables()) {
+		final Integer variablesReference = this.variablesReference;
+		if (variablesReference == null || variablesReference <= 0) {
 			return NO_VARIABLES;
 		}
 		if (cachedVariables == null) {
@@ -51,13 +50,13 @@ public final class DSPValue extends DSPDebugElement implements IValue {
 			Variable[] targetVariables = complete(getDebugTarget().getDebugProtocolServer().variables(arguments))
 					.getVariables();
 
-			final var variables = new ArrayList<DSPVariable>();
-			for (Variable variable : targetVariables) {
-				variables.add(new DSPVariable(getDebugTarget(), variablesReference, variable.getName(),
-						variable.getValue(), variable.getVariablesReference()));
+			final var variables = new DSPVariable[targetVariables.length];
+			for (int i = 0; i < targetVariables.length; i++) {
+				final Variable variable = targetVariables[i];
+				variables[i] = new DSPVariable(getDebugTarget(), variablesReference, variable.getName(),
+						variable.getValue(), variable.getVariablesReference());
 			}
-
-			cachedVariables = variables.toArray(DSPVariable[]::new);
+			cachedVariables = variables;
 		}
 		return cachedVariables;
 	}
@@ -88,12 +87,13 @@ public final class DSPValue extends DSPDebugElement implements IValue {
 
 	/**
 	 * @return The variable reference corresponding to this node in the DAP variable
-	 *         hierarchy; will be null for a leaf node with no further children. See
+	 *         hierarchy; 0 for a leaf node with no further children. See
 	 *         {@link https://microsoft.github.io/debug-adapter-protocol/overview}:
 	 *         variable handles only stay valid whilst the thread owning the stack
 	 *         frame remains stopped
 	 */
-	public @Nullable Integer getVariablesReference() {
-		return variablesReference;
+	public int getVariablesReference() {
+		final Integer variablesReference = this.variablesReference;
+		return variablesReference == null ? 0 : variablesReference;
 	}
 }

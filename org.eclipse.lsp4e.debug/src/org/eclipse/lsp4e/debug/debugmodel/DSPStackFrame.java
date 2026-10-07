@@ -144,7 +144,7 @@ public class DSPStackFrame extends DSPDebugElement implements IStackFrame {
 			Scope[] scopes = complete(getDebugTarget().getDebugProtocolServer().scopes(arguments)).getScopes();
 			final var vars = new ArrayList<DSPVariable>();
 			for (Scope scope : scopes) {
-				final var variable = new DSPVariable(getDebugTarget(), -1, scope.getName(), "",
+				final var variable = new DSPVariable(getDebugTarget(), null, scope.getName(), "",
 						scope.getVariablesReference());
 				vars.add(variable);
 			}
@@ -238,8 +238,8 @@ public class DSPStackFrame extends DSPDebugElement implements IStackFrame {
 		args.setFrameId(getFrameId());
 		args.setExpression(expression);
 		CompletableFuture<EvaluateResponse> evaluate = getDebugProtocolServer().evaluate(args);
-		CompletableFuture<IVariable> future = evaluate.thenApply(res -> new DSPVariable(getDebugTarget(),
-				res.getVariablesReference(), expression, res.getResult(), res.getVariablesReference()));
+		CompletableFuture<IVariable> future = evaluate.thenApply(res -> new DSPVariable(getDebugTarget(), null,
+				getFrameId(), expression, res.getResult(), res.getVariablesReference()));
 		return future;
 
 	}
