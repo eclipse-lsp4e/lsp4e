@@ -106,6 +106,7 @@ public class SupportedFeatures {
 				"documentation", //$NON-NLS-1$
 				"detail", //$NON-NLS-1$
 				"additionalTextEdits"))); //$NON-NLS-1$
+		completionItemCapabilities.setLabelDetailsSupport(true);
 		final var completionCapabilities = new CompletionCapabilities(completionItemCapabilities);
 		completionCapabilities.setDynamicRegistration(Boolean.TRUE);
 		completionCapabilities.setContextSupport(true);
