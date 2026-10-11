@@ -89,6 +89,8 @@ import org.eclipse.swt.graphics.TextStyle;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.texteditor.link.EditorLinkedModeUI;
 
+import com.google.common.html.HtmlEscapers;
+
 @SuppressWarnings("restriction")
 public class LSCompletionProposal
 		implements ICompletionProposal, ICompletionProposalExtension, ICompletionProposalExtension2, ICompletionProposalExtension3, ICompletionProposalExtension4,
@@ -369,10 +371,7 @@ public class LSCompletionProposal
 
 		final var res = new StringBuilder();
 		if (item.getDetail() != null && !item.getDetail().isEmpty()) {
-			res.append("<p>" + item.getDetail() + "</p>"); //$NON-NLS-1$ //$NON-NLS-2$
-		}
-		if (res.length() > 0) {
-			res.append("<br/>"); //$NON-NLS-1$
+			res.append("<p><code>" + HtmlEscapers.htmlEscaper().escape(item.getDetail()) + "</code></p>"); //$NON-NLS-1$ //$NON-NLS-2$
 		}
 		if (item.getDocumentation() != null) {
 			String htmlDocString = LSPEclipseUtils.getHtmlDocString(item.getDocumentation());

@@ -14,7 +14,6 @@ package org.eclipse.lsp4e.test.completion;
 
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,6 +47,7 @@ import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.InsertTextFormat;
+import org.eclipse.lsp4j.MarkupContent;
 import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.TextEdit;
@@ -58,6 +58,9 @@ import org.eclipse.ui.ide.IDE;
 import org.eclipse.ui.texteditor.ITextEditor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 public class IncompleteCompletionTest extends AbstractCompletionTest {
 	/*
@@ -633,66 +636,58 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
 	}
 
-	@Test
-	public void testAdditionalInformationWithEmptyDetail() throws Exception {
+	static List<Arguments> testAdditionalInformationRendering() {
+		final var emptyDetail = new CompletionItem("blah");
+		emptyDetail.setDetail("");
+
+		final var detailWithHtmlChar = new CompletionItem("blah");
+		detailWithHtmlChar.setDetail("detail with some special chars <");
+
+		final var emptyDoc = new CompletionItem("blah");
+		emptyDoc.setDocumentation("");
+
+		final var withDocumentation = new CompletionItem("blah");
+		withDocumentation.setDocumentation("documentation");
+		
+		final var withDetailAndDocumentation = new CompletionItem("blah");
+		withDetailAndDocumentation.setDetail("foobar");
+		withDetailAndDocumentation.setDocumentation("documentation");
+
+		final var withMarkdownDoc = new CompletionItem("blah");
+		withMarkdownDoc.setDocumentation(new MarkupContent("markdown", "Doc with another code `test`"));
+
+		final var withDetailAndMarkdownDoc = new CompletionItem("blah");
+		withDetailAndMarkdownDoc.setDetail("some details");
+		withDetailAndMarkdownDoc.setDocumentation(new MarkupContent("markdown", "Doc with another code `test`"));
+
+		return List.of(Arguments.arguments(emptyDetail, ""), //
+				Arguments.arguments(detailWithHtmlChar, "<p><code>detail with some special chars &lt;</code></p>"), //
+				Arguments.arguments(emptyDoc, ""), //
+				Arguments.arguments(withDocumentation, "<p>documentation</p>"), //
+				Arguments.arguments(withDetailAndDocumentation, "<p><code>foobar</code></p><p>documentation</p>"), //
+				Arguments.arguments(withMarkdownDoc, """
+						<p>Doc with another code <code>test</code></p>
+						"""), //
+				Arguments.arguments(withDetailAndMarkdownDoc, """
+						<p><code>some details</code></p><p>Doc with another code <code>test</code></p>
+						""") //
+		);
+	}
+	
+	@ParameterizedTest
+	@MethodSource
+	public void testAdditionalInformationRendering(CompletionItem item, String expectedAdditionalInfo) throws Exception {
 		IFile testFile = TestUtils.createUniqueTestFile(project, "");
 		IDocument document = TestUtils.openTextViewer(testFile).getDocument();
 		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrappers(testFile, capabilities -> capabilities.getCompletionProvider() != null
 						|| capabilities.getSignatureHelpProvider() != null)
 				.get(0);
-		final var item = new CompletionItem("blah");
-		item.setDetail("");
 		final var completionProposal = new LSCompletionProposal(document, 0,
 				item, wrapper);
 		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
-		assertTrue(addInfo.isEmpty());
+		assertEquals(expectedAdditionalInfo, addInfo);
 	}
-
-	@Test
-	public void testAdditionalInformationWithDetail() throws Exception {
-		IFile testFile = TestUtils.createUniqueTestFile(project, "");
-		IDocument document = TestUtils.openTextViewer(testFile).getDocument();
-		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrappers(testFile, capabilities -> capabilities.getCompletionProvider() != null
-						|| capabilities.getSignatureHelpProvider() != null)
-				.get(0);
-		final var item = new CompletionItem("blah");
-		item.setDetail("detail");
-		final var completionProposal = new LSCompletionProposal(document, 0,
-				item, wrapper);
-		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
-		assertTrue(addInfo.indexOf("<p>detail</p>") >= 0);
-	}
-
-	@Test
-	public void testAdditionalInformationWithEmptyDocumentation() throws Exception {
-		IFile testFile = TestUtils.createUniqueTestFile(project, "");
-		IDocument document = TestUtils.openTextViewer(testFile).getDocument();
-		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrappers(testFile, capabilities -> capabilities.getCompletionProvider() != null
-						|| capabilities.getSignatureHelpProvider() != null)
-				.get(0);
-		final var item = new CompletionItem("blah");
-		item.setDocumentation("");
-		final var completionProposal = new LSCompletionProposal(document, 0,
-				item, wrapper);
-		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
-		assertTrue(addInfo.isEmpty());
-	}
-
-	@Test
-	public void testAdditionalInformationWithDocumentation() throws Exception {
-		IFile testFile = TestUtils.createUniqueTestFile(project, "");
-		IDocument document = TestUtils.openTextViewer(testFile).getDocument();
-		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrappers(testFile, capabilities -> capabilities.getCompletionProvider() != null
-						|| capabilities.getSignatureHelpProvider() != null)
-				.get(0);
-		final var item = new CompletionItem("blah");
-		item.setDocumentation("documentation");
-		final var completionProposal = new LSCompletionProposal(document, 0,
-				item, wrapper);
-		String addInfo = (String) completionProposal.getAdditionalProposalInfo(new NullProgressMonitor()); // check no exception is sent
-		assertFalse(addInfo.isEmpty());
-	}
-
+	
 	@Test
 	public void testIncompleteIndication(MockLanguageServerFactory factory) throws CoreException {
 		final var items = new ArrayList<CompletionItem>();
