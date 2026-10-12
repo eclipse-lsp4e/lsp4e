@@ -17,6 +17,7 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.codemining.LineHeaderCodeMining;
+import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.command.CommandExecutor;
 import org.eclipse.lsp4j.CodeLens;
@@ -51,7 +52,7 @@ public class LSPCodeMining extends LineHeaderCodeMining {
 
 	@Override
 	protected CompletableFuture<@Nullable Void> doResolve(ITextViewer viewer, IProgressMonitor monitor) {
-		return languageServerWrapper.getServerCapabilitiesAsync().thenCompose(capabilities -> {
+		return languageServerWrapper.getServerCapabilitiesAsync(LSPEclipseUtils.toUri(document)).thenCompose(capabilities -> {
 			if (capabilities == null) {
 				return CompletableFuture.completedFuture(null);
 			}
