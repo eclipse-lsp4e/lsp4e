@@ -13,6 +13,7 @@
 package org.eclipse.lsp4e.internal;
 
 import java.net.URI;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -70,8 +71,9 @@ public final class DocumentSelectorMatcher {
 			final Path path;
 			try {
 				path = Paths.get(uri);
-			} catch (final Exception ex) {
-				// no file-system path can be derived (e.g. non-file scheme): the pattern cannot match
+			} catch (final IllegalArgumentException | FileSystemNotFoundException ex) {
+				// no file-system path can be derived (e.g. non-file scheme, or a file URI with an
+				// authority/query/fragment): the pattern cannot match
 				return false;
 			}
 			final Path basePath = pattern.getBasePath();

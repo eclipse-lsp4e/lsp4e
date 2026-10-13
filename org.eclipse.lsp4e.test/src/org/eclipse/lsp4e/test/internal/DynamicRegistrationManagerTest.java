@@ -27,9 +27,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.core.runtime.ILog;
+import org.eclipse.core.runtime.ILogListener;
+import org.eclipse.core.runtime.IStatus;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.DynamicRegistrationManager;
 import org.eclipse.lsp4e.internal.JsonUtil;
+import org.eclipse.lsp4e.internal.LSPMethods;
 import org.eclipse.lsp4e.internal.files.FileSystemWatcherManager;
 import org.eclipse.lsp4j.CodeActionKind;
 import org.eclipse.lsp4j.CodeActionOptions;
@@ -69,9 +74,6 @@ import org.junit.jupiter.api.Test;
  * {@code DynamicRegistrationTest}).
  */
 class DynamicRegistrationManagerTest {
-
-	private static final String CODE_ACTION = "textDocument/codeAction";
-	private static final String WATCHED_FILES = "workspace/didChangeWatchedFiles";
 
 	private static final URI RUST_FILE = URI.create("file:///proj/foo.rs");
 	private static final URI MANIFEST_FILE = URI.create("file:///proj/Cargo.toml");
@@ -170,7 +172,7 @@ class DynamicRegistrationManagerTest {
 
 		final var options = codeActionOptions(CodeActionKind.QuickFix);
 		options.setResolveProvider(Boolean.TRUE);
-		register("r1", CODE_ACTION, options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, options);
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds());
 		final ServerCapabilities caps = manager.getCapabilities();
@@ -189,12 +191,12 @@ class DynamicRegistrationManagerTest {
 	void absentRegisterOptionsFallBackToTrue() {
 		manager.setStaticCapabilities(staticCapabilities());
 
-		register("r1", CODE_ACTION, null);
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, null);
 		ServerCapabilities caps = manager.getCapabilities();
 		assertNotNull(caps);
 		assertEquals(Boolean.TRUE, caps.getCodeActionProvider().getLeft());
 
-		unregister("r1", CODE_ACTION);
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 		caps = manager.getCapabilities();
 		assertNotNull(caps);
 		assertEquals(Boolean.FALSE, caps.getCodeActionProvider().getLeft());
@@ -204,8 +206,8 @@ class DynamicRegistrationManagerTest {
 	void lastRegistrationWins() {
 		manager.setStaticCapabilities(staticCapabilities());
 
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
-		register("r2", CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
+		register("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
 		assertEquals(List.of(CodeActionKind.Refactor), effectiveCodeActionKinds());
 	}
 
@@ -214,18 +216,18 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 
 		// unregister the winner: falls back to the older live registration
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
-		register("r2", CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
-		unregister("r2", CODE_ACTION);
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
+		register("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
+		unregister("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds());
-		unregister("r1", CODE_ACTION);
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 
 		// unregister the loser first: the winner stays in effect
-		register("r3", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
-		register("r4", CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
-		unregister("r3", CODE_ACTION);
+		register("r3", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
+		register("r4", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
+		unregister("r3", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 		assertEquals(List.of(CodeActionKind.Refactor), effectiveCodeActionKinds());
-		unregister("r4", CODE_ACTION);
+		unregister("r4", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 
 		// all live registrations gone: back to the static capabilities
 		final ServerCapabilities caps = manager.getCapabilities();
@@ -238,20 +240,33 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		assertFalse(watcherManager.hasFilePatterns());
 
-		register("w1", WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
+		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
 				List.of(new FileSystemWatcher(Either.forLeft("**/*.txt")))));
 		assertTrue(watcherManager.hasFilePatterns());
 		assertEquals(1, changes.size(), "recompute must still notify the listener");
 
-		unregister("w1", WATCHED_FILES);
+		unregister("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES);
 		assertFalse(watcherManager.hasFilePatterns());
 		assertEquals(2, changes.size());
 	}
 
 	@Test
+	void reRegisteringWatchersUnderTheSameIdNeedsOnlyOneUnregistration() {
+		manager.setStaticCapabilities(staticCapabilities());
+		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
+				List.of(new FileSystemWatcher(Either.forLeft("**/*.txt")))));
+		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
+				List.of(new FileSystemWatcher(Either.forLeft("**/*.md")))));
+		assertTrue(watcherManager.hasFilePatterns());
+
+		unregister("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES);
+		assertFalse(watcherManager.hasFilePatterns());
+	}
+
+	@Test
 	void clearResetsEverythingWithoutNotifying() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("w1", WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
+		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
 				List.of(new FileSystemWatcher(Either.forLeft("**/*.txt")))));
 		changes.clear();
 
@@ -264,7 +279,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void languageSelectorScopesRegistrationPerDocument() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
 		assertCodeActionsUnsupported(MANIFEST_FILE);
@@ -275,7 +290,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void patternSelectorMatchesAbsolutePath() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, patternFilter("**/Cargo.toml")));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, patternFilter("**/Cargo.toml")));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(MANIFEST_FILE));
 		assertCodeActionsUnsupported(RUST_FILE);
@@ -289,7 +304,7 @@ class DynamicRegistrationManagerTest {
 		relativePattern.setPattern("*.rs"); //$NON-NLS-1$
 		final var filter = new DocumentFilter();
 		filter.setPattern(relativePattern);
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, filter));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, filter));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
 		assertCodeActionsUnsupported(URI.create("file:///other/foo.rs"));
@@ -298,7 +313,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void schemeSelectorMatchesTheUriScheme() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, schemeFilter("untitled")));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, schemeFilter("untitled")));
 
 		assertCodeActionsUnsupported(RUST_FILE);
 		assertEquals(List.of(CodeActionKind.QuickFix),
@@ -310,7 +325,7 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final DocumentFilter filter = languageFilter("rs");
 		filter.setScheme("untitled");
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, filter));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, filter));
 
 		// the language matches but the scheme does not: per spec the set properties are ANDed
 		assertCodeActionsUnsupported(RUST_FILE);
@@ -319,7 +334,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void selectorFiltersAreDisjunctive() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION,
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION,
 				codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs"), patternFilter("**/Cargo.toml")));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
@@ -330,7 +345,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void absentSelectorMatchesEveryDocument() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(MANIFEST_FILE));
@@ -343,7 +358,7 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var options = codeActionOptions(CodeActionKind.QuickFix);
 		options.setDocumentSelector(List.of());
-		register("r1", CODE_ACTION, options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, options);
 
 		assertCodeActionsUnsupported(RUST_FILE);
 		assertCodeActionsUnsupported(MANIFEST_FILE);
@@ -352,7 +367,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void effectiveCapabilitiesAreCachedPerMatchingRegistrationSet() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
 
 		languageIds.put(URI.create("file:///proj/bar.rs"), "rs");
 		final ServerCapabilities forFoo = manager.getCapabilities(RUST_FILE);
@@ -367,16 +382,16 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void overlappingSelectorsResolveToTheMostRecentRegistration() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
-		register("r2", CODE_ACTION, codeActionOptions(CodeActionKind.Refactor, patternFilter("**/*.rs")));
+		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
+		register("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.Refactor, patternFilter("**/*.rs")));
 
 		// both registrations match: the most recently registered one wins
 		assertEquals(List.of(CodeActionKind.Refactor), effectiveCodeActionKinds(RUST_FILE));
 
 		// the per-set cache is invalidated by unregistration
-		unregister("r2", CODE_ACTION);
+		unregister("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
-		unregister("r1", CODE_ACTION);
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 		assertCodeActionsUnsupported(RUST_FILE);
 	}
 
@@ -397,7 +412,7 @@ class DynamicRegistrationManagerTest {
 		options.setTriggerCharacters(List.of("."));
 		options.setAllCommitCharacters(List.of(";"));
 		options.setResolveProvider(Boolean.TRUE);
-		register("r1", "textDocument/completion", options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_COMPLETION, options);
 
 		final CompletionOptions provider = effectiveCapabilities().getCompletionProvider();
 		assertNotNull(provider);
@@ -405,7 +420,7 @@ class DynamicRegistrationManagerTest {
 		assertEquals(List.of(";"), provider.getAllCommitCharacters());
 		assertEquals(Boolean.TRUE, provider.getResolveProvider());
 
-		unregister("r1", "textDocument/completion");
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_COMPLETION);
 		assertNull(effectiveCapabilities().getCompletionProvider());
 	}
 
@@ -414,7 +429,7 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var options = new DocumentFormattingRegistrationOptions();
 		options.setWorkDoneProgress(Boolean.TRUE);
-		register("r1", "textDocument/formatting", options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_FORMATTING, options);
 
 		final Either<Boolean, DocumentFormattingOptions> provider = effectiveCapabilities()
 				.getDocumentFormattingProvider();
@@ -422,7 +437,7 @@ class DynamicRegistrationManagerTest {
 		assertTrue(provider.isRight());
 		assertEquals(Boolean.TRUE, provider.getRight().getWorkDoneProgress());
 
-		unregister("r1", "textDocument/formatting");
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_FORMATTING);
 		assertNull(effectiveCapabilities().getDocumentFormattingProvider());
 	}
 
@@ -431,7 +446,7 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var options = new DocumentRangeFormattingRegistrationOptions();
 		options.setRangesSupport(Boolean.TRUE);
-		register("r1", "textDocument/rangeFormatting", options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_RANGE_FORMATTING, options);
 
 		final Either<Boolean, DocumentRangeFormattingOptions> provider = effectiveCapabilities()
 				.getDocumentRangeFormattingProvider();
@@ -446,7 +461,7 @@ class DynamicRegistrationManagerTest {
 		final var options = new DocumentOnTypeFormattingRegistrationOptions();
 		options.setFirstTriggerCharacter("}");
 		options.setMoreTriggerCharacter(List.of(";"));
-		register("r1", "textDocument/onTypeFormatting", options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_ON_TYPE_FORMATTING, options);
 
 		final DocumentOnTypeFormattingOptions provider = effectiveCapabilities().getDocumentOnTypeFormattingProvider();
 		assertNotNull(provider);
@@ -457,7 +472,7 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void onTypeFormattingRegistrationWithoutFirstTriggerCharacterIsIgnored() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", "textDocument/onTypeFormatting", new DocumentOnTypeFormattingRegistrationOptions());
+		register("r1", LSPMethods.TEXT_DOCUMENT_ON_TYPE_FORMATTING, new DocumentOnTypeFormattingRegistrationOptions());
 		assertNull(effectiveCapabilities().getDocumentOnTypeFormattingProvider());
 	}
 
@@ -466,10 +481,10 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var selectionRangeOptions = new SelectionRangeRegistrationOptions();
 		selectionRangeOptions.setWorkDoneProgress(Boolean.TRUE);
-		register("r1", "textDocument/selectionRange", selectionRangeOptions);
+		register("r1", LSPMethods.TEXT_DOCUMENT_SELECTION_RANGE, selectionRangeOptions);
 		final var typeHierarchyOptions = new TypeHierarchyRegistrationOptions();
 		typeHierarchyOptions.setWorkDoneProgress(Boolean.TRUE);
-		register("r2", "textDocument/typeHierarchy", typeHierarchyOptions);
+		register("r2", LSPMethods.TEXT_DOCUMENT_TYPE_HIERARCHY, typeHierarchyOptions);
 
 		final ServerCapabilities caps = effectiveCapabilities();
 		assertNotNull(caps.getSelectionRangeProvider());
@@ -485,7 +500,7 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var options = new WorkspaceSymbolRegistrationOptions();
 		options.setResolveProvider(Boolean.TRUE);
-		register("r1", "workspace/symbol", options);
+		register("r1", LSPMethods.WORKSPACE_SYMBOL, options);
 
 		final Either<Boolean, WorkspaceSymbolOptions> provider = effectiveCapabilities().getWorkspaceSymbolProvider();
 		assertNotNull(provider);
@@ -498,16 +513,16 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var first = new ExecuteCommandRegistrationOptions();
 		first.setCommands(List.of("a", "b"));
-		register("r1", "workspace/executeCommand", first);
+		register("r1", LSPMethods.WORKSPACE_EXECUTE_COMMAND, first);
 		final var second = new ExecuteCommandRegistrationOptions();
 		second.setCommands(List.of("b", "c"));
-		register("r2", "workspace/executeCommand", second);
+		register("r2", LSPMethods.WORKSPACE_EXECUTE_COMMAND, second);
 
 		ExecuteCommandOptions provider = effectiveCapabilities().getExecuteCommandProvider();
 		assertNotNull(provider);
 		assertEquals(List.of("a", "b", "c"), provider.getCommands());
 
-		unregister("r1", "workspace/executeCommand");
+		unregister("r1", LSPMethods.WORKSPACE_EXECUTE_COMMAND);
 		provider = effectiveCapabilities().getExecuteCommandProvider();
 		assertNotNull(provider);
 		assertEquals(List.of("b", "c"), provider.getCommands());
@@ -516,14 +531,14 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void workspaceFoldersRegistrationEnablesSupport() {
 		manager.setStaticCapabilities(staticCapabilities());
-		register("r1", "workspace/didChangeWorkspaceFolders", null);
+		register("r1", LSPMethods.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS, null);
 
 		final WorkspaceServerCapabilities workspace = effectiveCapabilities().getWorkspace();
 		assertNotNull(workspace);
 		assertNotNull(workspace.getWorkspaceFolders());
 		assertEquals(Boolean.TRUE, workspace.getWorkspaceFolders().getSupported());
 
-		unregister("r1", "workspace/didChangeWorkspaceFolders");
+		unregister("r1", LSPMethods.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS);
 		assertNull(effectiveCapabilities().getWorkspace());
 	}
 
@@ -532,7 +547,7 @@ class DynamicRegistrationManagerTest {
 		manager.setStaticCapabilities(staticCapabilities());
 		final var options = new DiagnosticRegistrationOptions();
 		options.setDocumentSelector(List.of(languageFilter("rs")));
-		register("r1", "textDocument/diagnostic", options);
+		register("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, options);
 
 		final ServerCapabilities rustCapabilities = manager.getCapabilities(RUST_FILE);
 		assertNotNull(rustCapabilities);
@@ -543,7 +558,33 @@ class DynamicRegistrationManagerTest {
 		assertNotNull(manifestCapabilities);
 		assertNull(manifestCapabilities.getTextDocument());
 
-		unregister("r1", "textDocument/diagnostic");
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC);
 		assertNull(effectiveCapabilities().getTextDocument());
+	}
+
+	@Test
+	void registeringAnAlreadyRegisteredCommandLogsAWarning() {
+		manager.setStaticCapabilities(staticCapabilities());
+		final var warnings = new ArrayList<String>();
+		final ILogListener listener = (status, plugin) -> {
+			if (status.getSeverity() == IStatus.WARNING && status.getMessage().startsWith("Command already registered")) {
+				warnings.add(status.getMessage());
+			}
+		};
+		final ILog log = LanguageServerPlugin.getDefault().getLog();
+		log.addLogListener(listener);
+		try {
+			final var first = new ExecuteCommandRegistrationOptions();
+			first.setCommands(List.of("a", "b"));
+			register("r1", LSPMethods.WORKSPACE_EXECUTE_COMMAND, first);
+			final var second = new ExecuteCommandRegistrationOptions();
+			second.setCommands(List.of("b", "c"));
+			register("r2", LSPMethods.WORKSPACE_EXECUTE_COMMAND, second);
+			// recomputations must not repeat the warning
+			unregister("r1", LSPMethods.WORKSPACE_EXECUTE_COMMAND);
+		} finally {
+			log.removeLogListener(listener);
+		}
+		assertEquals(List.of("Command already registered 'b'"), warnings);
 	}
 }

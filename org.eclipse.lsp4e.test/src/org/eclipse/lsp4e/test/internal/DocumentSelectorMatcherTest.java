@@ -135,4 +135,13 @@ class DocumentSelectorMatcherTest {
 		assertTrue(matcher.matches(MANIFEST_FILE, languageIds));
 		assertFalse(matcher.matches(URI.create("file:///proj/readme.md"), languageIds));
 	}
+
+	@Test
+	void patternDoesNotMatchUriWithoutFileSystemPath() {
+		final DocumentSelectorMatcher matcher = compile(filter(null, null, "**/*.rs"));
+		// Paths.get(URI) rejects these with FileSystemNotFoundException / IllegalArgumentException
+		assertFalse(matcher.matches(UNTITLED_FILE, languageIds));
+		assertFalse(matcher.matches(URI.create("file://host/share/foo.rs"), languageIds));
+		assertFalse(matcher.matches(URI.create("file:///proj/src/foo.rs?query"), languageIds));
+	}
 }

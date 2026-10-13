@@ -11,6 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.commands;
 
+import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForCondition;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -30,8 +31,9 @@ import org.eclipse.jface.text.IDocument;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.LanguageServiceAccessor;
-import org.eclipse.lsp4e.test.codeactions.CodeActionTests;
+import org.eclipse.lsp4e.internal.LSPMethods;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
+import org.eclipse.lsp4e.test.utils.CodeActionTestUtils;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
@@ -66,11 +68,6 @@ import org.junit.jupiter.api.Test;
 
 public class DynamicRegistrationTest extends AbstractTestWithProject {
 
-	private static final String WORKSPACE_EXECUTE_COMMAND = "workspace/executeCommand";
-	private static final String WORKSPACE_DID_CHANGE_FOLDERS = "workspace/didChangeWorkspaceFolders";
-	private static final String WORKSPACE_DID_CHANGE_WATCHED_FILES = "workspace/didChangeWatchedFiles";
-	private static final String TEXT_DOCUMENT_CODE_ACTION = "textDocument/codeAction";
-
 	@Test
 	public void testCommandRegistration(MockLanguageServerFactory factory) throws Exception {
 		IFile testFile = TestUtils.createFile(project, "shouldUseExtension.lspt", "");
@@ -81,7 +78,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		
 		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
 		
-		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+		waitForAndAssertCondition(5_000, () -> LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 
@@ -90,7 +87,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command.2")));
 		} finally {
-			unregister(registration, WORKSPACE_EXECUTE_COMMAND, factory.getServer());
+			unregister(registration, LSPMethods.WORKSPACE_EXECUTE_COMMAND, factory.getServer());
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command")));
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCommand("test.command.2")));
@@ -122,7 +119,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		assertNotNull(document);
 		LanguageServers.forDocument(document).anyMatching();
 		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
-		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+		waitForAndAssertCondition(5_000, () -> LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActions()));
 
 		// A real server sends CodeActionRegistrationOptions (an object), never a bare boolean
@@ -136,13 +133,13 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 				&& Boolean.FALSE.equals(o.getResolveProvider()))));
 
 		final var editor = (AbstractTextEditor) TestUtils.openEditor(testFile);
-		IMarker m = CodeActionTests.assertDiagnostics(testFile, "error", "fixme");
-		CodeActionTests.assertResolution(editor, m, "fixed");
+		IMarker m = CodeActionTestUtils.assertDiagnostics(testFile, "error", "fixme");
+		CodeActionTestUtils.assertResolution(editor, m, "fixed");
 		// This registration says the server does not support codeAction/resolve
 		assertEquals(0, resolveCount.get());
 
 		TestUtils.closeEditor(editor, false);
-		unregister(firstRegistration, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+		unregister(firstRegistration, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		// back to the static state (no code actions)
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActions()));
 
@@ -151,8 +148,8 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActions()));
 
 		final var editor2 = (AbstractTextEditor) TestUtils.openEditor(testFile);
-		IMarker m2 = CodeActionTests.assertDiagnostics(testFile, "error", "fixme");
-		CodeActionTests.assertResolution(editor2, m2, "fixed");
+		IMarker m2 = CodeActionTestUtils.assertDiagnostics(testFile, "error", "fixme");
+		CodeActionTestUtils.assertResolution(editor2, m2, "fixed");
 		// Now codeAction/resolve is supported and must have been used
 		assertEquals(1, resolveCount.get());
 	}
@@ -169,7 +166,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		final UUID registration = registerCodeActionProvider(factory.getServer(), null);
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActions()));
 
-		unregister(registration, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+		unregister(registration, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActions()));
 	}
 
@@ -194,18 +191,18 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActionKinds(List.of(CodeActionKind.Refactor))));
 
 		// Unregistering out of order must not disturb the remaining registration...
-		unregister(first, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+		unregister(first, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActionKinds(List.of(CodeActionKind.Refactor))));
 		// ...and removing the last one restores the static capabilities
-		unregister(second, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+		unregister(second, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActionKinds(List.of(CodeActionKind.Source))));
 
 		// Same again, unregistering in registration order: the older registration takes over
 		final UUID third = registerCodeActionProvider(factory.getServer(), quickFix);
 		final UUID fourth = registerCodeActionProvider(factory.getServer(), refactor);
-		unregister(fourth, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+		unregister(fourth, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActionKinds(List.of(CodeActionKind.QuickFix))));
-		unregister(third, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+		unregister(third, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(handlesCodeActionKinds(List.of(CodeActionKind.Source))));
 	}
 
@@ -224,7 +221,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		LanguageServers.forDocument(matchingDocument).anyMatching();
 		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
 		LanguageServers.forDocument(otherDocument).anyMatching();
-		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+		waitForAndAssertCondition(5_000, () -> LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
 		// register codeAction support scoped by a glob pattern to matching.lspt only
 		final var filter = new DocumentFilter();
@@ -245,7 +242,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 			assertFalse(LanguageServers.forDocument(otherDocument)
 					.withCapability(ServerCapabilities::getCodeActionProvider).anyMatching());
 		} finally {
-			unregister(registration, TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
+			unregister(registration, LSPMethods.TEXT_DOCUMENT_CODE_ACTION, factory.getServer());
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(matchingDocument, handlesCodeActions()));
 	}
@@ -259,7 +256,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		LanguageServers.forDocument(document).anyMatching();
 		
 		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
-		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+		waitForAndAssertCondition(5_000, () -> LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
 		UUID registration = registerWatchedFiles(factory.getServer());
 		try {
@@ -277,7 +274,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 			assertFalse(params.getChanges().stream()
 					.anyMatch(ev -> ev.getUri().endsWith("unwatched.bin")));
 		} finally {
-			unregister(registration, WORKSPACE_DID_CHANGE_WATCHED_FILES, factory.getServer());
+			unregister(registration, LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, factory.getServer());
 		}
 	}
 
@@ -291,7 +288,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		
 		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
 		
-		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+		waitForAndAssertCondition(5_000, () -> LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 
@@ -299,7 +296,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		try {
 			assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 		} finally {
-			unregister(registration, WORKSPACE_DID_CHANGE_FOLDERS, factory.getServer());
+			unregister(registration, LSPMethods.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS, factory.getServer());
 		}
 		assertFalse(LanguageServiceAccessor.hasActiveLanguageServers(c -> hasWorkspaceFolderSupport(c)));
 		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> !hasWorkspaceFolderSupport(c)));
@@ -319,7 +316,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
-		registration.setMethod(WORKSPACE_DID_CHANGE_WATCHED_FILES);
+		registration.setMethod(LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES);
 		// Only watch *.txt files to verify that glob-based filtering works
 		final var options = new org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions();
 		final var watcher = new org.eclipse.lsp4j.FileSystemWatcher(
@@ -335,7 +332,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
-		registration.setMethod(WORKSPACE_DID_CHANGE_FOLDERS);
+		registration.setMethod(LSPMethods.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS);
 		client.registerCapability(new RegistrationParams(List.of(registration)))
 			.get(1, TimeUnit.SECONDS);
 		return id;
@@ -346,7 +343,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
-		registration.setMethod(WORKSPACE_EXECUTE_COMMAND);
+		registration.setMethod(LSPMethods.WORKSPACE_EXECUTE_COMMAND);
 		registration.setRegisterOptions(new ExecuteCommandOptions(List.of(command)));
 		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
 		return id;
@@ -358,7 +355,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		assertNotNull(document);
 		LanguageServers.forDocument(document).anyMatching();
 		waitForCondition(5_000, () -> !factory.getServers().isEmpty());
-		assertTrue(LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
+		waitForAndAssertCondition(5_000, () -> LanguageServiceAccessor.hasActiveLanguageServers(c -> true));
 	}
 
 	private UUID registerCodeActionProvider(MockLanguageServer server, @Nullable CodeActionRegistrationOptions options)
@@ -367,7 +364,7 @@ public class DynamicRegistrationTest extends AbstractTestWithProject {
 		LanguageClient client = server.getRemoteProxy();
 		final var registration = new Registration();
 		registration.setId(id.toString());
-		registration.setMethod(TEXT_DOCUMENT_CODE_ACTION);
+		registration.setMethod(LSPMethods.TEXT_DOCUMENT_CODE_ACTION);
 		registration.setRegisterOptions(options);
 		client.registerCapability(new RegistrationParams(List.of(registration))).get(1, TimeUnit.SECONDS);
 		return id;

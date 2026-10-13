@@ -13,6 +13,7 @@
 package org.eclipse.lsp4e.internal.files;
 
 import java.net.URI;
+import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -78,9 +79,9 @@ public final class PathPatternMatcher {
 
 		try {
 			return Paths.get(URI.create(baseDir));
-		} catch (final Exception ex) {
+		} catch (final IllegalArgumentException | FileSystemNotFoundException ex) {
 			// Invalid baseUri, ignore the pattern
-			LanguageServerPlugin.logWarning(ex.getMessage(), ex);
+			LanguageServerPlugin.logWarning("Invalid base directory " + baseDir, ex); //$NON-NLS-1$
 		}
 		return null;
 	}

@@ -178,7 +178,7 @@ public class LanguageServiceAccessor {
 	private static CompletableFuture<@Nullable LanguageServer> getInitializedLanguageServer(IResource resource,
 			LanguageServerDefinition lsDefinition, @Nullable Predicate<ServerCapabilities> capabilitiesPredicate) {
 		LanguageServerWrapper wrapper = getLSWrapper(resource.getProject(), lsDefinition, resource.getFullPath());
-		return capabilitiesComplyAsync(wrapper, resource.getLocationURI(), capabilitiesPredicate)
+		return capabilitiesComplyAsync(wrapper, LSPEclipseUtils.toUri(resource), capabilitiesPredicate)
 				.thenCompose(complies -> complies ? wrapper.getInitializedServer() : null);
 	}
 
@@ -258,8 +258,11 @@ public class LanguageServiceAccessor {
 		if (fileURI == null) {
 			return Collections.emptyList();
 		}
+		// capability queries must use the URI form documents are connected with, so that the
+		// document's language id (for documentSelector matching) is found
+		final var documentURI = LSPEclipseUtils.toUri(file);
 
-		List<LanguageServerWrapper> wrappers = getStartedWrappers(w -> w.canOperate(project), fileURI, request, true);
+		List<LanguageServerWrapper> wrappers = getStartedWrappers(w -> w.canOperate(project), documentURI, request, true);
 		wrappers.removeIf(
 				wrapper -> !wrapper.isConnectedTo(fileURI) || !lsRegistry.matches(file, wrapper.serverDefinition));
 
@@ -280,7 +283,7 @@ public class LanguageServiceAccessor {
 				}
 				final LanguageServerDefinition serverDefinition = mapping.getValue();
 				final var wrapper = getLSWrapper(project, serverDefinition, file.getFullPath());
-				if (!wrappers.contains(wrapper) && capabilitiesComply(wrapper, fileURI, request)) {
+				if (!wrappers.contains(wrapper) && capabilitiesComply(wrapper, documentURI, request)) {
 					wrappers.add(wrapper);
 				}
 			}

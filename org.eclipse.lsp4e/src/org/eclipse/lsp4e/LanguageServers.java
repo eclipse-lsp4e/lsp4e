@@ -273,8 +273,13 @@ public abstract class LanguageServers<E extends LanguageServers<E>> {
 		 */
 		private @Nullable URI uri() {
 			if (!uriComputed) {
-				uri = LSPEclipseUtils.toUri(document);
-				uriComputed = true;
+				synchronized (this) {
+					if (!uriComputed) {
+						// write uri before the flag: a reader that sees the flag set also sees the uri
+						uri = LSPEclipseUtils.toUri(document);
+						uriComputed = true;
+					}
+				}
 			}
 			return uri;
 		}
