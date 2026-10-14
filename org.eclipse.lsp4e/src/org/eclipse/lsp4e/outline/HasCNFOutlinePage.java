@@ -15,7 +15,6 @@ import org.eclipse.core.expressions.PropertyTester;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.views.contentoutline.ContentOutline;
-import org.eclipse.ui.views.contentoutline.IContentOutlinePage;
 
 public class HasCNFOutlinePage extends PropertyTester {
 
@@ -25,8 +24,10 @@ public class HasCNFOutlinePage extends PropertyTester {
 			return outline.getCurrentPage() instanceof CNFOutlinePage;
 		}
 		if (receiver instanceof IEditorPart editor) {
-			IContentOutlinePage outlinePage = editor.getAdapter(IContentOutlinePage.class);
-			return outlinePage instanceof CNFOutlinePage;
+			// the test runs in the UI thread each time the active editor changes, for every editor: asking an editor
+			// for its IContentOutlinePage may be slow, some editors create it or even reconcile their document.
+			// Only EditorToOutlineAdapterFactory gives a CNFOutlinePage, and it is registered for that type too.
+			return editor.getAdapter(CNFOutlinePage.class) != null;
 		}
 		return false;
 	}

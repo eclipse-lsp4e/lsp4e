@@ -896,6 +896,7 @@
             adaptableType="org.eclipse.ui.internal.genericeditor.ExtensionBasedTextEditor"
             class="org.eclipse.lsp4e.outline.EditorToOutlineAdapterFactory">
          <adapter type="org.eclipse.ui.views.contentoutline.IContentOutlinePage" />
+         <adapter type="org.eclipse.lsp4e.outline.CNFOutlinePage" />
       </factory>
    </extension>
 

@@ -47,7 +47,8 @@ public class EditorToOutlineAdapterFactory implements IAdapterFactory {
 
 	@Override
 	public <T> @Nullable T getAdapter(@Nullable Object adaptableObject, @Nullable Class<T> adapterType) {
-		if (adapterType == IContentOutlinePage.class && adaptableObject instanceof IEditorPart editorPart) {
+		if ((adapterType == IContentOutlinePage.class || adapterType == CNFOutlinePage.class)
+				&& adaptableObject instanceof IEditorPart editorPart) {
 			final IEditorInput editorInput = editorPart.getEditorInput();
 
 			if (editorInput != null && LanguageServersRegistry.getInstance().canUseLanguageServer(editorInput)) {
@@ -85,7 +86,7 @@ public class EditorToOutlineAdapterFactory implements IAdapterFactory {
 
 	@Override
 	public Class<?>[] getAdapterList() {
-		return new Class<?>[] { IContentOutlinePage.class };
+		return new Class<?>[] { IContentOutlinePage.class, CNFOutlinePage.class };
 	}
 
 	private static CNFOutlinePage createOutlinePage(IEditorPart editorPart, LanguageServerWrapper wrapper) {
