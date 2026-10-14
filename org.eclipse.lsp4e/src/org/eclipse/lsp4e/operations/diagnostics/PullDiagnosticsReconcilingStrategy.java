@@ -63,7 +63,10 @@ public class PullDiagnosticsReconcilingStrategy implements IReconcilingStrategy,
 		}
 		DocumentDiagnosticParams param = new DocumentDiagnosticParams(id);
 		LanguageServers.forDocument(doc)
-			.withFilter(cap -> cap.getTextDocument().getDiagnostic() != null)
+			.withFilter(cap -> {
+				final var textDocument = cap.getTextDocument();
+				return textDocument != null && textDocument.getDiagnostic() != null;
+			})
 			.collectAll((wrapper, ls) -> ls.getTextDocumentService().diagnostic(param).thenAccept(report -> {
 				if (report.isLeft() && report.getLeft() instanceof FullDocumentDiagnosticReport docReport) {
 					var uri = LSPEclipseUtils.toUri(this.document);

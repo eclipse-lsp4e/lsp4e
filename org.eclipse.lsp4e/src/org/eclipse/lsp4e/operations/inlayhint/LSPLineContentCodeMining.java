@@ -93,7 +93,7 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 		if (!wrapper.isActive()) // TODO is this check required? if so is it missing in LSPCodeMining.doResolve()?
 			return CompletableFuture.completedFuture(null);
 
-		return wrapper.getServerCapabilitiesAsync().thenCompose(capabilities -> {
+		return wrapper.getServerCapabilitiesAsync(LSPEclipseUtils.toUri(document)).thenCompose(capabilities -> {
 			if (!canResolveInlayHint(capabilities)) {
 				return CompletableFuture.completedFuture(null);
 			}
