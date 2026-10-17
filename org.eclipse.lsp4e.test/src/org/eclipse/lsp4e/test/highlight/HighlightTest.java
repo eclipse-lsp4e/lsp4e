@@ -16,7 +16,6 @@ package org.eclipse.lsp4e.test.highlight;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +23,6 @@ import java.util.Map;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.CoreException;
-import org.eclipse.core.runtime.Platform;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.source.Annotation;
 import org.eclipse.jface.text.source.IAnnotationModel;
@@ -40,14 +38,11 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.ui.IEditorReference;
 import org.junit.jupiter.api.Test;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.Version;
 
 public class HighlightTest extends AbstractTestWithProject{
 
 	@Test
 	public void testHighlight(MockLanguageServerFactory factory) throws CoreException {
-		checkGenericEditorVersion();
 		factory.withConfiguration((idx, server)-> {
 			server.setDocumentHighlights(Map.ofEntries( //
 					Map.entry(new Position(0, 1), List.of( //
@@ -79,8 +74,6 @@ public class HighlightTest extends AbstractTestWithProject{
 
 	@Test
 	public void testCheckIfOtherAnnotationsRemains(MockLanguageServerFactory factory) throws CoreException {
-		checkGenericEditorVersion();
-		
 		factory.withConfiguration((idx, server)-> {
 			server.setDocumentHighlights(Map.ofEntries( //
 					Map.entry(new Position(0, 1), List.of( //
@@ -113,8 +106,6 @@ public class HighlightTest extends AbstractTestWithProject{
 
 	@Test
 	public void testHighlightsInMultipleViewersForOneSource(MockLanguageServerFactory factory) throws CoreException {
-		checkGenericEditorVersion();
-
 		// Create a test file with two sets of highlights
 		final IFile testFile = TestUtils.createUniqueTestFile(project, "ONE\nTWO");
 
@@ -226,11 +217,5 @@ public class HighlightTest extends AbstractTestWithProject{
 			fail("Unexpected annotation of type [" + annotationType + "] found at position {offset=" + posOffset + //
 					" length=" + posLen + "}. Annotations found: " + annotations);
 		}
-	}
-
-	private void checkGenericEditorVersion() {
-		// ignore tests for generic editor without reconciler API
-		Bundle bundle = Platform.getBundle("org.eclipse.ui.genericeditor");
-		assumeTrue(bundle.getVersion().compareTo(new Version(1, 1, 0)) >= 0);
 	}
 }
