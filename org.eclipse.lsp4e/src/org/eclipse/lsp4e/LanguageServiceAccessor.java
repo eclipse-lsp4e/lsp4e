@@ -254,17 +254,16 @@ public class LanguageServiceAccessor {
 		}
 
 		final var lsRegistry = LanguageServersRegistry.getInstance();
-		final var fileURI = file.getLocationURI();
-		if (fileURI == null) {
-			return Collections.emptyList();
-		}
 		// capability queries must use the URI form documents are connected with, so that the
 		// document's language id (for documentSelector matching) is found
 		final var documentURI = LSPEclipseUtils.toUri(file);
+		if (documentURI == null) {
+			return Collections.emptyList();
+		}
 
 		List<LanguageServerWrapper> wrappers = getStartedWrappers(w -> w.canOperate(project), documentURI, request, true);
 		wrappers.removeIf(
-				wrapper -> !wrapper.isConnectedTo(fileURI) || !lsRegistry.matches(file, wrapper.serverDefinition));
+				wrapper -> !wrapper.isConnectedTo(documentURI) || !lsRegistry.matches(file, wrapper.serverDefinition));
 
 		// look for running language servers via content-type
 		final var directContentTypes = LSPEclipseUtils.getFileContentTypes(file);
@@ -278,7 +277,7 @@ public class LanguageServiceAccessor {
 			}
 
 			for (final ContentTypeToLanguageServerDefinition mapping : lsRegistry.findProviderFor(contentType)) {
-				if (!mapping.isEnabled(fileURI)) {
+				if (!mapping.isEnabled(documentURI)) {
 					continue;
 				}
 				final LanguageServerDefinition serverDefinition = mapping.getValue();
