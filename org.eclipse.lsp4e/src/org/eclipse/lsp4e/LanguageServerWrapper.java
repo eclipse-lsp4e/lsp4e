@@ -523,7 +523,7 @@ public class LanguageServerWrapper {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
 					initializeResult = res;
-					registrationManager.setStaticCapabilities(res.getCapabilities());
+					registrationManager.registerInitializationCapabilities(res.getCapabilities());
 					serverInfo = res.getServerInfo();
 					this.initiallySupportsWorkspaceFolders = supportsWorkspaceFolders(res.getCapabilities());
 				}

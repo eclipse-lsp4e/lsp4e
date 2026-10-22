@@ -15,11 +15,11 @@ package org.eclipse.lsp4e.internal;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.Assert;
 import org.eclipse.jdt.annotation.Nullable;
@@ -127,11 +127,11 @@ public final class DynamicRegistrationManager {
 	}
 
 	/**
-	 * Stores the capabilities from the {@code initialize} result. Until the first dynamic
+	 * Registers the capabilities from the {@code initialize} result. Until the first dynamic
 	 * registration arrives, the effective capabilities are exactly these. Does not notify the
 	 * {@link CapabilitiesListener}.
 	 */
-	public void setStaticCapabilities(final ServerCapabilities capabilities) {
+	public void registerInitializationCapabilities(final ServerCapabilities capabilities) {
 		this.staticCapabilities = capabilities;
 		this.capabilities = capabilities;
 		synchronized (dynamicRegistrations) {
@@ -142,10 +142,17 @@ public final class DynamicRegistrationManager {
 	/**
 	 * @return the effective capabilities assuming every live dynamic registration applies (the union
 	 *         view, appropriate for document-independent queries), or {@code null} before
-	 *         {@link #setStaticCapabilities(ServerCapabilities)} / after {@link #clear()}
+	 *         {@link #registerInitializationCapabilities(ServerCapabilities)} / after {@link #clear()}
 	 */
 	public @Nullable ServerCapabilities getCapabilities() {
 		return capabilities;
+	}
+
+	/**
+	 * @return {@code true} if initialisation has completed and we have at least the initial static capabilities
+	 */
+	public boolean hasCapabilities() {
+		return staticCapabilities != null;
 	}
 
 	/**
@@ -156,12 +163,13 @@ public final class DynamicRegistrationManager {
 	 *
 	 * @param uri the document URI, or {@code null} for the union view of {@link #getCapabilities()}
 	 * @return the effective capabilities, or {@code null} before
-	 *         {@link #setStaticCapabilities(ServerCapabilities)} / after {@link #clear()}
+	 *         {@link #registerInitializationCapabilities(ServerCapabilities)} / after {@link #clear()}
 	 */
 	public @Nullable ServerCapabilities getCapabilities(final @Nullable URI uri) {
 		if (uri == null) {
 			return capabilities;
 		}
+		// read the field once rather than via hasCapabilities(): clear() may run concurrently
 		final ServerCapabilities staticCaps = this.staticCapabilities;
 		if (staticCaps == null) {
 			return null;
@@ -170,18 +178,16 @@ public final class DynamicRegistrationManager {
 			if (dynamicRegistrations.isEmpty()) {
 				return capabilities;
 			}
-			final var matchingIds = new HashSet<String>();
-			dynamicRegistrations.forEach((id, registration) -> {
-				if (registration.matches(uri, languageIdResolver)) {
-					matchingIds.add(id);
-				}
-			});
+			final Set<String> matchingIds = dynamicRegistrations.entrySet().stream()
+					.filter(entry -> entry.getValue().matches(uri, languageIdResolver))
+					.map(Map.Entry::getKey)
+					.collect(Collectors.toUnmodifiableSet());
 			if (matchingIds.size() == dynamicRegistrations.size()) {
 				// every registration applies: identical to the union view (the common case for
 				// servers that send no document selectors)
 				return capabilities;
 			}
-			return effectiveCapabilitiesBySelection.computeIfAbsent(Set.copyOf(matchingIds), key -> {
+			return effectiveCapabilitiesBySelection.computeIfAbsent(matchingIds, key -> {
 				final ServerCapabilities effective = JsonUtil.deepCopy(staticCaps, ServerCapabilities.class);
 				// iterate the registration map, not the key, so that where several matching
 				// registrations exist for one method the most recently registered one wins
@@ -219,7 +225,7 @@ public final class DynamicRegistrationManager {
 	 * {@code client/registerCapability} and recomputes the effective capabilities.
 	 */
 	public void registerCapability(final RegistrationParams params) {
-		Assert.isNotNull(this.staticCapabilities,
+		Assert.isTrue(hasCapabilities(),
 				"Dynamic capability registration failed! Server not yet initialized?"); //$NON-NLS-1$
 		synchronized (dynamicRegistrations) {
 			for (final Registration reg : params.getRegistrations()) {

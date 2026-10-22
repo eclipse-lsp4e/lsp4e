@@ -161,14 +161,14 @@ class DynamicRegistrationManagerTest {
 	@Test
 	void staticCapabilitiesAreEffectiveUntilFirstRegistration() {
 		final ServerCapabilities staticCaps = staticCapabilities();
-		manager.setStaticCapabilities(staticCaps);
+		manager.registerInitializationCapabilities(staticCaps);
 		assertSame(staticCaps, manager.getCapabilities());
-		assertTrue(changes.isEmpty(), "setStaticCapabilities must not notify the listener");
+		assertTrue(changes.isEmpty(), "registerInitializationCapabilities must not notify the listener");
 	}
 
 	@Test
 	void registerDecodesJsonPayloadAndNotifiesListener() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 
 		final var options = codeActionOptions(CodeActionKind.QuickFix);
 		options.setResolveProvider(Boolean.TRUE);
@@ -189,7 +189,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void absentRegisterOptionsFallBackToTrue() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, null);
 		ServerCapabilities caps = manager.getCapabilities();
@@ -204,7 +204,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void lastRegistrationWins() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
 		register("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.Refactor));
@@ -213,7 +213,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void unregistrationOrderDoesNotMatter() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 
 		// unregister the winner: falls back to the older live registration
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
@@ -237,7 +237,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void watchedFilesRegistrationsAreForwardedToTheWatcherManager() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		assertFalse(watcherManager.hasFilePatterns());
 
 		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
@@ -252,7 +252,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void reRegisteringWatchersUnderTheSameIdNeedsOnlyOneUnregistration() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
 				List.of(new FileSystemWatcher(Either.forLeft("**/*.txt")))));
 		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
@@ -265,7 +265,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void clearResetsEverythingWithoutNotifying() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("w1", LSPMethods.WORKSPACE_DID_CHANGE_WATCHED_FILES, new DidChangeWatchedFilesRegistrationOptions(
 				List.of(new FileSystemWatcher(Either.forLeft("**/*.txt")))));
 		changes.clear();
@@ -278,7 +278,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void languageSelectorScopesRegistrationPerDocument() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
@@ -289,7 +289,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void patternSelectorMatchesAbsolutePath() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, patternFilter("**/Cargo.toml")));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(MANIFEST_FILE));
@@ -298,7 +298,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void relativePatternSelectorMatchesRelativeToItsBaseUri() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var relativePattern = new RelativePattern();
 		relativePattern.setBaseUri(Either.forRight("file:///proj")); //$NON-NLS-1$
 		relativePattern.setPattern("*.rs"); //$NON-NLS-1$
@@ -312,7 +312,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void schemeSelectorMatchesTheUriScheme() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, schemeFilter("untitled")));
 
 		assertCodeActionsUnsupported(RUST_FILE);
@@ -322,7 +322,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void filterPropertiesAreConjunctive() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final DocumentFilter filter = languageFilter("rs");
 		filter.setScheme("untitled");
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, filter));
@@ -333,7 +333,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void selectorFiltersAreDisjunctive() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION,
 				codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs"), patternFilter("**/Cargo.toml")));
 
@@ -344,7 +344,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void absentSelectorMatchesEveryDocument() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix));
 
 		assertEquals(List.of(CodeActionKind.QuickFix), effectiveCodeActionKinds(RUST_FILE));
@@ -355,7 +355,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void emptySelectorMatchesNoDocument() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = codeActionOptions(CodeActionKind.QuickFix);
 		options.setDocumentSelector(List.of());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, options);
@@ -366,7 +366,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void effectiveCapabilitiesAreCachedPerMatchingRegistrationSet() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
 
 		languageIds.put(URI.create("file:///proj/bar.rs"), "rs");
@@ -381,7 +381,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void overlappingSelectorsResolveToTheMostRecentRegistration() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.QuickFix, languageFilter("rs")));
 		register("r2", LSPMethods.TEXT_DOCUMENT_CODE_ACTION, codeActionOptions(CodeActionKind.Refactor, patternFilter("**/*.rs")));
 
@@ -407,7 +407,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void completionRegistrationIsDecodedAndApplied() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new CompletionRegistrationOptions();
 		options.setTriggerCharacters(List.of("."));
 		options.setAllCommitCharacters(List.of(";"));
@@ -426,7 +426,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void formattingRegistrationIsDecodedAndApplied() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new DocumentFormattingRegistrationOptions();
 		options.setWorkDoneProgress(Boolean.TRUE);
 		register("r1", LSPMethods.TEXT_DOCUMENT_FORMATTING, options);
@@ -443,7 +443,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void rangeFormattingRegistrationPreservesRangesSupport() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new DocumentRangeFormattingRegistrationOptions();
 		options.setRangesSupport(Boolean.TRUE);
 		register("r1", LSPMethods.TEXT_DOCUMENT_RANGE_FORMATTING, options);
@@ -457,7 +457,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void onTypeFormattingRegistrationIsDecodedAndApplied() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new DocumentOnTypeFormattingRegistrationOptions();
 		options.setFirstTriggerCharacter("}");
 		options.setMoreTriggerCharacter(List.of(";"));
@@ -471,14 +471,14 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void onTypeFormattingRegistrationWithoutFirstTriggerCharacterIsIgnored() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.TEXT_DOCUMENT_ON_TYPE_FORMATTING, new DocumentOnTypeFormattingRegistrationOptions());
 		assertNull(effectiveCapabilities().getDocumentOnTypeFormattingProvider());
 	}
 
 	@Test
 	void selectionRangeAndTypeHierarchyRegistrationsAreDecodedAndApplied() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var selectionRangeOptions = new SelectionRangeRegistrationOptions();
 		selectionRangeOptions.setWorkDoneProgress(Boolean.TRUE);
 		register("r1", LSPMethods.TEXT_DOCUMENT_SELECTION_RANGE, selectionRangeOptions);
@@ -497,7 +497,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void workspaceSymbolRegistrationIsDecodedAndApplied() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new WorkspaceSymbolRegistrationOptions();
 		options.setResolveProvider(Boolean.TRUE);
 		register("r1", LSPMethods.WORKSPACE_SYMBOL, options);
@@ -510,7 +510,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void executeCommandRegistrationsAreDecodedAndAdditive() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var first = new ExecuteCommandRegistrationOptions();
 		first.setCommands(List.of("a", "b"));
 		register("r1", LSPMethods.WORKSPACE_EXECUTE_COMMAND, first);
@@ -530,7 +530,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void workspaceFoldersRegistrationEnablesSupport() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		register("r1", LSPMethods.WORKSPACE_DID_CHANGE_WORKSPACE_FOLDERS, null);
 
 		final WorkspaceServerCapabilities workspace = effectiveCapabilities().getWorkspace();
@@ -544,7 +544,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void diagnosticRegistrationEnablesPullDiagnosticsPerDocument() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new DiagnosticRegistrationOptions();
 		options.setDocumentSelector(List.of(languageFilter("rs")));
 		register("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, options);
@@ -564,7 +564,7 @@ class DynamicRegistrationManagerTest {
 
 	@Test
 	void registeringAnAlreadyRegisteredCommandLogsAWarning() {
-		manager.setStaticCapabilities(staticCapabilities());
+		manager.registerInitializationCapabilities(staticCapabilities());
 		final var warnings = new ArrayList<String>();
 		final ILogListener listener = (status, plugin) -> {
 			if (status.getSeverity() == IStatus.WARNING && status.getMessage().startsWith("Command already registered")) {

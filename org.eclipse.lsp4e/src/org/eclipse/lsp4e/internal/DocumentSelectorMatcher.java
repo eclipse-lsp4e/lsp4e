@@ -17,6 +17,7 @@ import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -115,7 +116,7 @@ public final class DocumentSelectorMatcher {
 			filters.add(new CompiledFilter(language, scheme, pattern));
 		}
 		// a non-null selector without any usable filter matches no documents
-		return new DocumentSelectorMatcher(List.copyOf(filters));
+		return new DocumentSelectorMatcher(Collections.unmodifiableList(filters));
 	}
 
 	/** @return whether any filter of this selector matches the document at the given URI */
