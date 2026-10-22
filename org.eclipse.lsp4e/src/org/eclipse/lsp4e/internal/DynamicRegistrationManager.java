@@ -166,13 +166,13 @@ public final class DynamicRegistrationManager {
 	 *         {@link #registerInitializationCapabilities(ServerCapabilities)} / after {@link #clear()}
 	 */
 	public @Nullable ServerCapabilities getCapabilities(final @Nullable URI uri) {
-		if (uri == null) {
-			return capabilities;
-		}
 		// read the field once rather than via hasCapabilities(): clear() may run concurrently
 		final ServerCapabilities staticCaps = this.staticCapabilities;
 		if (staticCaps == null) {
 			return null;
+		}
+		if (uri == null) {
+			return capabilities;
 		}
 		synchronized (dynamicRegistrations) {
 			if (dynamicRegistrations.isEmpty()) {
