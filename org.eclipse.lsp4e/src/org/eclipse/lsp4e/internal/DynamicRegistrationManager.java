@@ -211,9 +211,9 @@ public final class DynamicRegistrationManager {
 	 * watchers. Does not notify the {@link CapabilitiesListener}.
 	 */
 	public void clear() {
-		this.staticCapabilities = null;
-		this.capabilities = null;
 		synchronized (dynamicRegistrations) {
+			this.staticCapabilities = null;
+			this.capabilities = null;
 			dynamicRegistrations.clear();
 			effectiveCapabilitiesBySelection.clear();
 		}
@@ -302,17 +302,23 @@ public final class DynamicRegistrationManager {
 	 * {@link #dynamicRegistrations}, then notifies the {@link CapabilitiesListener}.
 	 */
 	private void recomputeCapabilities() {
-		final ServerCapabilities staticCaps = this.staticCapabilities;
-		if (staticCaps == null) {
-			return;
-		}
-		final ServerCapabilities oldCapabilities = this.capabilities;
-		final ServerCapabilities effective = JsonUtil.deepCopy(staticCaps, ServerCapabilities.class);
+		final ServerCapabilities oldCapabilities;
+		final ServerCapabilities effective;
+		// compute and publish under the monitor, so that concurrent recomputations cannot overwrite a
+		// newer result with an older one
 		synchronized (dynamicRegistrations) {
+			final ServerCapabilities staticCaps = this.staticCapabilities;
+			if (staticCaps == null) {
+				return;
+			}
+			oldCapabilities = this.capabilities;
+			effective = JsonUtil.deepCopy(staticCaps, ServerCapabilities.class);
 			// insertion order: for methods registered more than once, the most recent registration wins
 			dynamicRegistrations.values().forEach(reg -> applyRegistration(effective, reg));
+			this.capabilities = effective;
 		}
-		this.capabilities = effective;
+		// notify outside the monitor: the listener may take the language server wrapper's monitor,
+		// which stop() holds while calling clear()
 		listener.capabilitiesChanged(oldCapabilities, effective);
 	}
 
