@@ -350,7 +350,8 @@ public class LanguageServiceAccessor {
 					}
 
 					final var fileProject = file != null ? file.getProject() : null;
-					final var path = uri.getPath() != null ? new Path(uri.getPath()) : null;
+					final var uriPath = uri.getPath();
+					final var path = uriPath != null ? new Path(uriPath) : null;
 					final var wrapper = fileProject != null //
 							? new LanguageServerWrapper(fileProject, serverDefinition)
 							: new LanguageServerWrapper(serverDefinition, path);

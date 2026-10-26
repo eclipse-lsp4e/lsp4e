@@ -21,6 +21,7 @@ import org.eclipse.lsp4j.Location;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.WorkspaceSymbol;
 import org.eclipse.lsp4j.WorkspaceSymbolLocation;
+import org.eclipse.swt.graphics.Image;
 import org.eclipse.ui.quickaccess.QuickAccessElement;
 
 public class WorkspaceSymbolQuickAccessElement extends QuickAccessElement {
@@ -52,8 +53,9 @@ public class WorkspaceSymbolQuickAccessElement extends QuickAccessElement {
 	}
 
 	@Override
-	public ImageDescriptor getImageDescriptor() {
-		return ImageDescriptor.createFromImage(LABEL_PROVIDER.getImage(symbol));
+	public @Nullable ImageDescriptor getImageDescriptor() {
+		final Image image = LABEL_PROVIDER.getImage(symbol);
+		return image == null ? null : ImageDescriptor.createFromImage(image);
 	}
 
 	@Override

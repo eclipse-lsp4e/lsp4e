@@ -109,8 +109,8 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		contentTypeColumn.getColumn().setWidth(200);
 		contentTypeColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
-				return ((ContentTypeToLanguageServerDefinition)element).getKey().getName();
+			public String getText(@Nullable Object element) {
+				return element instanceof ContentTypeToLanguageServerDefinition definition ? definition.getKey().getName() : ""; //$NON-NLS-1$
 			}
 		});
 		final var launchConfigColumn = new TableViewerColumn(viewer, SWT.NONE);
@@ -118,8 +118,8 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		launchConfigColumn.getColumn().setWidth(300);
 		launchConfigColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
-				return ((ContentTypeToLSPLaunchConfigEntry)element).getLaunchConfiguration().getName();
+			public String getText(@Nullable Object element) {
+				return element instanceof ContentTypeToLSPLaunchConfigEntry entry ? entry.getLaunchConfiguration().getName() : ""; //$NON-NLS-1$
 			}
 		});
 		final var launchModeColumn = new TableViewerColumn(viewer, SWT.NONE);
@@ -127,9 +127,12 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		launchModeColumn.getColumn().setWidth(100);
 		launchModeColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
+			public String getText(@Nullable Object element) {
+				if (!(element instanceof ContentTypeToLSPLaunchConfigEntry entry)) {
+					return ""; //$NON-NLS-1$
+				}
 				final var res = new StringBuilder();
-				for (String s : ((ContentTypeToLSPLaunchConfigEntry)element).getLaunchModes()) {
+				for (String s : entry.getLaunchModes()) {
 					res.append(s);
 					res.append(',');
 				}
@@ -192,7 +195,7 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		enablementColumn.getColumn().setWidth(70);
 		enablementColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public @Nullable String getText(Object element) {
+			public @Nullable String getText(@Nullable Object element) {
 				return null;
 			}
 		});
@@ -202,8 +205,8 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		contentTypeColumn.getColumn().setWidth(200);
 		contentTypeColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
-				return ((ContentTypeToLanguageServerDefinition)element).getKey().getName();
+			public String getText(@Nullable Object element) {
+				return element instanceof ContentTypeToLanguageServerDefinition definition ? definition.getKey().getName() : ""; //$NON-NLS-1$
 			}
 		});
 
@@ -212,8 +215,8 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 		launchConfigColumn.getColumn().setWidth(300);
 		launchConfigColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
-				return ((ContentTypeToLanguageServerDefinition)element).getValue().label;
+			public String getText(@Nullable Object element) {
+				return element instanceof ContentTypeToLanguageServerDefinition definition ? definition.getValue().label : ""; //$NON-NLS-1$
 			}
 
 			@Override
@@ -232,31 +235,32 @@ public class LanguageServerPreferencePage extends PreferencePage implements IWor
 			conditionColumn.getColumn().setWidth(150);
 			conditionColumn.setLabelProvider(new ColumnLabelProvider() {
 				@Override
-				public String getText(Object element) {
-					EnablementTester tester = ((ContentTypeToLanguageServerDefinition) element)
-							.getEnablementCondition();
+				public String getText(@Nullable Object element) {
+					if (!(element instanceof ContentTypeToLanguageServerDefinition definition)) {
+						return ""; //$NON-NLS-1$
+					}
+					EnablementTester tester = definition.getEnablementCondition();
 
 					if(tester == null) {
 						// table does not support mnemonic
 						return Action.removeMnemonics(IDialogConstants.NO_LABEL);
 
 					}
-					String extensionStatus = ((ContentTypeToLanguageServerDefinition) element).isExtensionEnabled(null)
+					String extensionStatus = definition.isExtensionEnabled(null)
 							? Messages.PreferencePage_enablementCondition_true
 							: Messages.PreferencePage_enablementCondition_false;
 					return tester.getDescription() + " (" + extensionStatus + ")"; //$NON-NLS-1$ //$NON-NLS-2$
 				}
 
 				@Override
-				public @Nullable Color getBackground(Object element) {
-					EnablementTester tester = ((ContentTypeToLanguageServerDefinition) element)
-							.getEnablementCondition();
-					if (tester == null) {
+				public @Nullable Color getBackground(@Nullable Object element) {
+					if (!(element instanceof ContentTypeToLanguageServerDefinition definition)
+							|| definition.getEnablementCondition() == null) {
 						return null;
 					}
 					Color red = Display.getDefault().getSystemColor(SWT.COLOR_RED);
 					Color green = Display.getDefault().getSystemColor(SWT.COLOR_GREEN);
-					return ((ContentTypeToLanguageServerDefinition) element).isExtensionEnabled(null) ? green : red;
+					return definition.isExtensionEnabled(null) ? green : red;
 				}
 			});
 		}

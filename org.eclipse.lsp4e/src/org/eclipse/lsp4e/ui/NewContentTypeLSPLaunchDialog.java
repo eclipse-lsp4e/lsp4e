@@ -206,7 +206,7 @@ public class NewContentTypeLSPLaunchDialog extends Dialog {
 			try {
 				modes = launchConfig.getType().getSupportedModeCombinations();
 			} catch (CoreException e) {
-				LanguageServerPlugin.getDefault().getLog().log(new Status(IStatus.ERROR, LanguageServerPlugin.getDefault().getBundle().getSymbolicName(), e.getMessage(), e));
+				LanguageServerPlugin.getDefault().getLog().log(new Status(IStatus.ERROR, LanguageServerPlugin.PLUGIN_ID, e.getMessage(), e));
 			}
 			if (modes == null) {
 				modes = Set.of(Set.of(ILaunchManager.RUN_MODE));

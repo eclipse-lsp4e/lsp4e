@@ -54,7 +54,7 @@ public class FileAndURIMatchLabelProvider extends DecoratingStyledCellLabelProvi
 
 		@Override
 		public @Nullable StyledString getStyledText(@Nullable Object element) {
-			if (canDelegate(element)) {
+			if (element != null && canDelegate(element)) {
 				return resourceMatchDelegate.getStyledText(element);
 			}
 			if (element instanceof URI uri) {
@@ -85,7 +85,7 @@ public class FileAndURIMatchLabelProvider extends DecoratingStyledCellLabelProvi
 
 		@Override
 		public @Nullable Image getImage(@Nullable Object element) {
-			if (canDelegate(element)) {
+			if (element != null && canDelegate(element)) {
 				return resourceMatchDelegate.getImage(element);
 			}
 			if (element instanceof URI uri && "file".equals(uri.getScheme())) { //$NON-NLS-1$

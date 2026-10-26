@@ -359,8 +359,9 @@ public class SymbolsLabelProvider extends LabelProvider
 		}
 
 		if (showLocation && location != null) {
+			final String path = location.getPath();
 			res.append(' ');
-			res.append(location.getPath(), StyledString.QUALIFIER_STYLER);
+			res.append(path != null ? path : location.toString(), StyledString.QUALIFIER_STYLER);
 		}
 		return res;
 	}

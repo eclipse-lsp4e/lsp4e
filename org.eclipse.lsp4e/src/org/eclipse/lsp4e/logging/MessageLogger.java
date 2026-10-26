@@ -82,6 +82,7 @@ public class MessageLogger {
 	}
 
 	private void logToFile(String string) {
+		final Path logFile = this.logFile;
 		if (logFile == null) {
 			return;
 		}

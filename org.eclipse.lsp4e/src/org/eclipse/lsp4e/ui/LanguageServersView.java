@@ -178,8 +178,9 @@ public class LanguageServersView extends ViewPart {
 
 		createColumn("Initial Project", 150, new ColumnLabelProvider() { //$NON-NLS-1$
 			@Override
-			public String getText(Object element) {
-				final var lsWrapper = (LanguageServerWrapper) element;
+			public String getText(@Nullable Object element) {
+				if (!(element instanceof LanguageServerWrapper lsWrapper))
+					return NOT_AVAILABLE;
 				final var p = lsWrapper.initialProject;
 				return p == null ? NOT_AVAILABLE : p.getName();
 			}
@@ -187,16 +188,15 @@ public class LanguageServersView extends ViewPart {
 
 		createColumn("Name", 150, new ColumnLabelProvider() { //$NON-NLS-1$
 			@Override
-			public String getText(Object element) {
-				final var lsWrapper = (LanguageServerWrapper) element;
-				return lsWrapper.serverDefinition.label;
+			public String getText(@Nullable Object element) {
+				return element instanceof LanguageServerWrapper lsWrapper ? lsWrapper.serverDefinition.label : NOT_AVAILABLE;
 			}
 		});
 
 		createColumn("Executable", 100, new ColumnLabelProvider() { //$NON-NLS-1$
 			@Override
-			public String getText(Object element) {
-				final ProcessHandle ph = ((LanguageServerWrapper) element).getProcessHandle();
+			public String getText(@Nullable Object element) {
+				final ProcessHandle ph = element instanceof LanguageServerWrapper lsWrapper ? lsWrapper.getProcessHandle() : null;
 				final String exe = ph == null ? null : ph.info().command().orElse(null);
 				if (exe == null)
 					return NOT_AVAILABLE;
@@ -209,8 +209,8 @@ public class LanguageServersView extends ViewPart {
 
 		createColumn("PID", 50, new ColumnLabelProvider() { //$NON-NLS-1$
 			@Override
-			public String getText(Object element) {
-				final ProcessHandle ph = ((LanguageServerWrapper) element).getProcessHandle();
+			public String getText(@Nullable Object element) {
+				final ProcessHandle ph = element instanceof LanguageServerWrapper lsWrapper ? lsWrapper.getProcessHandle() : null;
 				if (ph == null)
 					return NOT_AVAILABLE;
 				try {
@@ -223,8 +223,8 @@ public class LanguageServersView extends ViewPart {
 
 		createColumn("Command Line", 400, new ColumnLabelProvider() { //$NON-NLS-1$
 			@Override
-			public String getText(Object element) {
-				final ProcessHandle ph = ((LanguageServerWrapper) element).getProcessHandle();
+			public String getText(@Nullable Object element) {
+				final ProcessHandle ph = element instanceof LanguageServerWrapper lsWrapper ? lsWrapper.getProcessHandle() : null;
 				if (ph == null)
 					return NOT_AVAILABLE;
 				final ProcessHandle.Info pi = ph.info();
@@ -234,9 +234,8 @@ public class LanguageServersView extends ViewPart {
 
 		createColumn("ID", 150, new ColumnLabelProvider() { //$NON-NLS-1$
 			@Override
-			public String getText(Object element) {
-				final var lsWrapper = (LanguageServerWrapper) element;
-				return lsWrapper.serverDefinition.id;
+			public String getText(@Nullable Object element) {
+				return element instanceof LanguageServerWrapper lsWrapper ? lsWrapper.serverDefinition.id : NOT_AVAILABLE;
 			}
 		});
 

@@ -346,7 +346,7 @@ public class LSPFoldingReconcilingStrategy
 			while (iter.hasNext()) {
 				if (iter.next() instanceof FoldingAnnotation foldingAnno) {
 					Position pos = projectionAnnotationModel.getPosition(foldingAnno);
-					if (pos.length == 0) {
+					if (pos == null || pos.length == 0) {
 						deletions.add(foldingAnno);
 					} else {
 						var duplicate = existing.put(pos, foldingAnno);

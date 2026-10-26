@@ -82,6 +82,8 @@ public class LSPFormatFilesHandler extends AbstractHandler {
 			return;
 
 		final var docProvider = getDocumentProvider(file);
+		if (docProvider == null)
+			return;
 		try {
 			docProvider.connect(file);
 			final IDocument doc = docProvider.getDocument(file);
@@ -114,7 +116,7 @@ public class LSPFormatFilesHandler extends AbstractHandler {
 		}
 	}
 
-	protected IDocumentProvider getDocumentProvider(IFile file) {
+	protected @Nullable IDocumentProvider getDocumentProvider(IFile file) {
 		return DocumentProviderRegistry.getDefault().getDocumentProvider(new FileEditorInput(file));
 	}
 

@@ -743,13 +743,14 @@ public class LanguageServerWrapper {
 			if (stopTimerTask != null) {
 				stopTimerTask.cancel();
 			}
-			stopTimerTask = new TimerTask() {
+			final var task = new TimerTask() {
 				@Override
 				public void run() {
 					stop();
 				}
 			};
-			timer.schedule(stopTimerTask, TimeUnit.SECONDS.toMillis(this.serverDefinition.lastDocumentDisconnectedTimeout));
+			stopTimerTask = task;
+			timer.schedule(task, TimeUnit.SECONDS.toMillis(this.serverDefinition.lastDocumentDisconnectedTimeout));
 		}
 	}
 
@@ -1241,8 +1242,9 @@ public class LanguageServerWrapper {
 				? LSPEclipseUtils.getDocumentContentTypes(document)
 				: getContentTypes(uri);
 		String languageId = getLanguageId(contentTypes.toArray(IContentType[]::new));
-		if (languageId == null && uri.getPath() != null) {
-			IPath path = Path.fromPortableString(uri.getPath());
+		String uriPath = uri.getPath();
+		if (languageId == null && uriPath != null) {
+			IPath path = Path.fromPortableString(uriPath);
 			languageId = path.getFileExtension();
 			if (languageId == null) {
 				languageId = path.lastSegment();

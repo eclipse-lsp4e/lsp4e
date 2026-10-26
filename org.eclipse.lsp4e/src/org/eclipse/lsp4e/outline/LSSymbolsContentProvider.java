@@ -303,13 +303,14 @@ public class LSSymbolsContentProvider implements ICommonContentProvider, ITreeCo
 			return;
 		}
 
-		this.viewer = (TreeViewer) viewer;
+		final var treeViewer = (TreeViewer) viewer;
+		this.viewer = treeViewer;
 
 		// avoid the deep, subtree-recursive DocumentSymbol.hashCode/equals on every refresh
-		this.viewer.setComparer(new SymbolsElementComparer());
+		treeViewer.setComparer(new SymbolsElementComparer());
 
 		// this enables limiting the number of outline entries to mitigate UI freezes
-		WorkbenchViewerSetup.setupViewer(this.viewer);
+		WorkbenchViewerSetup.setupViewer(treeViewer);
 
 		isQuickOutline = Boolean.TRUE.equals(viewer.getData(VIEWER_PROPERTY_IS_QUICK_OUTLINE));
 

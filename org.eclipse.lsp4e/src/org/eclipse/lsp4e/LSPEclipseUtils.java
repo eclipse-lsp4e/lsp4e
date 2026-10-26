@@ -1616,7 +1616,8 @@ public final class LSPEclipseUtils {
 		}
 		if (editorInput instanceof IURIEditorInput uriEditorInput) {
 			URI uri = uriEditorInput.getURI();
-			return uri.getPath() != null ? toUri(Path.fromPortableString(uri.getPath())) : uri;
+			String path = uri.getPath();
+			return path != null ? toUri(Path.fromPortableString(path)) : uri;
 		}
 		return null;
 	}
@@ -1633,7 +1634,8 @@ public final class LSPEclipseUtils {
 	 */
 	public static URI toUri(String uri) {
 		URI initialUri = URI.create(uri);
-		return FILE_SCHEME.equals(initialUri.getScheme()) ? toUri(Path.fromPortableString(initialUri.getPath())) : initialUri;
+		String path = initialUri.getPath();
+		return FILE_SCHEME.equals(initialUri.getScheme()) && path != null ? toUri(Path.fromPortableString(path)) : initialUri;
 	}
 
 	/**

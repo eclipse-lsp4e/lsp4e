@@ -101,7 +101,7 @@ public class LSSearchQuery extends FileSearchQuery {
 			CompletableFuture.allOf(populateUIFutures).join();
 			return Status.OK_STATUS;
 		} catch (Exception ex) {
-			return new Status(IStatus.ERROR, LanguageServerPlugin.getDefault().getBundle().getSymbolicName(),
+			return new Status(IStatus.ERROR, LanguageServerPlugin.PLUGIN_ID,
 					ex.getMessage(), ex);
 		}
 	}

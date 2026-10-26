@@ -204,6 +204,7 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 			return Optional.of(labelParts.get(0));
 		}
 		final var location = this.location;
+		final var fontData = this.fontData;
 		if (location != null && fontData != null) {
 			Point relativeLocation = new Point(me.x - location.x, me.y - location.y);
 			Display display = Display.getCurrent();

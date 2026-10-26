@@ -105,8 +105,9 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 		}
 
 		@Override
-		public String getText(Object element) {
-			return map.getOrDefault(((ContentTypeToLanguageServerDefinition) element).getValue().id, false)
+		public String getText(@Nullable Object element) {
+			return element instanceof ContentTypeToLanguageServerDefinition definition
+					&& map.getOrDefault(definition.getValue().id, false)
 							? Messages.PreferencePage_enablementCondition_true
 							: Messages.PreferencePage_enablementCondition_false;
 		}
@@ -147,8 +148,8 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 		launchConfigColumn.getColumn().setWidth(300);
 		launchConfigColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
-				return ((ContentTypeToLanguageServerDefinition) element).getValue().label;
+			public String getText(@Nullable Object element) {
+				return element instanceof ContentTypeToLanguageServerDefinition definition ? definition.getValue().label : ""; //$NON-NLS-1$
 			}
 
 			@Override
@@ -184,8 +185,8 @@ public class LoggingPreferencePage extends PreferencePage implements IWorkbenchP
 		launchConfigColumn.getColumn().setWidth(300);
 		launchConfigColumn.setLabelProvider(new ColumnLabelProvider() {
 			@Override
-			public String getText(Object element) {
-				return ((ContentTypeToLSPLaunchConfigEntry) element).getLaunchConfiguration().getName();
+			public String getText(@Nullable Object element) {
+				return element instanceof ContentTypeToLSPLaunchConfigEntry entry ? entry.getLaunchConfiguration().getName() : ""; //$NON-NLS-1$
 			}
 		});
 		addLoggingColumnsToViewer(launchConfigurationViewer);
