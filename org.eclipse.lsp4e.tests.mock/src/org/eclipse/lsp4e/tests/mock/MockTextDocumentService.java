@@ -49,6 +49,8 @@ import org.eclipse.lsp4j.DidCloseTextDocumentParams;
 import org.eclipse.lsp4j.DidOpenTextDocumentParams;
 import org.eclipse.lsp4j.DidSaveTextDocumentParams;
 import org.eclipse.lsp4j.DocumentColorParams;
+import org.eclipse.lsp4j.DocumentDiagnosticParams;
+import org.eclipse.lsp4j.DocumentDiagnosticReport;
 import org.eclipse.lsp4j.DocumentFormattingParams;
 import org.eclipse.lsp4j.DocumentHighlight;
 import org.eclipse.lsp4j.DocumentHighlightParams;
@@ -73,6 +75,7 @@ import org.eclipse.lsp4j.PrepareRenameResult;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ReferenceParams;
+import org.eclipse.lsp4j.RelatedFullDocumentDiagnosticReport;
 import org.eclipse.lsp4j.RenameParams;
 import org.eclipse.lsp4j.SemanticTokens;
 import org.eclipse.lsp4j.SemanticTokensParams;
@@ -111,6 +114,9 @@ public class MockTextDocumentService implements TextDocumentService {
 	private CompletableFuture<DidCloseTextDocumentParams> didCloseCallback;
 	private List<TextEdit> mockWillSaveWaitUntilTextEdits;
 	private ConcurrentLinkedQueue<DidChangeTextDocumentParams> didChangeEvents = new ConcurrentLinkedQueue<>();
+	private final ConcurrentLinkedQueue<DocumentDiagnosticParams> diagnosticRequests = new ConcurrentLinkedQueue<>();
+	private Function<DocumentDiagnosticParams, CompletableFuture<List<Diagnostic>>> pullDiagnostics = params -> CompletableFuture
+			.completedFuture(Collections.emptyList());
 
 	private Function<?, ? extends CompletableFuture<?>> _futureFactory;
 	/**
@@ -298,6 +304,22 @@ public class MockTextDocumentService implements TextDocumentService {
 	@Override
 	public void didChange(DidChangeTextDocumentParams params) {
 		this.didChangeEvents.add(params);
+	}
+
+	@Override
+	public CompletableFuture<DocumentDiagnosticReport> diagnostic(DocumentDiagnosticParams params) {
+		this.diagnosticRequests.add(params);
+		return pullDiagnostics.apply(params)
+				.thenApply(items -> new DocumentDiagnosticReport(new RelatedFullDocumentDiagnosticReport(items)));
+	}
+
+	public void setPullDiagnostics(
+			Function<DocumentDiagnosticParams, CompletableFuture<List<Diagnostic>>> pullDiagnostics) {
+		this.pullDiagnostics = pullDiagnostics;
+	}
+
+	public List<DocumentDiagnosticParams> getDiagnosticRequests() {
+		return new ArrayList<>(this.diagnosticRequests);
 	}
 
 	@Override

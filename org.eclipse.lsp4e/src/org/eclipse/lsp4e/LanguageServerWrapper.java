@@ -1184,6 +1184,20 @@ public class LanguageServerWrapper {
 		return getInitializedServer().thenCompose(ls -> CompletableFuture.completedFuture(registrationManager.getCapabilities(uri)));
 	}
 
+	/**
+	 * @param uri         the URI of the document the registrations are queried for: only registrations
+	 *                    whose {@code documentSelector} matches it are returned. {@code null} returns all.
+	 * @param method      the LSP method, e.g. {@code textDocument/diagnostic}
+	 * @param optionsType the LSP4J type of the method's registration options
+	 * @return the options the method is registered with: the static ones from the {@code initialize}
+	 *         result followed by those of the live dynamic registrations, in registration order. Unlike
+	 *         the effective {@link ServerCapabilities}, which only reflect the most recent registration of
+	 *         a method, this gives access to all of them. Only supported for {@code textDocument/diagnostic}.
+	 */
+	public <T> List<T> getRegistrationOptions(@Nullable URI uri, String method, Class<T> optionsType) {
+		return registrationManager.getRegistrationOptions(uri, method, optionsType);
+	}
+
 	public CompletableFuture<@Nullable ServerInfo> getServerInfoAsync() {
 		return getInitializedServer().thenApply(ls -> this.serverInfo);
 	}
