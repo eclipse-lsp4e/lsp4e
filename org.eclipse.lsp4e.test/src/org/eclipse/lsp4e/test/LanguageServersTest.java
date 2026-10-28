@@ -58,7 +58,10 @@ import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ReferenceParams;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentSyncKind;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.widgets.Display;
@@ -666,7 +669,8 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				@Override
 				public synchronized CompletableFuture<Hover> hover(HoverParams position) {
 					final var result = new CompletableFuture<Hover>();
-					result.completeExceptionally(new IllegalStateException("No hovering here"));
+					result.completeExceptionally(new ResponseErrorException(
+							new ResponseError(ResponseErrorCode.InternalError, "No hovering here", null)));
 					return result;
 				}
 			});

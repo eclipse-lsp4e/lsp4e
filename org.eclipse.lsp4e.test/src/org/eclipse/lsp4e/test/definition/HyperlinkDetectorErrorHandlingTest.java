@@ -37,12 +37,20 @@ import org.eclipse.lsp4j.Position;
 import org.eclipse.lsp4j.Range;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TypeDefinitionParams;
+import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseError;
+import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.junit.jupiter.api.Test;
 
 public class HyperlinkDetectorErrorHandlingTest extends AbstractTestWithProject {
 
 	private final OpenDeclarationHyperlinkDetector detector = new OpenDeclarationHyperlinkDetector();
+
+	// lsp4j logs other exceptions thrown by a request handler as SEVERE
+	private static ResponseErrorException serverError(String message) {
+		return new ResponseErrorException(new ResponseError(ResponseErrorCode.InternalError, message, null));
+	}
 
 	protected ServerCapabilities capabilities() {
 		// Ensure providers are enabled to exercise all branches
@@ -67,20 +75,20 @@ public class HyperlinkDetectorErrorHandlingTest extends AbstractTestWithProject 
 								TypeDefinitionParams params) {
 							var f = new CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>>();
 							f.completeExceptionally(
-									new RuntimeException("unexpected error during typeDefinition retrieval"));
+									serverError("unexpected error during typeDefinition retrieval"));
 							return f;
 						}
 						
 						@Override
 						public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> implementation(
 								ImplementationParams params) {
-							throw new RuntimeException("unexpected error during implementation retrieval");
+							throw serverError("unexpected error during implementation retrieval");
 						}
 						
 						@Override
 						public CompletableFuture<Either<List<? extends Location>, List<? extends LocationLink>>> declaration(
 								DeclarationParams params) {
-							throw new RuntimeException("unexpected error during declaration retrieval");
+							throw serverError("unexpected error during declaration retrieval");
 						}
 					});
 		});
