@@ -31,7 +31,6 @@ import org.eclipse.lsp4j.CodeActionRegistrationOptions;
 import org.eclipse.lsp4j.CompletionOptions;
 import org.eclipse.lsp4j.CompletionRegistrationOptions;
 import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
-import org.eclipse.lsp4j.DiagnosticServerCapabilities;
 import org.eclipse.lsp4j.DidChangeWatchedFilesRegistrationOptions;
 import org.eclipse.lsp4j.DocumentFormattingOptions;
 import org.eclipse.lsp4j.DocumentFormattingRegistrationOptions;
@@ -46,7 +45,6 @@ import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextDocumentRegistrationOptions;
-import org.eclipse.lsp4j.TextDocumentServerCapabilities;
 import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
 import org.eclipse.lsp4j.UnregistrationParams;
 import org.eclipse.lsp4j.WorkspaceFoldersOptions;
@@ -199,6 +197,39 @@ public final class DynamicRegistrationManager {
 				return effective;
 			});
 		}
+	}
+
+	/**
+	 * @param uri    the document URI, or {@code null} to not filter by {@code documentSelector}
+	 * @param method the LSP method
+	 * @param type   the expected type of the registration options
+	 * @return the options the method is registered with for the document: the static options from the
+	 *         {@code initialize} result, if any, followed by those of the live dynamic registrations, in
+	 *         registration order. Options not of the given type are skipped.
+	 */
+	public <T> List<T> getRegistrationOptions(final @Nullable URI uri, final String method, final Class<T> type) {
+		final var result = new ArrayList<T>();
+		final ServerCapabilities staticCaps = this.staticCapabilities;
+		final SupportedMethod supported = SupportedMethod.forMethod(method);
+		final Object staticOptions = staticCaps == null || supported == null ? null : supported.staticOptions(staticCaps);
+		if (type.isInstance(staticOptions)) {
+			final DocumentSelectorMatcher selector = staticOptions instanceof TextDocumentRegistrationOptions textDocumentOptions
+					? DocumentSelectorMatcher.compile(textDocumentOptions.getDocumentSelector())
+					: null;
+			if (uri == null || selector == null || selector.matches(uri, languageIdResolver)) {
+				result.add(type.cast(staticOptions));
+			}
+		}
+		synchronized (dynamicRegistrations) {
+			dynamicRegistrations.values().stream()
+					.filter(registration -> registration.method().equals(method))
+					.filter(registration -> uri == null || registration.matches(uri, languageIdResolver))
+					.map(DynamicRegistration::options)
+					.filter(type::isInstance)
+					.map(type::cast)
+					.forEach(result::add);
+		}
+		return result;
 	}
 
 	/** @return the file-system watcher manager fed by {@code workspace/didChangeWatchedFiles} registrations */
@@ -429,17 +460,19 @@ public final class DynamicRegistrationManager {
 			}
 		},
 
-		DIAGNOSTIC(LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, DiagnosticRegistrationOptions.class, false) {
+		DIAGNOSTIC(LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, DiagnosticRegistrationOptions.class, true) {
 			@Override
 			void applyTo(final ServerCapabilities caps, final @Nullable Object options) {
-				// options are decoded for their documentSelector only; pull diagnostics support is
-				// signalled through textDocument.diagnostic (see PullDiagnosticsReconcilingStrategy)
-				TextDocumentServerCapabilities textDocument = caps.getTextDocument();
-				if (textDocument == null) {
-					textDocument = new TextDocumentServerCapabilities();
-					caps.setTextDocument(textDocument);
-				}
-				textDocument.setDiagnostic(new DiagnosticServerCapabilities());
+				// several registrations with distinct identifiers are legitimate: this only signals pull
+				// diagnostics support, see getRegistrationOptions for all of them
+				caps.setDiagnosticProvider(options instanceof DiagnosticRegistrationOptions o ? o
+						: new DiagnosticRegistrationOptions());
+			}
+
+			@Override
+			@Nullable
+			Object staticOptions(final ServerCapabilities caps) {
+				return caps.getDiagnosticProvider();
 			}
 		},
 
@@ -559,8 +592,8 @@ public final class DynamicRegistrationManager {
 		}
 
 		/**
-		 * @return whether several concurrent registrations for this method are legitimate and combine
-		 *         additively (such methods do not carry a document selector)
+		 * @return whether several concurrent registrations for this method are legitimate even without a
+		 *         document selector
 		 */
 		boolean isAdditive() {
 			return additive;
@@ -568,6 +601,15 @@ public final class DynamicRegistrationManager {
 
 		/** Applies one registration for this method to the effective capabilities. */
 		abstract void applyTo(ServerCapabilities caps, @Nullable Object options);
+
+		/**
+		 * @return the options this method is statically registered with in the {@code initialize} result;
+		 *         {@code null} by default, only needed where {@link #getRegistrationOptions} is used
+		 */
+		@Nullable
+		Object staticOptions(final ServerCapabilities caps) {
+			return null;
+		}
 
 		/**
 		 * Register-time check of a new registration against the effective capabilities before it is

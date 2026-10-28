@@ -11,6 +11,11 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.diagnostics;
 
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -22,10 +27,16 @@ import org.eclipse.jface.text.ITextViewerLifecycle;
 import org.eclipse.jface.text.reconciler.DirtyRegion;
 import org.eclipse.jface.text.reconciler.IReconcilingStrategy;
 import org.eclipse.lsp4e.LSPEclipseUtils;
+import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.LSPMethods;
+import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticRegistrationOptions;
 import org.eclipse.lsp4j.DocumentDiagnosticParams;
-import org.eclipse.lsp4j.FullDocumentDiagnosticReport;
+import org.eclipse.lsp4j.DocumentDiagnosticReport;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
+import org.eclipse.lsp4j.TextDocumentIdentifier;
+import org.eclipse.lsp4j.services.LanguageServer;
 
 public class PullDiagnosticsReconcilingStrategy implements IReconcilingStrategy, ITextViewerLifecycle {
 
@@ -61,22 +72,57 @@ public class PullDiagnosticsReconcilingStrategy implements IReconcilingStrategy,
 		if (id == null) {
 			return;
 		}
-		DocumentDiagnosticParams param = new DocumentDiagnosticParams(id);
-		LanguageServers.forDocument(doc)
-			.withFilter(cap -> {
-				final var textDocument = cap.getTextDocument();
-				return textDocument != null && textDocument.getDiagnostic() != null;
-			})
-			.collectAll((wrapper, ls) -> ls.getTextDocumentService().diagnostic(param).thenAccept(report -> {
-				if (report.isLeft() && report.getLeft() instanceof FullDocumentDiagnosticReport docReport) {
-					var uri = LSPEclipseUtils.toUri(this.document);
-					var client = wrapper.getLanguageClient();
-					if (uri != null && client != null) {
-						var params = new PublishDiagnosticsParams(uri.toString(), docReport.getItems());
-						client.publishDiagnostics(params);
-					}
+		final URI uri = LSPEclipseUtils.toUri(doc);
+		if (uri == null) {
+			return;
+		}
+		// LanguageServers.forDocument evaluates the filter against the document's effective capabilities,
+		// so servers whose diagnostic registrations' documentSelectors don't match are skipped
+		LanguageServers.forDocument(doc) //
+				.withFilter(capabilities -> capabilities.getDiagnosticProvider() != null) //
+				.collectAll((wrapper, ls) -> pullDiagnostics(wrapper, ls, id, uri));
+	}
+
+	/**
+	 * Requests the diagnostics of every identifier the server registered for the document and publishes
+	 * them together, as each publication replaces the server's previous diagnostics for the document.
+	 */
+	private static CompletableFuture<@Nullable Void> pullDiagnostics(LanguageServerWrapper wrapper, LanguageServer ls,
+			TextDocumentIdentifier id, URI uri) {
+		final List<CompletableFuture<DocumentDiagnosticReport>> requests = getIdentifiers(wrapper, uri).stream()
+				.map(identifier -> {
+					final var param = new DocumentDiagnosticParams(id);
+					param.setIdentifier(identifier);
+					return ls.getTextDocumentService().diagnostic(param);
+				}).toList();
+		return CompletableFuture.allOf(requests.toArray(CompletableFuture[]::new)).thenRun(() -> {
+			final var diagnostics = new ArrayList<Diagnostic>();
+			boolean hasFullReport = false;
+			for (final var request : requests) {
+				final DocumentDiagnosticReport report = request.join();
+				if (report.isLeft()) {
+					hasFullReport = true;
+					diagnostics.addAll(report.getLeft().getItems());
 				}
-			}));
+			}
+			final var client = wrapper.getLanguageClient();
+			if (hasFullReport && client != null) {
+				client.publishDiagnostics(new PublishDiagnosticsParams(uri.toString(), diagnostics));
+			}
+		});
+	}
+
+	/**
+	 * @return the identifiers of the static and dynamic {@code textDocument/diagnostic} registrations
+	 *         whose {@code documentSelector} matches the document
+	 */
+	private static Set<@Nullable String> getIdentifiers(LanguageServerWrapper wrapper, URI uri) {
+		final var identifiers = new LinkedHashSet<@Nullable String>();
+		for (final DiagnosticRegistrationOptions options : wrapper.getRegistrationOptions(uri,
+				LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, DiagnosticRegistrationOptions.class)) {
+			identifiers.add(options.getIdentifier());
+		}
+		return identifiers;
 	}
 
 	@Override

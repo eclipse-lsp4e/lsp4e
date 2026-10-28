@@ -58,7 +58,6 @@ import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.RelativePattern;
 import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
 import org.eclipse.lsp4j.ServerCapabilities;
-import org.eclipse.lsp4j.TextDocumentServerCapabilities;
 import org.eclipse.lsp4j.TypeHierarchyRegistrationOptions;
 import org.eclipse.lsp4j.Unregistration;
 import org.eclipse.lsp4j.UnregistrationParams;
@@ -546,20 +545,51 @@ class DynamicRegistrationManagerTest {
 	void diagnosticRegistrationEnablesPullDiagnosticsPerDocument() {
 		manager.registerInitializationCapabilities(staticCapabilities());
 		final var options = new DiagnosticRegistrationOptions();
+		options.setIdentifier("rust");
 		options.setDocumentSelector(List.of(languageFilter("rs")));
 		register("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, options);
 
 		final ServerCapabilities rustCapabilities = manager.getCapabilities(RUST_FILE);
 		assertNotNull(rustCapabilities);
-		final TextDocumentServerCapabilities textDocument = rustCapabilities.getTextDocument();
-		assertNotNull(textDocument);
-		assertNotNull(textDocument.getDiagnostic());
+		final DiagnosticRegistrationOptions provider = rustCapabilities.getDiagnosticProvider();
+		assertNotNull(provider);
+		assertEquals("rust", provider.getIdentifier());
 		final ServerCapabilities manifestCapabilities = manager.getCapabilities(MANIFEST_FILE);
 		assertNotNull(manifestCapabilities);
-		assertNull(manifestCapabilities.getTextDocument());
+		assertNull(manifestCapabilities.getDiagnosticProvider());
 
 		unregister("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC);
-		assertNull(effectiveCapabilities().getTextDocument());
+		assertNull(effectiveCapabilities().getDiagnosticProvider());
+	}
+
+	@Test
+	void allDiagnosticRegistrationsMatchingADocumentAreAvailable() {
+		final ServerCapabilities staticCaps = staticCapabilities();
+		final var staticOptions = new DiagnosticRegistrationOptions();
+		staticOptions.setIdentifier("static");
+		staticOptions.setDocumentSelector(List.of(languageFilter("toml")));
+		staticCaps.setDiagnosticProvider(staticOptions);
+		manager.registerInitializationCapabilities(staticCaps);
+
+		final var syntax = new DiagnosticRegistrationOptions();
+		syntax.setIdentifier("syntax");
+		register("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, syntax);
+		final var semantic = new DiagnosticRegistrationOptions();
+		semantic.setIdentifier("semantic");
+		semantic.setDocumentSelector(List.of(languageFilter("rs")));
+		register("r2", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, semantic);
+
+		assertEquals(List.of("syntax", "semantic"), diagnosticIdentifiers(RUST_FILE));
+		assertEquals(List.of("static", "syntax"), diagnosticIdentifiers(MANIFEST_FILE));
+		assertEquals(List.of("static", "syntax", "semantic"), diagnosticIdentifiers(null));
+
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC);
+		assertEquals(List.of("semantic"), diagnosticIdentifiers(RUST_FILE));
+	}
+
+	private List<@Nullable String> diagnosticIdentifiers(@Nullable URI uri) {
+		return manager.getRegistrationOptions(uri, LSPMethods.TEXT_DOCUMENT_DIAGNOSTIC, DiagnosticRegistrationOptions.class)
+				.stream().map(DiagnosticRegistrationOptions::getIdentifier).toList();
 	}
 
 	@Test
