@@ -300,6 +300,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 	@Test
 	public void testComputeFirstSkipsEmptyResults(MockLanguageServerFactory factory) throws Exception {
+		final var server0Answered = new CompletableFuture<Void>();
 		factory.withConfiguration((idx, server) -> {
 			server.setTextDocumentService(new MockTextDocumentService(server::buildMaybeDelayedFuture) {
 				@Override
@@ -311,16 +312,11 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				public synchronized CompletableFuture<Hover> hover(HoverParams position) {
 					final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent" + idx)), new Range(new Position(0,  0), new Position(0, 10)));
 					if (idx == 0) {
+						server0Answered.complete(null);
 						return CompletableFuture.completedFuture(null);
 					}
-					return CompletableFuture.completedFuture(hoverResponse).thenApplyAsync(t -> {
-						try {
-							Thread.sleep(2000);
-						} catch (InterruptedException e) {
-							
-						}
-						return t;
-					});
+					// the empty answer of server 0 should come first
+					return server0Answered.thenApply(v -> hoverResponse);
 				}
 			});
 		});
@@ -382,6 +378,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 	@Test
 	public void testComputeFirstTreatsEmptyListAsNull(MockLanguageServerFactory factory) throws Exception {
+		final var server0Answered = new CompletableFuture<Void>();
 		factory.withConfiguration((idx, server) -> {
 			server.setTextDocumentService(new MockTextDocumentService(server::buildMaybeDelayedFuture) {
 				@Override
@@ -393,16 +390,11 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				public synchronized CompletableFuture<Hover> hover(HoverParams position) {
 					final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent" + idx)), new Range(new Position(0,  0), new Position(0, 10)));
 					if (idx == 0) {
+						server0Answered.complete(null);
 						return CompletableFuture.completedFuture(null);
 					}
-					return CompletableFuture.completedFuture(hoverResponse).thenApplyAsync(t -> {
-						try {
-							Thread.sleep(2000);
-						} catch (InterruptedException e) {
-							
-						}
-						return t;
-					});
+					// the empty answer of server 0 should come first
+					return server0Answered.thenApply(v -> hoverResponse);
 				}
 			});
 		});
