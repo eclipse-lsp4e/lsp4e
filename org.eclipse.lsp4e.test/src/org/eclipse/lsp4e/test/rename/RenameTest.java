@@ -118,7 +118,8 @@ public class RenameTest extends AbstractTestWithProject {
 		processor.setNewName("new");
 		try {
 			final var processorBasedRefactoring = new ProcessorBasedRefactoring(processor);
-			processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+			RefactoringStatus status = processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+			assertFalse(status.hasFatalError(), status::toString);
 			processorBasedRefactoring.createChange(new NullProgressMonitor()).perform(new NullProgressMonitor());
 		} catch (CoreException e) {
 			e.printStackTrace();
@@ -138,7 +139,8 @@ public class RenameTest extends AbstractTestWithProject {
 		processor.setNewName("new");
 		try {
 			final var processorBasedRefactoring = new ProcessorBasedRefactoring(processor);
-			processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+			RefactoringStatus status = processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+			assertFalse(status.hasFatalError(), status::toString);
 			processorBasedRefactoring.createChange(new NullProgressMonitor()).perform(new NullProgressMonitor());
 		} catch (CoreException e) {
 			e.printStackTrace();
@@ -183,7 +185,8 @@ public class RenameTest extends AbstractTestWithProject {
 			processor.setNewName("new");
 			try {
 				final var processorBasedRefactoring = new ProcessorBasedRefactoring(processor);
-				processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+				RefactoringStatus status = processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+				assertFalse(status.hasFatalError(), status::toString);
 				processorBasedRefactoring.createChange(new NullProgressMonitor()).perform(new NullProgressMonitor());
 			} catch (CoreException e) {
 				e.printStackTrace();
@@ -211,7 +214,8 @@ public class RenameTest extends AbstractTestWithProject {
 		processor.setNewName("new");
 		try {
 			final var processorBasedRefactoring = new ProcessorBasedRefactoring(processor);
-			processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+			RefactoringStatus status = processorBasedRefactoring.checkAllConditions(new NullProgressMonitor());
+			assertFalse(status.hasFatalError(), status::toString);
 			processorBasedRefactoring.createChange(new NullProgressMonitor()).perform(new NullProgressMonitor());
 		} catch (CoreException e) {
 			e.printStackTrace();
