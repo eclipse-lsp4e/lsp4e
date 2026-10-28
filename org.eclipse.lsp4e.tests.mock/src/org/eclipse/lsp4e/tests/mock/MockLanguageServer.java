@@ -143,15 +143,10 @@ public class MockLanguageServer implements LanguageServer {
 		inFlight.forEach(future -> {
 			try {
 				future.join();
-			} catch (CancellationException | CompletionException e) {
-				Throwable cause = e.getCause();
-				System.err.println("Error waiting for in flight requests prior to teardown: " //
-						+ e.getClass().getSimpleName() + " with message "
-						+ (e.getMessage() == null ? "<null>" : '"' + e.getMessage()) //
-						+ (cause != null //
-								? " caused by " + cause.getClass().getSimpleName() + " with message "
-										+ (cause.getMessage() == null ? "<null>" : '"' + cause.getMessage()) //
-								: ""));
+			} catch (CancellationException e) {
+				LOGGER.log(Level.INFO, "In flight request was cancelled by the client before teardown");
+			} catch (CompletionException e) {
+				LOGGER.log(Level.ERROR, "Error waiting for in flight request prior to teardown", e);
 			}
 		});
 	}
