@@ -293,9 +293,8 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		assertEquals("HoverContent0", result.get(), "HoverContent0 should have arrived first");
 
 		// It won't *normally) matter in production but because the tests run quickly, make sure the test teardown doesn't
-		// occur before the slower, ignored result has completed, otherwise will get a load of console noise.
-		// computeFirst may have cancelled that request, so ignore how it ended.
-		internalResults.forEach(f -> f.handle((r, t) -> null).join());
+		// occur before the slower, ignored result has completed, otherwise will get a load of console noise
+		internalResults.forEach(CompletableFuture::join);
 	}
 
 	@Test
