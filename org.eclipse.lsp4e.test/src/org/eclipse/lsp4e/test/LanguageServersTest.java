@@ -145,6 +145,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 	@Test
 	public void testComputeAll(MockLanguageServerFactory factory) throws Exception {
+		final var releaseServer1 = new CompletableFuture<Void>();
 		factory.withConfiguration((idx, server) -> {
 			server.setTextDocumentService(new MockTextDocumentService(server::buildMaybeDelayedFuture) {
 				@Override
@@ -155,15 +156,10 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				@Override
 				public synchronized CompletableFuture<Hover> hover(HoverParams position) {
 					final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent" + idx)), new Range(new Position(0,  0), new Position(0, 10)));
-					final int currentCount = idx + 1;
-					return CompletableFuture.completedFuture(hoverResponse).thenApplyAsync(t -> {
-						try {
-							Thread.sleep(((long) currentCount) * 1000);
-						} catch (InterruptedException e) {
-							
-						}
-						return t;
-					});
+					// server 1 only answers once the test has seen the first result
+					return idx == 0
+							? CompletableFuture.completedFuture(hoverResponse)
+							: releaseServer1.thenApply(v -> hoverResponse);
 				}
 			});
 		});
@@ -185,6 +181,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		assertEquals(2, result.size(), "Should have had two responses");
 
 		final Object first = CompletableFuture.anyOf(result.get(0), result.get(1)).join();
+		releaseServer1.complete(null);
 
 		assertEquals("HoverContent0", first, "HoverContent1 should have returned first, independently");
 
@@ -254,6 +251,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 	@Test
 	public void testComputeFirst(MockLanguageServerFactory factory) throws Exception {
 		final var internalResults = new Vector<CompletableFuture<?>>();
+		final var releaseServer1 = new CompletableFuture<Void>();
 		factory.withConfiguration((idx, server) -> {
 			server.setTextDocumentService(new MockTextDocumentService(server::buildMaybeDelayedFuture) {
 				@Override
@@ -264,15 +262,10 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				@Override
 				public synchronized CompletableFuture<Hover> hover(HoverParams position) {
 					final var hoverResponse = new Hover(List.of(Either.forLeft("HoverContent" + idx)), new Range(new Position(0,  0), new Position(0, 10)));
-					final int currentCount = idx + 1;
-					CompletableFuture<Hover> result =  CompletableFuture.completedFuture(hoverResponse).thenApplyAsync(t -> {
-						try {
-							Thread.sleep(((long) currentCount) * 1000);
-						} catch (InterruptedException e) {
-							
-						}
-						return t;
-					});
+					// server 1 only answers once computeFirst has completed
+					CompletableFuture<Hover> result = idx == 0
+							? CompletableFuture.completedFuture(hoverResponse)
+							: releaseServer1.thenApply(v -> hoverResponse);
 					internalResults.add(result);
 					return result;
 				}
@@ -294,13 +287,15 @@ public class LanguageServersTest extends AbstractTestWithProject {
 				.computeFirst(ls -> ls.getTextDocumentService().hover(params).thenApply(h -> h.getContents().getLeft().get(0).getLeft()));
 
 		Optional<String> result = response.join();
+		releaseServer1.complete(null);
 		assertTrue(result.isPresent());
 
 		assertEquals("HoverContent0", result.get(), "HoverContent0 should have arrived first");
 
 		// It won't *normally) matter in production but because the tests run quickly, make sure the test teardown doesn't
-		// occur before the slower, ignored result has completed, otherwise will get a load of console noise
-		internalResults.forEach(CompletableFuture::join);
+		// occur before the slower, ignored result has completed, otherwise will get a load of console noise.
+		// computeFirst may have cancelled that request, so ignore how it ended.
+		internalResults.forEach(f -> f.handle((r, t) -> null).join());
 	}
 
 	@Test
