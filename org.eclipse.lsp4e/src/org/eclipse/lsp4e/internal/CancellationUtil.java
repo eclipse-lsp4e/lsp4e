@@ -39,7 +39,8 @@ public final class CancellationUtil {
 	private static boolean isRequestCancelled(ResponseErrorException responseErrorException) {
 		ResponseError responseError = responseErrorException.getResponseError();
 		return responseError != null
-				&& responseError.getCode() == ResponseErrorCode.RequestCancelled.getValue();
+				&& (responseError.getCode() == ResponseErrorCode.RequestCancelled.getValue()
+						|| responseError.getCode() == ResponseErrorCode.ServerCancelled.getValue());
 	}
 
 }
