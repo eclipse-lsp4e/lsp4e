@@ -115,10 +115,7 @@ import org.eclipse.lsp4j.WorkspaceFolder;
 import org.eclipse.lsp4j.WorkspaceFoldersChangeEvent;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.MessageConsumer;
-import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
 import org.eclipse.lsp4j.jsonrpc.messages.Message;
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
-import org.eclipse.lsp4j.jsonrpc.messages.ResponseMessage;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
 import org.eclipse.osgi.util.NLS;
@@ -700,10 +697,7 @@ public class LanguageServerWrapper {
 	}
 
 	private void logMessage(Message message) {
-		if (message instanceof ResponseMessage responseMessage && responseMessage.getError() != null
-				&& Integer.toString(ResponseErrorCode.RequestCancelled.getValue()).equals(responseMessage.getId())) {
-			LanguageServerPlugin.logError(new ResponseErrorException(responseMessage.getError()));
-		} else if (LanguageServerPlugin.DEBUG) {
+		if (LanguageServerPlugin.DEBUG) {
 			LanguageServerPlugin.logInfo(message.getClass().getSimpleName() + '\n' + message);
 		}
 	}
