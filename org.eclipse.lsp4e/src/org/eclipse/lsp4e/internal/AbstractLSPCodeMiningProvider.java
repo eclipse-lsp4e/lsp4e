@@ -61,7 +61,17 @@ public abstract class AbstractLSPCodeMiningProvider extends AbstractCodeMiningPr
 
 		final TextDocumentIdentifier docId = LSPEclipseUtils.toTextDocumentIdentifier(docURI);
 
-		final var current = doProvideCodeMinings(document, docId);
+		final var computed = doProvideCodeMinings(document, docId);
+		// leave room for inline completion ghost text; cancelling the result cancels the computation
+		final CompletableFuture<List<? extends ICodeMining>> current = computed == null ? null
+				: computed.thenApply(minings -> GhostTextRegistry.filter(document, minings));
+		if (computed != null && current != null) {
+			current.whenComplete((minings, error) -> {
+				if (current.isCancelled()) {
+					computed.cancel(true);
+				}
+			});
+		}
 		final CompletableFuture<List<? extends ICodeMining>> previous;
 		if (current == null) {
 			previous = pendingRequests.remove(document);

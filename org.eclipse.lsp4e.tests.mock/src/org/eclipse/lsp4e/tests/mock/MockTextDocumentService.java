@@ -64,6 +64,8 @@ import org.eclipse.lsp4j.FoldingRange;
 import org.eclipse.lsp4j.FoldingRangeRequestParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.InlayHint;
+import org.eclipse.lsp4j.InlayHintParams;
 import org.eclipse.lsp4j.InlineCompletionItem;
 import org.eclipse.lsp4j.InlineCompletionList;
 import org.eclipse.lsp4j.InlineCompletionParams;
@@ -144,6 +146,7 @@ public class MockTextDocumentService implements TextDocumentService {
 	/** Every {@code textDocument/inlineCompletion} request received, in order. */
 	public final ConcurrentLinkedQueue<InlineCompletionParams> inlineCompletionRequests = new ConcurrentLinkedQueue<>();
 	private CompletableFuture<?> inlineCompletionGate = CompletableFuture.completedFuture(null);
+	private List<InlayHint> mockInlayHints = Collections.emptyList();
 	public int codeActionRequests = 0;
 
 	public <U> MockTextDocumentService(Function<U, CompletableFuture<U>> futureFactory) {
@@ -569,5 +572,14 @@ public class MockTextDocumentService implements TextDocumentService {
 			InlineCompletionParams params) {
 		inlineCompletionRequests.add(params);
 		return inlineCompletionGate.thenCompose(released -> futureFactory(inlineCompletionResponder.apply(params)));
+	}
+
+	public void setInlayHints(List<InlayHint> inlayHints) {
+		this.mockInlayHints = inlayHints;
+	}
+
+	@Override
+	public CompletableFuture<List<InlayHint>> inlayHint(InlayHintParams params) {
+		return CompletableFuture.completedFuture(this.mockInlayHints);
 	}
 }
