@@ -23,12 +23,14 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextViewer;
+import org.eclipse.jface.text.codemining.ICodeMining;
 import org.eclipse.jface.text.codemining.LineContentCodeMining;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.command.CommandExecutor;
 import org.eclipse.lsp4e.internal.NullSafetyHelper;
+import org.eclipse.lsp4e.internal.ReusableCodeMining;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.ExecuteCommandParams;
@@ -49,7 +51,7 @@ import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Display;
 
-public class LSPLineContentCodeMining extends LineContentCodeMining {
+public class LSPLineContentCodeMining extends LineContentCodeMining implements ReusableCodeMining {
 
 	private InlayHint inlayHint;
 	private final LanguageServerWrapper wrapper;
@@ -137,6 +139,11 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 			}
 			super.setLabel(sb.toString());
 		}
+	}
+
+	@Override
+	public ICodeMining copy() throws BadLocationException {
+		return new LSPLineContentCodeMining(inlayHint, document, wrapper, (InlayHintProvider) getProvider());
 	}
 
 	protected static @Nullable String getInlayHintString(InlayHint inlayHint) {

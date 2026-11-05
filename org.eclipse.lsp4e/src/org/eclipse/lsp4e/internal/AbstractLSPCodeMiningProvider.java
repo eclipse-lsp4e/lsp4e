@@ -12,14 +12,18 @@
 package org.eclipse.lsp4e.internal;
 
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IDocumentExtension4;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.codemining.AbstractCodeMiningProvider;
 import org.eclipse.jface.text.codemining.ICodeMining;
@@ -37,6 +41,23 @@ import org.eclipse.lsp4j.TextDocumentIdentifier;
 public abstract class AbstractLSPCodeMiningProvider extends AbstractCodeMiningProvider {
 
 	private final ConcurrentMap<IDocument, CompletableFuture<List<? extends ICodeMining>>> pendingRequests = new ConcurrentHashMap<>();
+
+	/** Code minings computed for a document version, to show again when only ghost text changes. */
+	private record CachedMinings(long modificationStamp, long refreshGeneration,
+			CompletableFuture<List<? extends ICodeMining>> minings) {
+	}
+
+	private static final AtomicLong REFRESH_GENERATION = new AtomicLong();
+
+	private final ConcurrentMap<IDocument, CachedMinings> cache = new ConcurrentHashMap<>();
+
+	/**
+	 * Makes all providers compute their code minings anew because a server asked for a refresh, also
+	 * when only ghost text changes next.
+	 */
+	public static void invalidateCaches() {
+		REFRESH_GENERATION.incrementAndGet();
+	}
 
 	/**
 	 * Computes code minings for the given document.
@@ -61,7 +82,27 @@ public abstract class AbstractLSPCodeMiningProvider extends AbstractCodeMiningPr
 
 		final TextDocumentIdentifier docId = LSPEclipseUtils.toTextDocumentIdentifier(docURI);
 
+		final long modificationStamp = document instanceof IDocumentExtension4 extension
+				? extension.getModificationStamp()
+				: IDocumentExtension4.UNKNOWN_MODIFICATION_STAMP;
+		final long refreshGeneration = REFRESH_GENERATION.get();
+		final CachedMinings cached = cache.get(document);
+		if (cached != null && GhostTextRegistry.isRefreshForGhostText(document)
+				&& modificationStamp != IDocumentExtension4.UNKNOWN_MODIFICATION_STAMP
+				&& cached.modificationStamp() == modificationStamp && cached.refreshGeneration() == refreshGeneration
+				&& cached.minings().isDone() && !cached.minings().isCompletedExceptionally()) {
+			final List<ICodeMining> copies = copies(cached.minings().join());
+			if (copies != null) {
+				return CompletableFuture.completedFuture(GhostTextRegistry.filter(document, copies));
+			}
+		}
+
 		final var computed = doProvideCodeMinings(document, docId);
+		if (computed == null) {
+			cache.remove(document);
+		} else {
+			cache.put(document, new CachedMinings(modificationStamp, refreshGeneration, computed));
+		}
 		// leave room for inline completion ghost text; cancelling the result cancels the computation
 		final CompletableFuture<List<? extends ICodeMining>> current = computed == null ? null
 				: computed.thenApply(minings -> GhostTextRegistry.filter(document, minings));
@@ -83,5 +124,27 @@ public abstract class AbstractLSPCodeMiningProvider extends AbstractCodeMiningPr
 		}
 
 		return current;
+	}
+
+	/** Returns copies of the given code minings, or {@code null} if they cannot be shown again. */
+	private static @Nullable List<ICodeMining> copies(List<? extends ICodeMining> minings) {
+		final var copies = new ArrayList<ICodeMining>(minings.size());
+		try {
+			for (final ICodeMining mining : minings) {
+				if (!(mining instanceof ReusableCodeMining reusable)) {
+					return null;
+				}
+				copies.add(reusable.copy());
+			}
+		} catch (BadLocationException e) {
+			return null;
+		}
+		return copies;
+	}
+
+	@Override
+	public void dispose() {
+		cache.clear();
+		super.dispose();
 	}
 }
