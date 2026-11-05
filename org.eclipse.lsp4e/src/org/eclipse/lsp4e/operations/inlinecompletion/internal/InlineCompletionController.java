@@ -1032,8 +1032,15 @@ public final class InlineCompletionController {
 		refreshScheduled = true;
 		display.asyncExec(() -> {
 			refreshScheduled = false;
-			if (!disposed && !textWidget.isDisposed()) {
-				((ISourceViewerExtension5) viewer).updateCodeMinings();
+			if (disposed || textWidget.isDisposed()) {
+				return;
+			}
+			final var extension = (ISourceViewerExtension5) viewer;
+			final IDocument doc = document;
+			if (doc == null) {
+				extension.updateCodeMinings();
+			} else {
+				GhostTextRegistry.refreshForGhostText(doc, extension::updateCodeMinings);
 			}
 		});
 	}

@@ -33,7 +33,27 @@ public final class GhostTextRegistry {
 
 	private static final Map<IDocument, Occupied> OCCUPIED = Collections.synchronizedMap(new WeakHashMap<>());
 
+	private static final ThreadLocal<IDocument> GHOST_TEXT_REFRESH = new ThreadLocal<>();
+
 	private GhostTextRegistry() {
+	}
+
+	/**
+	 * Runs the given refresh of the code minings of the document, made only to show or hide ghost text:
+	 * JFace has no way to refresh a single provider's minings, and it asks all providers while it runs.
+	 */
+	public static void refreshForGhostText(IDocument document, Runnable refresh) {
+		GHOST_TEXT_REFRESH.set(document);
+		try {
+			refresh.run();
+		} finally {
+			GHOST_TEXT_REFRESH.remove();
+		}
+	}
+
+	/** Returns whether the code minings of the document are being refreshed only for ghost text. */
+	public static boolean isRefreshForGhostText(IDocument document) {
+		return GHOST_TEXT_REFRESH.get() == document;
 	}
 
 	/**

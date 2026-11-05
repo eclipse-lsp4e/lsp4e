@@ -44,6 +44,7 @@ import org.eclipse.jface.text.codemining.ICodeMining;
 import org.eclipse.jface.text.codemining.ICodeMiningProvider;
 import org.eclipse.jface.text.link.LinkedModeModel;
 import org.eclipse.jface.text.source.ISourceViewer;
+import org.eclipse.jface.text.source.ISourceViewerExtension5;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.LSPMethods;
@@ -1424,6 +1425,37 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		assertEquals(0, minings(codeLenses, viewer).size());
 		controller(viewer).dismiss();
 		assertEquals(1, minings(codeLenses, viewer).size());
+	}
+
+	@Test
+	public void codeMiningsAreReusedUntilTheDocumentChangesOrTheServerAsksForARefresh(MockLanguageServerFactory factory)
+			throws Exception {
+		final ISourceViewer viewer = open(factory, "lspt", "hello\n", () -> {
+			final ServerCapabilities capabilities = capabilities();
+			capabilities.setInlayHintProvider(true);
+			return capabilities;
+		}, items(item(" world")));
+		final AtomicInteger inlayHintRequests = server(factory).getTextDocumentService().inlayHintRequests;
+		waitForAndAssertCondition(TIMEOUT, () -> inlayHintRequests.get() > 0);
+		processEvents(300);
+		final int initial = inlayHintRequests.get();
+
+		// showing and dismissing ghost text updates the code minings of an unchanged document
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		controller(viewer).dismiss();
+		processEvents(300);
+		assertEquals(initial, inlayHintRequests.get(), "the document did not change: inlay hints are reused");
+
+		// the client refreshes on the UI thread: not waiting for its reply here
+		server(factory).getRemoteProxy().refreshInlayHints();
+		waitForAndAssertCondition(TIMEOUT, () -> inlayHintRequests.get() > initial);
+
+		final int refreshed = inlayHintRequests.get();
+		viewer.getDocument().replace(0, 0, "x");
+		((ISourceViewerExtension5) viewer).updateCodeMinings();
+		waitForAndAssertCondition(TIMEOUT, () -> inlayHintRequests.get() > refreshed);
 	}
 
 	private static List<? extends ICodeMining> minings(ICodeMiningProvider provider, ISourceViewer viewer)

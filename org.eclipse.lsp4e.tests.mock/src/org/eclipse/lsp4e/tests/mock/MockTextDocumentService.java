@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -147,6 +148,7 @@ public class MockTextDocumentService implements TextDocumentService {
 	public final ConcurrentLinkedQueue<InlineCompletionParams> inlineCompletionRequests = new ConcurrentLinkedQueue<>();
 	private CompletableFuture<?> inlineCompletionGate = CompletableFuture.completedFuture(null);
 	private List<InlayHint> mockInlayHints = Collections.emptyList();
+	public final AtomicInteger inlayHintRequests = new AtomicInteger();
 	public int codeActionRequests = 0;
 
 	public <U> MockTextDocumentService(Function<U, CompletableFuture<U>> futureFactory) {
@@ -580,6 +582,7 @@ public class MockTextDocumentService implements TextDocumentService {
 
 	@Override
 	public CompletableFuture<List<InlayHint>> inlayHint(InlayHintParams params) {
+		inlayHintRequests.incrementAndGet();
 		return CompletableFuture.completedFuture(this.mockInlayHints);
 	}
 }

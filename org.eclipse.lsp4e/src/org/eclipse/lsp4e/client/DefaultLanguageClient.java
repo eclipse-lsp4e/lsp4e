@@ -32,6 +32,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.ServerMessageHandler;
+import org.eclipse.lsp4e.internal.AbstractLSPCodeMiningProvider;
 import org.eclipse.lsp4e.progress.LSPProgressManager;
 import org.eclipse.lsp4e.ui.Messages;
 import org.eclipse.lsp4e.ui.UI;
@@ -175,6 +176,7 @@ public class DefaultLanguageClient implements LanguageClient {
 	}
 
 	private void updateCodeMinings() {
+		AbstractLSPCodeMiningProvider.invalidateCaches();
 		IWorkbenchPage activePage = UI.getActivePage();
 		if (activePage == null) {
 			return;
