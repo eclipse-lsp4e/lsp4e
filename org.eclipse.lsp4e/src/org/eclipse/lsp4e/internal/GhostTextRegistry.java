@@ -27,11 +27,13 @@ import org.eclipse.jface.text.codemining.LineHeaderCodeMining;
  * JFace merges code minings at the same position into one annotation and lets header minings of the
  * same line fight over its vertical indent, so an inlay hint at the caret or a code lens above the line
  * the ghost text continues on would be drawn into the ghost text. While ghost text is shown, such
- * minings are left out; they come back when it is dismissed.
+ * minings are left out; they come back when it is dismissed. So are line content minings in the rest
+ * of the line when accepting moves it below the ghost text: that text is hidden where it is and drawn at
+ * the end of the ghost text, and a mining in it would widen its hidden characters again.
  */
 public final class GhostTextRegistry {
 
-	private record Occupied(int contentOffset, int headerLine) {
+	private record Occupied(int contentOffset, int headerLine, int movedOffset, int movedLength) {
 	}
 
 	private static final Map<IDocument, Occupied> OCCUPIED = Collections.synchronizedMap(new WeakHashMap<>());
@@ -44,9 +46,12 @@ public final class GhostTextRegistry {
 	 *
 	 * @param contentOffset the offset of the ghost text's first line, or -1
 	 * @param headerLine the line the ghost text's further lines are drawn above, or -1
+	 * @param movedOffset the offset of the text that accepting moves below the ghost text, hidden where it
+	 *            is, or -1
+	 * @param movedLength the length of that text
 	 */
-	public static void set(IDocument document, int contentOffset, int headerLine) {
-		OCCUPIED.put(document, new Occupied(contentOffset, headerLine));
+	public static void set(IDocument document, int contentOffset, int headerLine, int movedOffset, int movedLength) {
+		OCCUPIED.put(document, new Occupied(contentOffset, headerLine, movedOffset, movedLength));
 	}
 
 	public static void clear(IDocument document) {
@@ -75,7 +80,12 @@ public final class GhostTextRegistry {
 			}
 		}
 		// a line content mining is drawn by widening the character it covers, which is the character
-		// after its offset or, for most providers, the one before: either may be the ghost text's
+		// after its offset or, for most providers, the one before: either may be the ghost text's, or
+		// one of the hidden characters of the moved text
+		if (occupied.movedOffset >= 0 && offset >= occupied.movedOffset
+				&& offset <= occupied.movedOffset + occupied.movedLength) {
+			return true;
+		}
 		return occupied.contentOffset >= 0 && (offset == occupied.contentOffset || offset == occupied.contentOffset + 1);
 	}
 }
