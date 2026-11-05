@@ -55,6 +55,7 @@ import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.CancellationSupport;
 import org.eclipse.lsp4e.internal.CancellationUtil;
+import org.eclipse.lsp4e.internal.GhostTextRegistry;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.operations.inlinecompletion.CurrentCompletionInfo;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.Kind;
@@ -332,6 +333,10 @@ public final class InlineCompletionController {
 		if (shown != null || noSuggestionsShown) {
 			setStatusMessage(null);
 		}
+		final IDocument current = document;
+		if (current != null) {
+			GhostTextRegistry.clear(current);
+		}
 		setDocument(null);
 		viewer.removeTextInputListener(inputListener);
 		if (!textWidget.isDisposed()) {
@@ -360,6 +365,7 @@ public final class InlineCompletionController {
 			cancelPending();
 			old.removeDocumentListener(documentListener);
 			removeTrackedPositions(old);
+			GhostTextRegistry.clear(old);
 			endSession();
 		}
 		document = newDocument;
@@ -775,6 +781,7 @@ public final class InlineCompletionController {
 		final Snapshot old = snapshot;
 		snapshot = new Snapshot(ghost, caret, specs);
 		laidOutFor = geometry;
+		registerOccupied(doc, specs);
 		updateBottomMargin(specs);
 		setVisibleContext(true);
 		updateStatus(doc, caret);
@@ -801,10 +808,15 @@ public final class InlineCompletionController {
 	}
 
 	private void hide() {
-		if (snapshot == null) {
+		final IDocument doc = document;
+		final Snapshot shown = snapshot;
+		if (shown == null) {
 			return;
 		}
 		snapshot = null;
+		if (doc != null) {
+			GhostTextRegistry.clear(doc);
+		}
 		restoreBottomMargin();
 		setVisibleContext(false);
 		setStatusMessage(null);
@@ -887,6 +899,24 @@ public final class InlineCompletionController {
 				((ISourceViewerExtension5) viewer).updateCodeMinings();
 			}
 		});
+	}
+
+	private void registerOccupied(IDocument doc, List<MiningSpec> specs) {
+		int contentOffset = -1;
+		int headerLine = -1;
+		for (final MiningSpec spec : specs) {
+			if (spec.kind() == Kind.HEADER) {
+				try {
+					headerLine = doc.getLineOfOffset(spec.offset());
+				} catch (BadLocationException e) {
+					// ignore
+				}
+			} else if (spec.kind() == Kind.CONTENT || contentOffset < 0) {
+				// the first line, at the caret, rather than further lines below the end of the document
+				contentOffset = spec.offset();
+			}
+		}
+		GhostTextRegistry.set(doc, contentOffset, headerLine);
 	}
 
 	private void updateBottomMargin(List<MiningSpec> specs) {
