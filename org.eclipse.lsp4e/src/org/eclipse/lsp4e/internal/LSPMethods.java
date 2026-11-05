@@ -21,6 +21,7 @@ public final class LSPMethods {
 	public static final String TEXT_DOCUMENT_COMPLETION = "textDocument/completion"; //$NON-NLS-1$
 	public static final String TEXT_DOCUMENT_DIAGNOSTIC = "textDocument/diagnostic"; //$NON-NLS-1$
 	public static final String TEXT_DOCUMENT_FORMATTING = "textDocument/formatting"; //$NON-NLS-1$
+	public static final String TEXT_DOCUMENT_INLINE_COMPLETION = "textDocument/inlineCompletion"; //$NON-NLS-1$
 	public static final String TEXT_DOCUMENT_ON_TYPE_FORMATTING = "textDocument/onTypeFormatting"; //$NON-NLS-1$
 	public static final String TEXT_DOCUMENT_RANGE_FORMATTING = "textDocument/rangeFormatting"; //$NON-NLS-1$
 	public static final String TEXT_DOCUMENT_SELECTION_RANGE = "textDocument/selectionRange"; //$NON-NLS-1$

@@ -34,6 +34,7 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.lsp4e.server.StreamConnectionProvider;
 import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.jsonrpc.messages.Message;
+import org.eclipse.lsp4j.jsonrpc.messages.RequestMessage;
 import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
 import org.eclipse.lsp4j.services.LanguageServer;
@@ -122,6 +123,9 @@ public class MockConnectionProvider implements StreamConnectionProvider {
 
 	@Override
 	public void handleMessage(Message message, LanguageServer languageServer, @Nullable URI rootURI) {
+		if (message instanceof RequestMessage request) {
+			factory.requestMethods.put(request.getId(), request.getMethod());
+		}
 		if (message.toString().contains("cancelRequest")) {
 			factory.cancellations.add(message);
 		}

@@ -12,16 +12,19 @@
 package org.eclipse.lsp4e.tests.mock;
 
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.eclipse.lsp4j.ServerCapabilities;
+import org.eclipse.lsp4j.jsonrpc.messages.CancelParams;
 import org.eclipse.lsp4j.jsonrpc.messages.Message;
+import org.eclipse.lsp4j.jsonrpc.messages.NotificationMessage;
 
 /**
  * A factory which is used to create language server instances for test cases.
@@ -54,7 +57,23 @@ public class MockLanguageServerFactory {
 	/**
 	 * The observed cancellation messages
 	 */
-	public final Collection<Message> cancellations = new ArrayList<>();
+	public final Collection<Message> cancellations = new CopyOnWriteArrayList<>();
+
+	/**
+	 * The methods of the observed requests, by request id
+	 */
+	public final Map<String, String> requestMethods = new ConcurrentHashMap<>();
+
+	/**
+	 * Returns how many requests of the given method were cancelled.
+	 */
+	public long cancelledRequests(String method) {
+		return cancellations.stream()
+				.filter(message -> message instanceof NotificationMessage notification
+						&& notification.getParams() instanceof CancelParams params
+						&& method.equals(requestMethods.get(params.getId())))
+				.count();
+	}
 
 	/**
 	 * Pass a consumer which is called for each newly created LanguageServer. The
