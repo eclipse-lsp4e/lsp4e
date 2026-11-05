@@ -115,7 +115,8 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 	private final IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
 	/**
 	 * The generic editor opens the completion popup while typing, and the mock server proposes a
-	 * completion: the popup would cover the ghost text and get the keys. Here it is switched off.
+	 * completion: its selection would be sent along and change what is requested. Popup interplay is
+	 * tested by {@link InlineCompletionWithCompletionPopupTest}; here it is switched off.
 	 */
 	private final IPreferenceStore genericEditorStore = new ScopedPreferenceStore(InstanceScope.INSTANCE,
 			"org.eclipse.ui.genericeditor");

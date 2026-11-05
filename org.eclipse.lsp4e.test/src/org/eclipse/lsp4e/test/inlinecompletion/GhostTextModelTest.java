@@ -174,6 +174,14 @@ public class GhostTextModelTest {
 			assertNotNull(g);
 			assertEquals("b😁", g.text());
 		}
+
+		@Test
+		void selectedCompletionMustBeExtended() {
+			final InlineCompletionCandidate c = candidate(7, 8, ".log()");
+			assertTrue(GhostTextComputer.extendsSelectedCompletion(c, 7, 8, ".log"));
+			assertFalse(GhostTextComputer.extendsSelectedCompletion(c, 7, 8, ".error"));
+			assertFalse(GhostTextComputer.extendsSelectedCompletion(c, 8, 8, ".log"));
+		}
 	}
 
 	@Nested
@@ -349,14 +357,14 @@ public class GhostTextModelTest {
 	class Layout {
 
 		private List<MiningSpec> layout(String content, int anchor, String text) throws Exception {
-			return layout(content, anchor, text, 4, line -> true);
+			return layout(content, anchor, text, 4, line -> true, false);
 		}
 
 		private List<MiningSpec> layout(String content, int anchor, String text, int tabWidth,
-				IntPredicate visible) throws Exception {
+				IntPredicate visible, boolean firstRowOnly) throws Exception {
 			final IDocument doc = new Document(content);
 			return GhostTextLayout.layout(doc, new GhostText(anchor, text, anchor, anchor, candidate(anchor, anchor, text)),
-					tabWidth, visible);
+					tabWidth, visible, firstRowOnly);
 		}
 
 		private static void assertSpec(MiningSpec spec, Kind kind, int offset, int length, String firstRow, List<String> rows) {
@@ -429,7 +437,7 @@ public class GhostTextModelTest {
 		@Test
 		void tabsAreExpandedFromTheCaretColumn() throws Exception {
 			// the caret is after a tab (column 4); "a" is at column 4, the tab after it reaches column 8
-			final List<MiningSpec> specs = layout("\t\nz", 1, "a\tb\n\tc", 4, line -> true);
+			final List<MiningSpec> specs = layout("\t\nz", 1, "a\tb\n\tc", 4, line -> true, false);
 			assertSpec(specs.get(0), Kind.CONTENT, 1, 1, "a   b", List.of());
 			assertSpec(specs.get(1), Kind.HEADER, 2, 1, "", List.of("    c"));
 			assertEquals("ab  c", GhostTextLayout.expandTabs("ab\tc", 0, 4));
@@ -461,9 +469,9 @@ public class GhostTextModelTest {
 
 		@Test
 		void foldedNextLineIsSkipped() throws Exception {
-			final List<MiningSpec> specs = layout("a\nb\nc", 1, "x\ny", 4, line -> line != 1);
+			final List<MiningSpec> specs = layout("a\nb\nc", 1, "x\ny", 4, line -> line != 1, false);
 			assertSpec(specs.get(1), Kind.HEADER, 4, 1, "", List.of("y"));
-			final List<MiningSpec> allFolded = layout("a\nb\nc", 1, "x\ny", 4, line -> line == 0);
+			final List<MiningSpec> allFolded = layout("a\nb\nc", 1, "x\ny", 4, line -> line == 0, false);
 			assertSpec(allFolded.get(1), Kind.END_OF_DOCUMENT, 5, 0, "", List.of("y"));
 		}
 
@@ -471,6 +479,13 @@ public class GhostTextModelTest {
 		void controlAndBidiCharactersAreShownVisibly() {
 			assertEquals("␇a�b␡", GhostTextLayout.sanitize("\u0007a‮b\u007F"));
 			assertEquals("plain", GhostTextLayout.sanitize("plain"));
+		}
+
+		@Test
+		void onlyTheFirstRowWhileThePopupIsOpen() throws Exception {
+			final List<MiningSpec> specs = layout("a\nb", 1, "x\ny", 4, line -> true, true);
+			assertEquals(1, specs.size());
+			assertSpec(specs.get(0), Kind.CONTENT, 1, 1, "x", List.of());
 		}
 	}
 
@@ -518,7 +533,7 @@ public class GhostTextModelTest {
 		private final IDocument doc = new Document("hello");
 
 		private InlineCompletionSession session(InlineCompletionCandidate... candidates) {
-			final var session = new InlineCompletionSession(InlineCompletionTriggerKind.Invoked);
+			final var session = new InlineCompletionSession(InlineCompletionTriggerKind.Invoked, false);
 			session.addCandidates(List.of(candidates));
 			return session;
 		}

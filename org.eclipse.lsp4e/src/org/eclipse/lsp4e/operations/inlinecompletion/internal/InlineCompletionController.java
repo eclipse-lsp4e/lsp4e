@@ -41,8 +41,14 @@ import org.eclipse.jface.text.ITextInputListener;
 import org.eclipse.jface.text.ITextViewerExtension;
 import org.eclipse.jface.text.ITextViewerExtension5;
 import org.eclipse.jface.text.Position;
+import org.eclipse.jface.text.contentassist.ContentAssistEvent;
+import org.eclipse.jface.text.contentassist.ICompletionListener;
+import org.eclipse.jface.text.contentassist.ICompletionListenerExtension2;
+import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.link.LinkedModeModel;
+import org.eclipse.jface.text.source.ContentAssistantFacade;
 import org.eclipse.jface.text.source.ISourceViewer;
+import org.eclipse.jface.text.source.ISourceViewerExtension4;
 import org.eclipse.jface.text.source.ISourceViewerExtension5;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -67,6 +73,7 @@ import org.eclipse.lsp4j.InlineCompletionParams;
 import org.eclipse.lsp4j.InlineCompletionTriggerKind;
 import org.eclipse.lsp4j.InsertTextFormat;
 import org.eclipse.lsp4j.InsertTextMode;
+import org.eclipse.lsp4j.SelectedCompletionInfo;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.lsp4j.TextEdit;
 import org.eclipse.lsp4j.jsonrpc.ResponseErrorException;
@@ -102,6 +109,9 @@ import org.eclipse.ui.texteditor.ITextEditorExtension2;
  * within the replaced range), the session is kept and the ghost text updated without a new request.
  * Any other edit, moving the caret or losing focus dismisses it. Tab accepts, Escape dismisses, and
  * commands cycle through the candidates.
+ * <p>
+ * While the completion popup is open, completions are requested with the selected proposal as
+ * {@code selectedCompletionInfo}, and only candidates extending it are shown.
  */
 public final class InlineCompletionController {
 
@@ -113,6 +123,10 @@ public final class InlineCompletionController {
 
 	/** What is shown: the ghost text, the caret it was computed for and its layout. */
 	private record Snapshot(GhostText ghost, int caret, List<MiningSpec> specs) {
+	}
+
+	/** The proposal selected in the completion popup: the range it replaces and its text. */
+	private record SelectedCompletion(int start, int end, String text) {
 	}
 
 	private record ServerResponse(LanguageServerWrapper wrapper,
@@ -129,6 +143,7 @@ public final class InlineCompletionController {
 		final String text;
 		final int caret;
 		final InlineCompletionTriggerKind triggerKind;
+		final @Nullable SelectedCompletion selected;
 		final CancellationSupport cancellation = new CancellationSupport();
 		final long sentAt = System.nanoTime();
 		/** Edits made at the caret since the request was sent: offset, deleted length, inserted length. */
@@ -137,11 +152,13 @@ public final class InlineCompletionController {
 		boolean cancelled;
 		private @Nullable Document sentDocument;
 
-		PendingRequest(long id, String text, int caret, InlineCompletionTriggerKind triggerKind) {
+		PendingRequest(long id, String text, int caret, InlineCompletionTriggerKind triggerKind,
+				@Nullable SelectedCompletion selected) {
 			this.id = id;
 			this.text = text;
 			this.caret = caret;
 			this.triggerKind = triggerKind;
+			this.selected = selected;
 		}
 
 		/** Returns the document as it was when the request was sent, which replies refer to. */
@@ -187,6 +204,12 @@ public final class InlineCompletionController {
 	/** Whether the editor lost the focus, after which only explicit requests are sent. */
 	private boolean focusLost;
 	private boolean noSuggestionsShown;
+
+	private boolean contentAssistActive;
+	private boolean proposalApplied;
+	private @Nullable SelectedCompletion selectedCompletion;
+	private @Nullable SelectedCompletion appliedSelection;
+	private List<InlineCompletionCandidate> selectionCandidates = List.of();
 
 	private int originalBottomMargin = -1;
 	private @Nullable IContextActivation contextActivation;
@@ -239,8 +262,10 @@ public final class InlineCompletionController {
 
 		@Override
 		public void focusLost(FocusEvent e) {
-			focusLost = true;
-			dismiss();
+			if (!contentAssistActive) {
+				focusLost = true;
+				dismiss();
+			}
 		}
 	};
 
@@ -272,6 +297,8 @@ public final class InlineCompletionController {
 		}
 		}
 	};
+
+	private final ICompletionListener completionListener = new CompletionListener();
 
 	private final Listener disposeListener = event -> uninstall();
 
@@ -308,6 +335,10 @@ public final class InlineCompletionController {
 		if (viewer instanceof ITextViewerExtension extension) {
 			extension.prependVerifyKeyListener(verifyKeyListener);
 		}
+		final ContentAssistantFacade facade = contentAssistantFacade();
+		if (facade != null) {
+			facade.addCompletionListener(completionListener);
+		}
 		final IOperationHistory history = operationHistory();
 		if (history != null) {
 			history.addOperationHistoryListener(historyListener);
@@ -342,6 +373,10 @@ public final class InlineCompletionController {
 		}
 		if (viewer instanceof ITextViewerExtension extension) {
 			extension.removeVerifyKeyListener(verifyKeyListener);
+		}
+		final ContentAssistantFacade facade = contentAssistantFacade();
+		if (facade != null) {
+			facade.removeCompletionListener(completionListener);
 		}
 		final IOperationHistory history = operationHistory();
 		if (history != null) {
@@ -479,17 +514,21 @@ public final class InlineCompletionController {
 			}
 			cancelPending();
 		}
+		// with the popup open but no LSP proposal selected (editors open it while typing), request as usual
+		final SelectedCompletion selected = contentAssistActive ? selectedCompletion : null;
 		final int caret = caretOffset();
 		final InlineCompletionParams params;
 		try {
+			final SelectedCompletionInfo selectedInfo = selected == null ? null
+					: new SelectedCompletionInfo(LSPEclipseUtils.toRange(selected.start(), selected.end(), doc), selected.text());
 			params = new InlineCompletionParams(LSPEclipseUtils.toTextDocumentIdentifier(uri),
-					LSPEclipseUtils.toPosition(caret, doc), new InlineCompletionContext(triggerKind));
+					LSPEclipseUtils.toPosition(caret, doc), new InlineCompletionContext(triggerKind, selectedInfo));
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 			return;
 		}
 		final long id = appendToSession ? sessionRequestId : ++requestId;
-		final var request = new PendingRequest(id, doc.get(), caret, triggerKind);
+		final var request = new PendingRequest(id, doc.get(), caret, triggerKind, selected);
 		final List<CompletableFuture<@Nullable ServerResponse>> responses = LanguageServers.forDocument(doc)
 				.withCapability(ServerCapabilities::getInlineCompletionProvider)
 				.computeAll((wrapper, server) -> request.cancellation
@@ -536,6 +575,11 @@ public final class InlineCompletionController {
 			final List<InlineCompletionCandidate> candidates = new ArrayList<>();
 			for (final InlineCompletionCandidate candidate : CandidateNormalizer.normalize(result.response(), sent,
 					request.caret, result.wrapper(), snippet -> expandSnippet(result.wrapper(), doc, snippet, caretOffset()))) {
+				final SelectedCompletion selected = request.selected;
+				if (selected != null && !GhostTextComputer.extendsSelectedCompletion(candidate, selected.start(),
+						selected.end(), selected.text())) {
+					continue;
+				}
 				// carry it over the edits made at the caret since the request was sent
 				final InlineCompletionCandidate current = replay(candidate, request.edits);
 				if (current != null) {
@@ -545,12 +589,18 @@ public final class InlineCompletionController {
 			if (!candidates.isEmpty()) {
 				InlineCompletionSession current = session;
 				if (current == null || sessionRequestId != request.id) {
-					current = new InlineCompletionSession(request.triggerKind);
+					current = new InlineCompletionSession(request.triggerKind, request.selected != null);
 					session = current;
 					sessionRequestId = request.id;
 					requestedAlternatives = false;
+					selectionCandidates = List.of();
 				}
 				current.addCandidates(candidates);
+				if (request.selected != null) {
+					final var all = new ArrayList<>(selectionCandidates);
+					all.addAll(candidates);
+					selectionCandidates = List.copyOf(all);
+				}
 				show();
 			}
 		}
@@ -699,6 +749,10 @@ public final class InlineCompletionController {
 		final EditKind kind = EditKind.classify(caretBeforeChange, event.getOffset(), event.getLength(), text);
 		final InlineCompletionSession current = session;
 		if (current != null) {
+			if (current.isSelectionBound()) {
+				// keep the candidates in case this change is the application of the selected proposal
+				appliedSelection = selectedCompletion;
+			}
 			if (kind == EditKind.OTHER) {
 				endSession();
 			} else {
@@ -758,7 +812,7 @@ public final class InlineCompletionController {
 		final List<MiningSpec> specs;
 		final Geometry geometry = geometry();
 		try {
-			specs = GhostTextLayout.layout(doc, ghost, textWidget.getTabs(), this::isLineVisible);
+			specs = GhostTextLayout.layout(doc, ghost, textWidget.getTabs(), this::isLineVisible, contentAssistActive);
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 			hide();
@@ -973,6 +1027,121 @@ public final class InlineCompletionController {
 		painted = true;
 	}
 
+	// ---- completion popup ------------------------------------------------------------------------------
+
+	private final class CompletionListener implements ICompletionListener, ICompletionListenerExtension2 {
+
+		@Override
+		public void assistSessionStarted(ContentAssistEvent event) {
+			contentAssistActive = true;
+			proposalApplied = false;
+			selectedCompletion = null;
+			appliedSelection = null;
+			selectionCandidates = List.of();
+			// the popup covers the lines below the caret: show only the first line
+			if (session != null) {
+				show();
+			}
+		}
+
+		@Override
+		public void assistSessionEnded(ContentAssistEvent event) {
+			// applied() may be notified after this, so decide once the current event is processed
+			display.asyncExec(() -> {
+				contentAssistActive = false;
+				selectedCompletion = null;
+				if (disposed) {
+					return;
+				}
+				final InlineCompletionSession current = session;
+				final PendingRequest inFlight = pending;
+				if (!proposalApplied && (current != null && current.isSelectionBound()
+						|| inFlight != null && inFlight.selected != null)) {
+					// what was shown or asked for extends a proposal that is gone
+					dismiss();
+					scheduleAutomaticRequest();
+				} else if (current != null) {
+					// show the further lines that were hidden under the popup
+					show();
+				}
+			});
+		}
+
+		@Override
+		public void selectionChanged(@Nullable ICompletionProposal proposal, boolean smartToggle) {
+			final SelectedCompletion selected = toSelectedCompletion(proposal);
+			if (selected == null ? selectedCompletion == null : selected.equals(selectedCompletion)) {
+				return;
+			}
+			selectedCompletion = selected;
+			selectionCandidates = List.of();
+			// a reply for the previously selected proposal would not extend the new one
+			cancelPending();
+			if (selected != null) {
+				// what was shown does not extend the newly selected proposal
+				endSession();
+				scheduleAutomaticRequest();
+			} else if (session != null && session.isSelectionBound()) {
+				endSession();
+			}
+		}
+
+		@Override
+		public void applied(@Nullable ICompletionProposal proposal) {
+			proposalApplied = true;
+			final SelectedCompletion selected = appliedSelection != null ? appliedSelection : selectedCompletion;
+			final List<InlineCompletionCandidate> candidates = selectionCandidates;
+			appliedSelection = null;
+			selectionCandidates = List.of();
+			final IDocument doc = document;
+			if (selected == null || candidates.isEmpty() || doc == null) {
+				return;
+			}
+			// the selected text now replaces the selected range: continue with what the candidates add to it
+			final int end = selected.start() + selected.text().length();
+			final var moved = candidates.stream().map(candidate -> new InlineCompletionCandidate(candidate.source(),
+					selected.start(), end, candidate.text(), candidate.snippet(), candidate.filterText(), candidate.command()))
+					.toList();
+			final var current = new InlineCompletionSession(InlineCompletionTriggerKind.Automatic, false);
+			current.addCandidates(moved);
+			session = current;
+			sessionRequestId = ++requestId;
+			display.asyncExec(() -> {
+				if (!disposed && session == current) {
+					show();
+				}
+			});
+		}
+	}
+
+	private @Nullable SelectedCompletion toSelectedCompletion(@Nullable ICompletionProposal proposal) {
+		final IDocument doc = document;
+		if (!(proposal instanceof LSCompletionProposal lsProposal) || doc == null) {
+			return null;
+		}
+		try {
+			final TextEdit edit = lsProposal.getEffectiveEdit(viewer, caretOffset());
+			final var range = edit.getRange();
+			if (range.getStart().getLine() != range.getEnd().getLine()) {
+				return null;
+			}
+			final int start = LSPEclipseUtils.toOffset(range.getStart(), doc);
+			final int end = LSPEclipseUtils.toOffset(range.getEnd(), doc);
+			final String text = edit.getNewText();
+			// a proposal replacing typed text by something else could not be extended as an insertion
+			if (!text.startsWith(doc.get(start, caretOffset() - start))) {
+				return null;
+			}
+			return new SelectedCompletion(start, end, text);
+		} catch (BadLocationException e) {
+			return null;
+		} catch (RuntimeException e) {
+			// a failure here must not get in the way of the completion popup
+			LanguageServerPlugin.logError(e);
+			return null;
+		}
+	}
+
 	// ---- helpers ---------------------------------------------------------------------------------------
 
 	private int caretOffset() {
@@ -999,6 +1168,10 @@ public final class InlineCompletionController {
 	private boolean isComposing() {
 		final var ime = textWidget.getIME();
 		return ime != null && ime.getText() != null && !ime.getText().isEmpty();
+	}
+
+	private @Nullable ContentAssistantFacade contentAssistantFacade() {
+		return viewer instanceof ISourceViewerExtension4 extension ? extension.getContentAssistantFacade() : null;
 	}
 
 	private static @Nullable IOperationHistory operationHistory() {

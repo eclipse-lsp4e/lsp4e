@@ -62,4 +62,15 @@ public final class GhostTextComputer {
 			return null;
 		}
 	}
+
+	/**
+	 * Returns whether the candidate extends the item selected in the completion popup, as the
+	 * specification requires for completions requested with a {@code selectedCompletionInfo}: it uses
+	 * the same range and its text starts with the selected item's text.
+	 */
+	public static boolean extendsSelectedCompletion(InlineCompletionCandidate candidate, int selectedStart,
+			int selectedEnd, String selectedText) {
+		return candidate.start() == selectedStart && candidate.end() == selectedEnd
+				&& candidate.text().startsWith(selectedText);
+	}
 }

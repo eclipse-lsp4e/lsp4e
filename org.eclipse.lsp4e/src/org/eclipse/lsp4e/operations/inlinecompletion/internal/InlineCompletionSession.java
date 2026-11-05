@@ -22,17 +22,26 @@ import org.eclipse.lsp4j.InlineCompletionTriggerKind;
 public final class InlineCompletionSession {
 
 	private final InlineCompletionTriggerKind triggerKind;
+	private final boolean selectionBound;
 	private final List<InlineCompletionCandidate> candidates = new ArrayList<>();
 	private final List<@Nullable TrackedRange> ranges = new ArrayList<>();
 	private int index;
 
-	/** @param triggerKind how the request was triggered */
-	public InlineCompletionSession(InlineCompletionTriggerKind triggerKind) {
+	/**
+	 * @param triggerKind how the request was triggered
+	 * @param selectionBound whether the request carried a {@code selectedCompletionInfo}
+	 */
+	public InlineCompletionSession(InlineCompletionTriggerKind triggerKind, boolean selectionBound) {
 		this.triggerKind = triggerKind;
+		this.selectionBound = selectionBound;
 	}
 
 	public InlineCompletionTriggerKind getTriggerKind() {
 		return triggerKind;
+	}
+
+	public boolean isSelectionBound() {
+		return selectionBound;
 	}
 
 	/** Adds candidates, skipping duplicates of candidates already present. */

@@ -74,10 +74,12 @@ public final class GhostTextLayout {
 	 * @param ghost the ghost text to lay out
 	 * @param tabWidth the editor's tab width, in characters
 	 * @param isLineVisible tells whether a model line is visible (not folded away)
+	 * @param firstRowOnly whether to draw only the first line, e.g. while the completion popup covers
+	 *            the lines below
 	 * @return the minings to create, in document order
 	 */
-	public static List<MiningSpec> layout(IDocument document, GhostText ghost, int tabWidth, IntPredicate isLineVisible)
-			throws BadLocationException {
+	public static List<MiningSpec> layout(IDocument document, GhostText ghost, int tabWidth, IntPredicate isLineVisible,
+			boolean firstRowOnly) throws BadLocationException {
 		final String[] lines = LINE_DELIMITER.split(ghost.text(), -1);
 		final int anchor = ghost.anchor();
 		final int anchorLine = document.getLineOfOffset(anchor);
@@ -91,7 +93,7 @@ public final class GhostTextLayout {
 
 		// the lines below the anchor's line
 		final var rows = new ArrayList<String>();
-		if (lines.length > 1) {
+		if (!firstRowOnly && lines.length > 1) {
 			addRows(lines, tabWidth, rows);
 			rows.replaceAll(row -> row.isEmpty() ? " " : row); //$NON-NLS-1$
 		}
