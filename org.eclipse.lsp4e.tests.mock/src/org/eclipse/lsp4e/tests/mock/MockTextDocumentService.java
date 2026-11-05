@@ -64,6 +64,9 @@ import org.eclipse.lsp4j.FoldingRange;
 import org.eclipse.lsp4j.FoldingRangeRequestParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.InlineCompletionItem;
+import org.eclipse.lsp4j.InlineCompletionList;
+import org.eclipse.lsp4j.InlineCompletionParams;
 import org.eclipse.lsp4j.LinkedEditingRangeParams;
 import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Location;
@@ -133,6 +136,14 @@ public class MockTextDocumentService implements TextDocumentService {
 	private List<DocumentSymbol> documentSymbols;
 	private SemanticTokens mockSemanticTokens;
 	private List<FoldingRange> foldingRanges;
+	/**
+	 * Computes the response to a {@code textDocument/inlineCompletion} request; {@code null} answers
+	 * {@code null}.
+	 */
+	private Function<InlineCompletionParams, Either<List<InlineCompletionItem>, InlineCompletionList>> inlineCompletionResponder = params -> null;
+	/** Every {@code textDocument/inlineCompletion} request received, in order. */
+	public final ConcurrentLinkedQueue<InlineCompletionParams> inlineCompletionRequests = new ConcurrentLinkedQueue<>();
+	private CompletableFuture<?> inlineCompletionGate = CompletableFuture.completedFuture(null);
 	public int codeActionRequests = 0;
 
 	public <U> MockTextDocumentService(Function<U, CompletableFuture<U>> futureFactory) {
@@ -538,5 +549,25 @@ public class MockTextDocumentService implements TextDocumentService {
 	@Override
 	public CompletableFuture<List<FoldingRange>> foldingRange(FoldingRangeRequestParams params) {
 		return CompletableFuture.completedFuture(this.foldingRanges);
+	}
+
+	public void setInlineCompletionResponder(
+			Function<InlineCompletionParams, Either<List<InlineCompletionItem>, InlineCompletionList>> responder) {
+		this.inlineCompletionResponder = responder;
+	}
+
+	/**
+	 * Holds back the replies to {@code textDocument/inlineCompletion} requests until the given future is
+	 * completed. Requests are recorded when they arrive.
+	 */
+	public void holdInlineCompletionsUntil(CompletableFuture<?> gate) {
+		this.inlineCompletionGate = gate;
+	}
+
+	@Override
+	public CompletableFuture<Either<List<InlineCompletionItem>, InlineCompletionList>> inlineCompletion(
+			InlineCompletionParams params) {
+		inlineCompletionRequests.add(params);
+		return inlineCompletionGate.thenCompose(released -> futureFactory(inlineCompletionResponder.apply(params)));
 	}
 }
