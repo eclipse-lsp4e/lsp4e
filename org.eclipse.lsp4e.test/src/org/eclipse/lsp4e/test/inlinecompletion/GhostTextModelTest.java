@@ -18,6 +18,8 @@ import java.util.function.UnaryOperator;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IRegion;
+import org.eclipse.jface.text.Region;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.CandidateNormalizer;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.EditKind;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostText;
@@ -48,6 +50,11 @@ import org.junit.jupiter.params.provider.CsvSource;
  * document, caret and server items.
  */
 public class GhostTextModelTest {
+
+	/** A mining whose last row ends with the given number of characters of moved text. */
+	static MiningSpec movedSpec(Kind kind, int offset, int length, String firstRow, List<String> rows, int moved) {
+		return new MiningSpec(kind, offset, length, firstRow, rows, moved, rows.get(rows.size() - 1).length() - moved);
+	}
 
 	private static final UnaryOperator<String> NO_SNIPPETS = UnaryOperator.identity();
 
@@ -414,11 +421,9 @@ public class GhostTextModelTest {
 		}
 
 		@Test
-		void inTheMiddleOfALineTheRestOfTheLineStaysBehindTheFirstRow() throws Exception {
-			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 5, 1, "x,", List.of()),
-					new MiningSpec(Kind.HEADER, 10, 1, "", List.of("  y, "))), layout("call(arg)\nnext", 5, "x,\n  y, "));
-			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 1, 1, "x", List.of()),
-					new MiningSpec(Kind.END_OF_DOCUMENT, 2, 0, "", List.of("y"))), layout("ab", 1, "x\ny"));
+		void lastLineMiddleMultiLine() throws Exception {
+			// "b", after the caret, moves after the last line: hidden, the first line is drawn after it
+			assertEquals(List.of(new MiningSpec(Kind.END_OF_DOCUMENT, 2, 0, "x", List.of("yb"), 1, 1)), layout("ab", 1, "x\ny"));
 		}
 
 		@Test
@@ -473,6 +478,81 @@ public class GhostTextModelTest {
 			assertSpec(specs.get(1), Kind.HEADER, 4, 1, "", List.of("y"));
 			final List<MiningSpec> allFolded = layout("a\nb\nc", 1, "x\ny", 4, line -> line == 0, false);
 			assertSpec(allFolded.get(1), Kind.END_OF_DOCUMENT, 5, 0, "", List.of("y"));
+		}
+
+		private @Nullable IRegion moved(String content, int anchor, String text, boolean firstRowOnly) throws Exception {
+			final IDocument doc = new Document(content);
+			final var ghost = new GhostText(anchor, text, anchor, anchor, candidate(anchor, anchor, text));
+			return GhostTextLayout.movedText(doc, ghost, GhostTextLayout.layout(doc, ghost, 4, line -> true, firstRowOnly));
+		}
+
+		@Test
+		void inTheMiddleOfALineTheRestOfTheLineEndsTheLastRow() throws Exception {
+			// accepting "x,\n  y, " in "call(|arg)" gives "call(x,\n  y, arg)": "arg)" is hidden and the first
+			// line drawn on the line delimiter after it
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 9, 1, "x,", List.of()),
+					movedSpec(Kind.HEADER, 10, 1, "", List.of("  y, arg)"), 4)), layout("call(arg)\nnext", 5, "x,\n  y, "));
+			assertEquals(new Region(5, 4), moved("call(arg)\nnext", 5, "x,\n  y, ", false));
+		}
+
+		@Test
+		void textAfterTheCaretThatTheSuggestionEndsWithEndsTheLastRow() throws Exception {
+			// "foo(|)" with "\n  a\n)" over the auto-closed ")": shown without it, which ends the last row
+			assertEquals(List.of(movedSpec(Kind.HEADER, 6, 1, "", List.of("  a", ")"), 1)),
+					layout("foo()\nz", 4, "\n  a\n"));
+		}
+
+		@Test
+		void ghostStartingWithANewlineInTheMiddleOfALine() throws Exception {
+			assertEquals(List.of(movedSpec(Kind.HEADER, 9, 1, "", List.of("  xbar)"), 4)), layout("foo(bar)\nz", 4, "\n  x"));
+		}
+
+		@Test
+		void inTheMiddleOfTheLastLineTheRestEndsTheRowsBelowIt() throws Exception {
+			assertEquals(List.of(movedSpec(Kind.END_OF_DOCUMENT, 9, 0, "x", List.of("yarg)"), 4)),
+					layout("call(arg)", 5, "x\ny"));
+		}
+
+		@Test
+		void theMovedTextEndsBeforeTheLineDelimiter() throws Exception {
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 2, 1, "x", List.of()),
+					new MiningSpec(Kind.HEADER, 4, 1, "", List.of("yb"), 1, 1)), layout("ab\r\ncd", 1, "x\ny"));
+			assertEquals(new Region(1, 1), moved("ab\r\ncd", 1, "x\ny", false));
+		}
+
+		@Test
+		void tabsInTheMovedTextAreExpandedFromWhereTheLastRowEnds() throws Exception {
+			// "  y" ends at column 3: the tab reaches column 4
+			assertEquals(List.of("  y b"), layout("a\tb\nz", 1, "x\n  y").get(1).rows());
+			assertEquals(2, layout("a\tb\nz", 1, "x\n  y").get(1).moved());
+			// each drawn character shows a character of the moved text
+			assertArrayEquals(new int[] { 0, 1 }, GhostTextLayout.movedRowSources("\tb", 3, 4));
+			assertArrayEquals(new int[] { 0, 0, 0, 1 }, GhostTextLayout.movedRowSources("\tb", 5, 4));
+		}
+
+		@Test
+		void theMovedTextFollowsTheTruncationRow() throws Exception {
+			final List<String> rows = layout("a(b)\nz", 2, "x" + "\nl".repeat(40)).get(1).rows();
+			assertEquals(GhostTextLayout.MAX_ROWS, rows.size());
+			assertEquals("\u2026 +11 more lines b)", rows.get(rows.size() - 1));
+			assertEquals(2, layout("a(b)\nz", 2, "x" + "\nl".repeat(40)).get(1).moved());
+		}
+
+		@Test
+		void longMovedTextIsTruncated() throws Exception {
+			final String row = layout("a" + "b".repeat(3000) + "\nz", 1, "x\ny").get(1).rows().get(0);
+			assertEquals("y" + "b".repeat(GhostTextLayout.MAX_FIRST_ROW_LENGTH) + '\u2026', row);
+			final int[] sources = GhostTextLayout.movedRowSources("b".repeat(3000), 1, 4);
+			assertEquals(GhostTextLayout.MAX_FIRST_ROW_LENGTH + 1, sources.length);
+			assertEquals(-1, sources[sources.length - 1], "the ellipsis shows no moved character");
+		}
+
+		@Test
+		void nothingMovesForSingleLineGhostsAtTheEndOfALineOrWithOnlyTheFirstRow() throws Exception {
+			assertNull(moved("foo", 1, "x", false));
+			assertNull(moved("ab\ncd", 2, "x\ny", false));
+			assertNull(moved("call(arg)\nnext", 5, "x,\n  y, ", true));
+			assertNull(moved("abc", 3, "x\ny", false));
 		}
 
 		@Test

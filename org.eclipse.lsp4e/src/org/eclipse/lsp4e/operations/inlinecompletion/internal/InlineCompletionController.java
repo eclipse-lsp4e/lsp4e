@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -38,7 +39,10 @@ import org.eclipse.jface.text.IMultiTextSelection;
 import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.IRewriteTarget;
 import org.eclipse.jface.text.ITextInputListener;
+import org.eclipse.jface.text.ITextPresentationListener;
 import org.eclipse.jface.text.ITextViewerExtension;
+import org.eclipse.jface.text.ITextViewerExtension2;
+import org.eclipse.jface.text.ITextViewerExtension4;
 import org.eclipse.jface.text.ITextViewerExtension5;
 import org.eclipse.jface.text.Position;
 import org.eclipse.jface.text.contentassist.ContentAssistEvent;
@@ -82,6 +86,7 @@ import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CaretListener;
+import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.custom.VerifyKeyListener;
 import org.eclipse.swt.events.FocusAdapter;
@@ -89,7 +94,11 @@ import org.eclipse.swt.events.FocusEvent;
 import org.eclipse.swt.events.FocusListener;
 import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.events.VerifyEvent;
+import org.eclipse.swt.graphics.Font;
+import org.eclipse.swt.graphics.FontData;
+import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.TextStyle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.ui.IEditorSite;
@@ -121,8 +130,11 @@ public final class InlineCompletionController {
 	/** The controllers of the open viewers; used on the UI thread only. */
 	private static final Map<ISourceViewer, InlineCompletionController> CONTROLLERS = new HashMap<>();
 
-	/** What is shown: the ghost text, the caret it was computed for and its layout. */
-	private record Snapshot(GhostText ghost, int caret, List<MiningSpec> specs) {
+	/**
+	 * What is shown: the ghost text, the caret it was computed for, its layout and the text accepting it
+	 * moves to the end of its last line, which is hidden where it is.
+	 */
+	private record Snapshot(GhostText ghost, int caret, List<MiningSpec> specs, @Nullable IRegion moved) {
 	}
 
 	/** The proposal selected in the completion popup: the range it replaces and its text. */
@@ -274,6 +286,12 @@ public final class InlineCompletionController {
 	/** What the layout of the shown ghost text depends on, other than the document. */
 	private record Geometry(int tabs) {
 	}
+
+	/** How many times the moved text of {@link #rehiddenFor} was hidden again, see {@link #ghostPainted()}. */
+	private int rehidden;
+	private @Nullable Snapshot rehiddenFor;
+	private static final int MAX_REHIDDEN = 3;
+
 	/** The geometry the shown ghost text was laid out for. */
 	private @Nullable Geometry laidOutFor;
 
@@ -288,6 +306,29 @@ public final class InlineCompletionController {
 			});
 		}
 	};
+
+	/** The editor font that {@link #styledFonts} are derived from. */
+	private @Nullable Font styledFontsBase;
+	/** The editor font made bold, italic or both, indexed by {@code SWT.BOLD | SWT.ITALIC} bits. */
+	private final @Nullable Font[] styledFonts = new Font[4];
+
+	private final ITextPresentationListener presentationListener = presentation -> {
+		final Snapshot current = snapshot;
+		final IRegion moved = current == null ? null : current.moved();
+		if (moved == null) {
+			return;
+		}
+		final IRegion extent = presentation.getExtent();
+		final int start = Math.max(moved.getOffset(), extent.getOffset());
+		final int end = Math.min(moved.getOffset() + moved.getLength(), extent.getOffset() + extent.getLength());
+		if (start < end) {
+			// drawn at the end of the last row instead
+			final var style = new StyleRange(start, end - start, null, null);
+			style.metrics = new GlyphMetrics(0, 0, 0);
+			presentation.mergeStyleRange(style);
+		}
+	};
+
 	private final IOperationHistoryListener historyListener = event -> {
 		switch (event.getEventType()) {
 		case OperationHistoryEvent.ABOUT_TO_UNDO, OperationHistoryEvent.ABOUT_TO_REDO -> undoRedoInProgress = true;
@@ -335,6 +376,9 @@ public final class InlineCompletionController {
 		if (viewer instanceof ITextViewerExtension extension) {
 			extension.prependVerifyKeyListener(verifyKeyListener);
 		}
+		if (viewer instanceof ITextViewerExtension4 extension) {
+			extension.addTextPresentationListener(presentationListener);
+		}
 		final ContentAssistantFacade facade = contentAssistantFacade();
 		if (facade != null) {
 			facade.addCompletionListener(completionListener);
@@ -355,8 +399,14 @@ public final class InlineCompletionController {
 		session = null;
 		final Snapshot shown = snapshot;
 		snapshot = null;
+		if (shown != null) {
+			invalidatePresentation(shown.moved());
+		}
 		if (shown != null || noSuggestionsShown) {
 			setStatusMessage(null);
+		}
+		if (viewer instanceof ITextViewerExtension4 extension) {
+			extension.removeTextPresentationListener(presentationListener);
 		}
 		final IDocument current = document;
 		if (current != null) {
@@ -364,6 +414,7 @@ public final class InlineCompletionController {
 		}
 		setDocument(null);
 		viewer.removeTextInputListener(inputListener);
+		disposeStyledFonts();
 		if (!textWidget.isDisposed()) {
 			restoreBottomMargin();
 			textWidget.removeCaretListener(caretListener);
@@ -810,17 +861,24 @@ public final class InlineCompletionController {
 			return false;
 		}
 		final List<MiningSpec> specs;
+		final IRegion moved;
 		final Geometry geometry = geometry();
 		try {
 			specs = GhostTextLayout.layout(doc, ghost, textWidget.getTabs(), this::isLineVisible, contentAssistActive);
+			moved = GhostTextLayout.movedText(doc, ghost, specs);
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 			hide();
 			return false;
 		}
 		final Snapshot old = snapshot;
-		snapshot = new Snapshot(ghost, caret, specs);
+		snapshot = new Snapshot(ghost, caret, specs, moved);
 		laidOutFor = geometry;
+		final IRegion oldMoved = old == null ? null : old.moved();
+		if (!Objects.equals(oldMoved, moved)) {
+			invalidatePresentation(oldMoved);
+			invalidatePresentation(moved);
+		}
 		registerOccupied(doc, specs);
 		updateBottomMargin(specs);
 		setVisibleContext(true);
@@ -854,6 +912,7 @@ public final class InlineCompletionController {
 			return;
 		}
 		snapshot = null;
+		invalidatePresentation(shown.moved());
 		if (doc != null) {
 			GhostTextRegistry.clear(doc);
 		}
@@ -918,6 +977,20 @@ public final class InlineCompletionController {
 		}
 		shownMinings = List.copyOf(minings);
 		return shownMinings;
+	}
+
+	/** Has the presentation of the given range computed again, to hide the moved text or show it again. */
+	private void invalidatePresentation(@Nullable IRegion region) {
+		final IDocument doc = document;
+		if (region == null || doc == null || textWidget.isDisposed()
+				|| !(viewer instanceof ITextViewerExtension2 extension)) {
+			return;
+		}
+		final int start = Math.min(region.getOffset(), doc.getLength());
+		final int end = Math.min(region.getOffset() + region.getLength(), doc.getLength());
+		if (start < end) {
+			extension.invalidateTextPresentation(start, end - start);
+		}
 	}
 
 	private void removeTrackedPositions(@Nullable IDocument doc) {
@@ -1023,8 +1096,141 @@ public final class InlineCompletionController {
 		return widget == textWidget;
 	}
 
+	/**
+	 * Returns how the editor draws the moved text, for drawing it at the end of the last row, where its
+	 * characters start at the given column: one style for each character of the row's moved part, with
+	 * the editor's foreground and font resolved, without background.
+	 */
+	List<TextStyle> movedTextStyles(int movedLength, int startColumn) {
+		final Snapshot current = snapshot;
+		final IDocument doc = document;
+		final IRegion moved = current == null ? null : current.moved();
+		final var styles = new ArrayList<TextStyle>(movedLength);
+		String movedText = ""; //$NON-NLS-1$
+		StyleRange[] ranges = new StyleRange[0];
+		if (moved != null && doc != null) {
+			try {
+				movedText = doc.get(moved.getOffset(), moved.getLength());
+				final IRegion widgetRange = viewer instanceof ITextViewerExtension5 extension
+						? extension.modelRange2WidgetRange(moved)
+						: moved;
+				if (widgetRange != null && widgetRange.getLength() == moved.getLength()) {
+					ranges = textWidget.getStyleRanges(widgetRange.getOffset(), widgetRange.getLength(), true);
+					for (final StyleRange range : ranges) {
+						range.start -= widgetRange.getOffset();
+					}
+				}
+			} catch (BadLocationException e) {
+				movedText = ""; //$NON-NLS-1$
+			}
+		}
+		final int[] sources = GhostTextLayout.movedRowSources(movedText, startColumn, textWidget.getTabs());
+		int next = 0;
+		for (int i = 0; i < movedLength; i++) {
+			final int source = i < sources.length ? sources[i] : -1;
+			StyleRange range = null;
+			if (source >= 0) {
+				while (next < ranges.length && ranges[next].start + ranges[next].length <= source) {
+					next++;
+				}
+				if (next < ranges.length && ranges[next].start <= source) {
+					range = ranges[next];
+				}
+			}
+			styles.add(editorStyle(range));
+		}
+		return styles;
+	}
+
+	/** Returns the style the editor draws text with, given the widget's style range over it. */
+	private TextStyle editorStyle(@Nullable StyleRange range) {
+		final var style = range == null ? new TextStyle() : new TextStyle(range);
+		style.background = null;
+		style.metrics = null;
+		style.borderStyle = SWT.NONE;
+		if (style.foreground == null) {
+			style.foreground = textWidget.getForeground();
+		}
+		if (style.font == null) {
+			style.font = styledFont(range == null ? SWT.NORMAL : range.fontStyle);
+		}
+		return style;
+	}
+
+	/** Returns the editor font in the given style, as StyledText draws text with that font style. */
+	private Font styledFont(int fontStyle) {
+		final Font base = textWidget.getFont();
+		final int style = fontStyle & (SWT.BOLD | SWT.ITALIC);
+		if (style == SWT.NORMAL) {
+			return base;
+		}
+		if (base != styledFontsBase) {
+			disposeStyledFonts();
+			styledFontsBase = base;
+		}
+		Font font = styledFonts[style];
+		if (font == null) {
+			final FontData[] data = base.getFontData();
+			for (final FontData fontData : data) {
+				fontData.setStyle(fontData.getStyle() | style);
+			}
+			font = new Font(display, data);
+			styledFonts[style] = font;
+		}
+		return font;
+	}
+
+	private void disposeStyledFonts() {
+		for (int i = 0; i < styledFonts.length; i++) {
+			final Font font = styledFonts[i];
+			if (font != null) {
+				font.dispose();
+				styledFonts[i] = null;
+			}
+		}
+		styledFontsBase = null;
+	}
+
 	void ghostPainted() {
 		painted = true;
+		final Snapshot current = snapshot;
+		final IRegion moved = current == null ? null : current.moved();
+		if (current != rehiddenFor) {
+			rehiddenFor = current;
+			rehidden = 0;
+		}
+		if (moved != null && rehidden < MAX_REHIDDEN && wasReset(moved)) {
+			// JFace resets the style of the character a removed line content mining covered, which can
+			// be moved text: hide it again (a few times at most, should the hiding not take). Until JFace
+			// removes that mining, it keeps the character wide: waited out, not counted
+			rehidden++;
+			display.asyncExec(() -> {
+				if (!disposed && snapshot == current) {
+					invalidatePresentation(moved);
+				}
+			});
+		}
+	}
+
+	/**
+	 * Returns whether some of the given model range lost the zero width it is hidden with, rather than having it or
+	 * the width of a line content mining that covers it.
+	 */
+	private boolean wasReset(IRegion region) {
+		final IRegion widgetRange = viewer instanceof ITextViewerExtension5 extension
+				? extension.modelRange2WidgetRange(region)
+				: region;
+		if (widgetRange == null) {
+			return false;
+		}
+		int styledUpTo = widgetRange.getOffset();
+		for (final StyleRange range : textWidget.getStyleRanges(widgetRange.getOffset(), widgetRange.getLength(), true)) {
+			if (range.start > styledUpTo || range.metrics == null) {
+				return true;
+			}
+			styledUpTo = Math.max(styledUpTo, range.start + range.length);
+		}
+		return styledUpTo < widgetRange.getOffset() + widgetRange.getLength();
 	}
 
 	// ---- completion popup ------------------------------------------------------------------------------
@@ -1195,6 +1401,19 @@ public final class InlineCompletionController {
 	/** Returns the session of the latest request, or {@code null}; for tests. */
 	public @Nullable InlineCompletionSession getSession() {
 		return session;
+	}
+
+	/**
+	 * Returns the styles of the characters drawn for the moved text at the end of the last row, empty if
+	 * none; for tests.
+	 */
+	public List<TextStyle> getMovedTextStyles() {
+		for (final MiningSpec spec : getShownLayout()) {
+			if (spec.moved() > 0) {
+				return movedTextStyles(spec.moved(), spec.movedColumn());
+			}
+		}
+		return List.of();
 	}
 
 	/** Returns whether the ghost text shown has been drawn; for tests. */

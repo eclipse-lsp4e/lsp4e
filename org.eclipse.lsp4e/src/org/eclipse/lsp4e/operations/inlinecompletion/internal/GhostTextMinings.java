@@ -8,6 +8,8 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.inlinecompletion.internal;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.jdt.annotation.Nullable;
@@ -23,12 +25,17 @@ import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.Rectangle;
+import org.eclipse.swt.graphics.TextLayout;
+import org.eclipse.swt.graphics.TextStyle;
 
 /**
  * The code minings that draw ghost text. They draw with the editor font, so that the ghost text is as
  * wide as the text it previews, only into the editor showing the inline completion (the annotation
  * model may be shared with another editor on the same document), and their labels can be updated in
  * place while the user types through the ghost text.
+ * <p>
+ * The text that accepting moves to the end of the last line (see {@link MiningSpec#moved()}) is not
+ * ghost text: it is drawn as the editor draws it, with its colors and font styles.
  */
 final class GhostTextMinings {
 
@@ -108,11 +115,13 @@ final class GhostTextMinings {
 				return new Point(0, 0);
 			}
 			gc.setFont(textWidget.getFont());
-			final List<String> rows = spec.rows();
+			final MiningSpec drawn = spec;
+			final List<String> rows = drawn.rows();
+			final List<List<TextStyle>> movedStyles = movedStyles(controller, drawn);
 			final var extent = new Point(0, 0);
 			int rowY = y;
 			for (int i = 0; i < rows.size(); i++) {
-				final int width = drawRow(gc, textWidget, rows.get(i), x, rowY);
+				final int width = drawRow(gc, textWidget, color, rows.get(i), movedStyles.get(i), x, rowY);
 				final int height = gc.stringExtent(rows.get(i)).y + textWidget.getLineSpacing();
 				extent.x = Math.max(extent.x, width);
 				extent.y += height;
@@ -160,8 +169,9 @@ final class GhostTextMinings {
 			final int lineHeight = textWidget.getLineHeight() + textWidget.getLineSpacing();
 			final int left = textWidget.getLeftMargin() - textWidget.getHorizontalPixel();
 			int rowY = y + lineHeight;
-			for (final String row : rows) {
-				drawRow(gc, textWidget, row, left, rowY);
+			final List<List<TextStyle>> movedStyles = movedStyles(controller, drawn);
+			for (int i = 0; i < rows.size(); i++) {
+				drawRow(gc, textWidget, color, rows.get(i), movedStyles.get(i), left, rowY);
 				rowY += lineHeight;
 			}
 			widget = textWidget;
@@ -198,11 +208,56 @@ final class GhostTextMinings {
 		}
 	}
 
-	/** Draws a row below the anchor's line and returns its width. */
-	static int drawRow(GC gc, StyledText textWidget, String row, int x, int y) {
+	/**
+	 * Returns, for each row of the given specification, the styles of the moved text at its end: the
+	 * moved text ends the last row and may start on rows above it.
+	 */
+	static List<List<TextStyle>> movedStyles(InlineCompletionController controller, MiningSpec spec) {
+		final List<String> rows = spec.rows();
+		final var result = new ArrayList<List<TextStyle>>(rows.size());
+		final List<TextStyle> styles = spec.moved() > 0 ? controller.movedTextStyles(spec.moved(), spec.movedColumn())
+				: List.of();
+		int end = styles.size();
+		for (int i = rows.size() - 1; i >= 0; i--) {
+			final int start = Math.max(0, end - rows.get(i).length());
+			result.add(styles.subList(start, end));
+			end = start;
+		}
+		Collections.reverse(result);
+		return result;
+	}
+
+	/**
+	 * Draws a row below the anchor's line, the characters at its end that are the moved text with the
+	 * given styles, and returns its width. With word wrap on, the row is cut to the width of the editor.
+	 */
+	static int drawRow(GC gc, StyledText textWidget, Color color, String row, List<TextStyle> movedStyles, int x, int y) {
 		final String label = fitToWidth(gc, textWidget, row, x);
-		gc.drawString(label, x, y, true);
-		return gc.stringExtent(label).x;
+		final int moved = movedStyles.size();
+		final int ghostLength = row.length() - moved;
+		// cut, the row ends with an ellipsis drawn as ghost text
+		final int movedShown = label.length() == row.length() ? moved : Math.max(0, label.length() - 1 - ghostLength);
+		if (movedShown == 0) {
+			gc.drawString(label, x, y, true);
+			return gc.stringExtent(label).x;
+		}
+		final var layout = new TextLayout(gc.getDevice());
+		try {
+			layout.setFont(textWidget.getFont());
+			layout.setText(label);
+			layout.setStyle(new TextStyle(textWidget.getFont(), color, null), 0, label.length() - 1);
+			int start = 0;
+			for (int i = 1; i <= movedShown; i++) {
+				if (i == movedShown || !movedStyles.get(i).equals(movedStyles.get(start))) {
+					layout.setStyle(movedStyles.get(start), ghostLength + start, ghostLength + i - 1);
+					start = i;
+				}
+			}
+			layout.draw(gc, x, y);
+			return layout.getBounds().width;
+		} finally {
+			layout.dispose();
+		}
 	}
 
 	/**

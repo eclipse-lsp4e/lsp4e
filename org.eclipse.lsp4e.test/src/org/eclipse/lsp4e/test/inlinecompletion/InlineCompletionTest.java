@@ -9,6 +9,7 @@
 package org.eclipse.lsp4e.test.inlinecompletion;
 
 import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
+import static org.eclipse.lsp4e.test.inlinecompletion.GhostTextModelTest.movedSpec;
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,6 +35,9 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextOperationTarget;
+import org.eclipse.jface.text.ITextPresentationListener;
+import org.eclipse.jface.text.ITextViewerExtension2;
+import org.eclipse.jface.text.ITextViewerExtension4;
 import org.eclipse.jface.text.codemining.ICodeMining;
 import org.eclipse.jface.text.codemining.ICodeMiningProvider;
 import org.eclipse.jface.text.link.LinkedModeModel;
@@ -78,10 +82,13 @@ import org.eclipse.lsp4j.jsonrpc.messages.ResponseErrorCode;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyleRange;
 import org.eclipse.swt.custom.StyledText;
+import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.GC;
+import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.TextStyle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -809,17 +816,127 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		assertEquals("def f():\n    return\t1\nx\n", viewer.getDocument().get());
 	}
 
+	/** Whether each character of the given range is hidden: drawn without width. */
+	private static void assertHidden(ISourceViewer viewer, int offset, int length, boolean expected) {
+		for (int i = offset; i < offset + length; i++) {
+			final StyleRange style = viewer.getTextWidget().getStyleRangeAtOffset(i);
+			assertEquals(expected, style != null && style.metrics != null && style.metrics.width == 0,
+					"hidden at " + i + ", metrics: " + (style == null ? "no style" : style.metrics));
+		}
+	}
+
 	@Test
-	public void multiLineGhostInTheMiddleOfALineIsAcceptedBeforeTheRestOfTheLine(MockLanguageServerFactory factory)
+	public void multiLineGhostInTheMiddleOfALineShowsWhereTheRestOfTheLineMoves(MockLanguageServerFactory factory)
 			throws Exception {
 		final ISourceViewer viewer = open(factory, "call(arg)\nnext\n", items(item("x,\n  y, ")));
 		setCaret(viewer, 5);
 		controller(viewer).trigger();
 		waitForGhost(viewer);
-		assertEquals(List.of(new MiningSpec(Kind.CONTENT, 5, 1, "x,", List.of()),
-				new MiningSpec(Kind.HEADER, 10, 1, "", List.of("  y, "))), controller(viewer).getShownLayout());
+		// accepting breaks the line: the rest of it, "arg)", ends the last line of the preview, as it will
+		// end the last line of the suggestion, and is hidden where it is now; the first line is drawn
+		// after it, on the line delimiter
+		assertEquals(List.of(new MiningSpec(Kind.CONTENT, 9, 1, "x,", List.of()),
+				movedSpec(Kind.HEADER, 10, 1, "", List.of("  y, arg)"), 4)), controller(viewer).getShownLayout());
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 5, 4, true));
+		assertHidden(viewer, 0, 5, false);
+		final StyledText widget = viewer.getTextWidget();
+		assertEquals(widget.getLocationAtOffset(5).x, widget.getLocationAtOffset(9).x,
+				"the caret stays right before the ghost text");
+
 		controller(viewer).accept();
 		assertEquals("call(x,\n  y, arg)\nnext\n", viewer.getDocument().get());
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 13, 4, false));
+	}
+
+	@Test
+	public void theHiddenTextFollowsTypingThroughAndComesBackWithoutTheGhostText(MockLanguageServerFactory factory)
+			throws Exception {
+		final ISourceViewer viewer = open(factory, "call(arg)\nnext\n", items(item("x,\n  y, ")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 5, 4, true));
+
+		type(viewer, 'x');
+		waitForGhostText(viewer, ",\n  y, ");
+		assertEquals(List.of("  y, arg)"), controller(viewer).getShownLayout().get(1).rows());
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 6, 4, true));
+		assertHidden(viewer, 5, 1, false);
+
+		type(viewer, SWT.ESC);
+		waitForNoGhost(viewer);
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 6, 4, false));
+
+		controller(viewer).trigger();
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 6, 4, true));
+		controller(viewer).accept();
+		((ITextOperationTarget) viewer).doOperation(ITextOperationTarget.UNDO);
+		assertEquals("call(xarg)\nnext\n", viewer.getDocument().get());
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 6, 4, false));
+	}
+
+	@Test
+	public void movedTextShownAgainByJFaceIsHiddenAgainHoweverLongTheCoveringMiningLasts(
+			MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "call(arg)\nnext\n", items(item("x,\n  y, ")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForAndAssertCondition(TIMEOUT, () -> controller(viewer).isGhostPainted());
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 5, 4, true));
+		final StyledText widget = viewer.getTextWidget();
+		final var extension = (ITextViewerExtension4) viewer;
+		// a line content mining from before still covers the first moved character, so JFace keeps it wide
+		// through some paints, however hard the controller tries to hide it
+		final ITextPresentationListener covering = presentation -> {
+			final var style = new StyleRange(5, 1, null, null);
+			style.metrics = new GlyphMetrics(0, 0, 20);
+			presentation.mergeStyleRange(style);
+		};
+		extension.addTextPresentationListener(covering);
+		try {
+			for (int i = 0; i < 5; i++) {
+				((ITextViewerExtension2) viewer).invalidateTextPresentation(5, 1);
+				widget.redraw();
+				processEvents(100);
+			}
+			assertEquals(20, widget.getStyleRangeAtOffset(5).metrics.width);
+		} finally {
+			extension.removeTextPresentationListener(covering);
+		}
+		// then the mining is removed and JFace resets the character's style
+		final StyleRange style = widget.getStyleRangeAtOffset(5);
+		style.metrics = null;
+		widget.setStyleRange(style);
+		waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 5, 4, true));
+	}
+
+	@Test
+	public void theMovedTextIsDrawnInTheEditorsStyle(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "call(arg + 1)\nnext\n", items(item("x,\n  y, ")));
+		final StyledText widget = viewer.getTextWidget();
+		final var foreground = new Color(0, 0, 160);
+		final var keyword = new Color(200, 0, 0);
+		widget.setForeground(foreground);
+		// like syntax highlighting: "arg" bold and red
+		((ITextViewerExtension4) viewer).addTextPresentationListener(
+				presentation -> presentation.mergeStyleRange(new StyleRange(5, 3, keyword, null, SWT.BOLD)));
+		((ITextViewerExtension2) viewer).invalidateTextPresentation(0, viewer.getDocument().getLength());
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		waitForAndAssertCondition(TIMEOUT, () -> controller(viewer).isGhostPainted());
+
+		final List<TextStyle> styles = controller(viewer).getMovedTextStyles();
+		assertEquals("arg + 1)".length(), styles.size());
+		for (int i = 0; i < styles.size(); i++) {
+			final TextStyle style = styles.get(i);
+			final boolean isKeyword = i < 3;
+			assertEquals(isKeyword ? keyword : foreground, style.foreground, "foreground at " + i);
+			assertNull(style.background, "background at " + i);
+			assertNull(style.metrics, "hidden where it is, not where it is drawn: " + i);
+			assertEquals(isKeyword ? SWT.BOLD : SWT.NORMAL, style.font.getFontData()[0].getStyle() & SWT.BOLD,
+					"font style at " + i);
+			assertEquals(widget.getFont().getFontData()[0].getHeight(), style.font.getFontData()[0].getHeight());
+		}
 	}
 
 	@Test
@@ -844,13 +961,16 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 			} finally {
 				gc.dispose();
 			}
-			// the room made for the first line grows with the font
+			// the room made for the first line on the line delimiter grows with the font
 			waitForAndAssertCondition(TIMEOUT, () -> {
-				final StyleRange covered = widget.getStyleRangeAtOffset(5);
-				assertNotNull(covered);
-				assertNotNull(covered.metrics);
-				assertTrue(covered.metrics.width >= labelWidth, covered.metrics.width + " < " + labelWidth);
+				final StyleRange delimiter = widget.getStyleRangeAtOffset(9);
+				assertNotNull(delimiter);
+				assertNotNull(delimiter.metrics);
+				assertTrue(delimiter.metrics.width >= labelWidth, delimiter.metrics.width + " < " + labelWidth);
 			});
+			for (final TextStyle style : controller(viewer).getMovedTextStyles()) {
+				assertEquals(bigger, style.font);
+			}
 		} finally {
 			widget.setFont(original);
 			bigger.dispose();
