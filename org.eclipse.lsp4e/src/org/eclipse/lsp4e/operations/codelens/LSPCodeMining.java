@@ -16,10 +16,12 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
+import org.eclipse.jface.text.codemining.ICodeMining;
 import org.eclipse.jface.text.codemining.LineHeaderCodeMining;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.command.CommandExecutor;
+import org.eclipse.lsp4e.internal.ReusableCodeMining;
 import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
@@ -27,7 +29,7 @@ import org.eclipse.lsp4j.ExecuteCommandParams;
 import org.eclipse.lsp4j.ServerCapabilities;
 import org.eclipse.swt.events.MouseEvent;
 
-public class LSPCodeMining extends LineHeaderCodeMining {
+public class LSPCodeMining extends LineHeaderCodeMining implements ReusableCodeMining {
 	private CodeLens codeLens;
 
 	private final LanguageServerWrapper languageServerWrapper;
@@ -40,6 +42,11 @@ public class LSPCodeMining extends LineHeaderCodeMining {
 		this.languageServerWrapper = languageServerWrapper;
 		this.document = document;
 		setLabel(getCodeLensString(codeLens));
+	}
+
+	@Override
+	public ICodeMining copy() throws BadLocationException {
+		return new LSPCodeMining(codeLens, document, languageServerWrapper, (CodeLensProvider) getProvider());
 	}
 
 	protected static @Nullable String getCodeLensString(CodeLens codeLens) {
