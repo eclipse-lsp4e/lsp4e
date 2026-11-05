@@ -13,7 +13,9 @@ import static org.eclipse.lsp4e.test.inlinecompletion.GhostTextModelTest.movedSp
 import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -992,6 +994,116 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 			waitForAndAssertCondition(TIMEOUT, () -> assertEquals(List.of("        y"), controller(viewer).getShownLayout().get(1).rows()));
 		} finally {
 			widget.setTabs(tabs);
+		}
+	}
+
+	/** Returns the offsets at which the widget starts a visual line, in the given model line. */
+	private static List<Integer> visualLineStarts(ISourceViewer viewer, int line) throws Exception {
+		final StyledText widget = viewer.getTextWidget();
+		final IDocument doc = viewer.getDocument();
+		final var starts = new ArrayList<Integer>();
+		int y = -1;
+		for (int offset = doc.getLineOffset(line); offset < doc.getLineOffset(line) + doc.getLineLength(line); offset++) {
+			final int top = widget.getTextBounds(offset, offset).y;
+			if (top != y) {
+				starts.add(offset);
+				y = top;
+			}
+		}
+		return starts;
+	}
+
+	private static List<String> previewRows(ISourceViewer viewer) {
+		final var rows = new ArrayList<String>();
+		for (final MiningSpec spec : controller(viewer).getShownLayout()) {
+			if (!spec.firstRow().isEmpty()) {
+				rows.add(spec.firstRow());
+			}
+			rows.addAll(spec.rows());
+		}
+		return rows;
+	}
+
+	@Test
+	public void withWordWrapGhostTextWrapsWhereTheEditorWill(MockLanguageServerFactory factory) throws Exception {
+		final String words = String.join(" ", Collections.nCopies(60, "word"));
+		final ISourceViewer viewer = open(factory, "x = \nnext\n", items(item(words)));
+		final StyledText widget = viewer.getTextWidget();
+		widget.setWordWrap(true);
+		try {
+			setCaret(viewer, 4);
+			controller(viewer).trigger();
+			waitForGhostText(viewer, words);
+			waitForAndAssertCondition(TIMEOUT, () -> assertTrue(previewRows(viewer).size() > 1, "wrapped: " + previewRows(viewer)));
+			assertEquals(words, String.join("", previewRows(viewer)));
+
+			// switching word wrap off lays the ghost text out again, on one row
+			widget.setWordWrap(false);
+			waitForAndAssertCondition(TIMEOUT, () -> assertEquals(List.of(words), previewRows(viewer)));
+			widget.setWordWrap(true);
+			waitForAndAssertCondition(TIMEOUT, () -> assertTrue(previewRows(viewer).size() > 1));
+			processEvents(200);
+			final List<String> rows = previewRows(viewer);
+
+			// a bigger font takes more rows
+			final Font original = widget.getFont();
+			final FontData data = original.getFontData()[0];
+			final var bigger = new Font(widget.getDisplay(), data.getName(), data.getHeight() * 2, SWT.NORMAL);
+			try {
+				widget.setFont(bigger);
+				waitForAndAssertCondition(TIMEOUT, () -> assertTrue(previewRows(viewer).size() > rows.size(),
+						previewRows(viewer) + " after " + rows));
+			} finally {
+				widget.setFont(original);
+				waitForAndAssertCondition(TIMEOUT, () -> assertEquals(rows, previewRows(viewer)));
+				bigger.dispose();
+			}
+
+			// accepted, the text wraps where the preview did
+			final List<String> shown = previewRows(viewer);
+			controller(viewer).accept();
+			final var expected = new ArrayList<Integer>(List.of(0));
+			int offset = "x = ".length();
+			for (final String row : shown.subList(0, shown.size() - 1)) {
+				offset += row.length();
+				expected.add(offset);
+			}
+			assertEquals(expected, visualLineStarts(viewer, 0));
+		} finally {
+			widget.setWordWrap(false);
+		}
+	}
+
+	@Test
+	public void withWordWrapTheRestOfTheLineMovesWhenTheFirstLineGoesOnBelow(MockLanguageServerFactory factory)
+			throws Exception {
+		final String words = String.join(" ", Collections.nCopies(60, "word"));
+		final ISourceViewer viewer = open(factory, "call(arg)\nnext\n", items(item(words)));
+		final StyledText widget = viewer.getTextWidget();
+		try {
+			setCaret(viewer, 5);
+			controller(viewer).trigger();
+			waitForGhostText(viewer, words);
+			waitForAndAssertCondition(TIMEOUT, () -> controller(viewer).isGhostPainted());
+			assertHidden(viewer, 5, 4, false);
+			// laid out again: the first line moves from the anchor to the end of the line
+			widget.setWordWrap(true);
+			waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 5, 4, true));
+			processEvents(200);
+			final List<String> rows = previewRows(viewer);
+			assertEquals(words + "arg)", String.join("", rows));
+
+			controller(viewer).accept();
+			waitForAndAssertCondition(TIMEOUT, () -> assertHidden(viewer, 5, words.length() + 4, false));
+			final var expected = new ArrayList<Integer>(List.of(0));
+			int offset = "call(".length();
+			for (final String row : rows.subList(0, rows.size() - 1)) {
+				offset += row.length();
+				expected.add(offset);
+			}
+			assertEquals(expected, visualLineStarts(viewer, 0));
+		} finally {
+			widget.setWordWrap(false);
 		}
 	}
 

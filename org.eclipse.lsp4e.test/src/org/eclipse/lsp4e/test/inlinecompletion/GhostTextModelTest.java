@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.IntPredicate;
 import java.util.function.UnaryOperator;
+import java.util.stream.IntStream;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.Document;
@@ -371,7 +372,7 @@ public class GhostTextModelTest {
 				IntPredicate visible, boolean firstRowOnly) throws Exception {
 			final IDocument doc = new Document(content);
 			return GhostTextLayout.layout(doc, new GhostText(anchor, text, anchor, anchor, candidate(anchor, anchor, text)),
-					tabWidth, visible, firstRowOnly);
+					tabWidth, visible, firstRowOnly, null);
 		}
 
 		private static void assertSpec(MiningSpec spec, Kind kind, int offset, int length, String firstRow, List<String> rows) {
@@ -483,7 +484,7 @@ public class GhostTextModelTest {
 		private @Nullable IRegion moved(String content, int anchor, String text, boolean firstRowOnly) throws Exception {
 			final IDocument doc = new Document(content);
 			final var ghost = new GhostText(anchor, text, anchor, anchor, candidate(anchor, anchor, text));
-			return GhostTextLayout.movedText(doc, ghost, GhostTextLayout.layout(doc, ghost, 4, line -> true, firstRowOnly));
+			return GhostTextLayout.movedText(doc, ghost, GhostTextLayout.layout(doc, ghost, 4, line -> true, firstRowOnly, null));
 		}
 
 		@Test
@@ -553,6 +554,72 @@ public class GhostTextModelTest {
 			assertNull(moved("ab\ncd", 2, "x\ny", false));
 			assertNull(moved("call(arg)\nnext", 5, "x,\n  y, ", true));
 			assertNull(moved("abc", 3, "x\ny", false));
+		}
+
+		/** Lays out with word wrap at the given number of characters, breaking anywhere. */
+		private List<MiningSpec> wrapped(String content, int anchor, String text, int width) throws Exception {
+			return GhostTextLayout.layout(new Document(content),
+					new GhostText(anchor, text, anchor, anchor, candidate(anchor, anchor, text)), 4, line -> true, false,
+					line -> IntStream.iterate(width, i -> i < line.length(), i -> i + width).toArray());
+		}
+
+		private @Nullable IRegion movedWrapped(String content, int anchor, String text, int width) throws Exception {
+			final var doc = new Document(content);
+			final var ghost = new GhostText(anchor, text, anchor, anchor, candidate(anchor, anchor, text));
+			return GhostTextLayout.movedText(doc, ghost, wrapped(content, anchor, text, width));
+		}
+
+		@Test
+		void withWordWrapLongRowsWrap() throws Exception {
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 1, 1, "x", List.of()),
+					new MiningSpec(Kind.HEADER, 2, 1, "", List.of("y".repeat(10), "y".repeat(10), "yyyyy"))),
+					wrapped("a\nb", 1, "x\n" + "y".repeat(25), 10));
+		}
+
+		@Test
+		void withWordWrapAFirstLineLongerThanTheVisualLineGoesOnBelow() throws Exception {
+			// "ab" + 8 characters fill the visual line
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 2, 1, "x".repeat(8), List.of()),
+					new MiningSpec(Kind.HEADER, 3, 1, "", List.of("x".repeat(7)))), wrapped("ab\nz", 2, "x".repeat(15), 10));
+			assertNull(movedWrapped("ab\nz", 2, "x".repeat(15), 10));
+		}
+
+		@Test
+		void withWordWrapASingleLineGhostGoingOnBelowMovesTheRestOfTheLine() throws Exception {
+			// "call(" + 5 characters fill the visual line: the other 5 and "arg)" go on below, "arg)" is hidden
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 9, 1, "xxxxx", List.of()),
+					new MiningSpec(Kind.HEADER, 10, 1, "", List.of("xxxxxarg)"), 4, 5)),
+					wrapped("call(arg)\nz", 5, "x".repeat(10), 10));
+			assertEquals(new Region(5, 4), movedWrapped("call(arg)\nz", 5, "x".repeat(10), 10));
+		}
+
+		@Test
+		void withWordWrapAGhostThatFitsLeavesTheRestOfTheLineWhereItIs() throws Exception {
+			// the line wraps in its own text, after the ghost text
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 5, 1, "x", List.of())),
+					wrapped("call(arg, more, and more)\nz", 5, "x", 10));
+			assertNull(movedWrapped("call(arg, more, and more)\nz", 5, "x", 10));
+		}
+
+		@Test
+		void withWordWrapTheMovedTextCanSpanRows() throws Exception {
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 18, 1, "x", List.of()),
+					new MiningSpec(Kind.HEADER, 19, 1, "", List.of("y" + "a".repeat(9), "aaa)"), 13, 1)),
+					wrapped("call(" + "a".repeat(12) + ")\nz", 5, "x\ny", 10));
+		}
+
+		@Test
+		void withWordWrapAGhostStartingTheNextVisualLineHasNoInlinePart() throws Exception {
+			assertEquals(List.of(new MiningSpec(Kind.HEADER, 11, 1, "", List.of("xy"))),
+					wrapped("0123456789\nz", 10, "xy", 10));
+		}
+
+		@Test
+		void withWordWrapOnlyTheFirstRowWhileThePopupIsOpen() throws Exception {
+			final var text = "x".repeat(15);
+			assertEquals(List.of(new MiningSpec(Kind.CONTENT, 2, 1, text, List.of())),
+					GhostTextLayout.layout(new Document("ab\nz"), new GhostText(2, text, 2, 2, candidate(2, 2, text)), 4,
+							line -> true, true, line -> new int[] { 10 }));
 		}
 
 		@Test

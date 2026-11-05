@@ -12,6 +12,7 @@ import static org.eclipse.lsp4e.internal.NullSafetyHelper.castNonNull;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -98,6 +99,7 @@ import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.GlyphMetrics;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.TextLayout;
 import org.eclipse.swt.graphics.TextStyle;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Listener;
@@ -284,7 +286,7 @@ public final class InlineCompletionController {
 	private final VerifyKeyListener verifyKeyListener = this::onVerifyKey;
 
 	/** What the layout of the shown ghost text depends on, other than the document. */
-	private record Geometry(int tabs) {
+	private record Geometry(int tabs, boolean wordWrap, int wrapWidth, @Nullable Font font) {
 	}
 
 	/** How many times the moved text of {@link #rehiddenFor} was hidden again, see {@link #ghostPainted()}. */
@@ -295,7 +297,7 @@ public final class InlineCompletionController {
 	/** The geometry the shown ghost text was laid out for. */
 	private @Nullable Geometry laidOutFor;
 
-	/** Lays the shown ghost text out again when the editor's tab width changed. */
+	/** Lays the shown ghost text out again when the editor's tab width, font or width changed. */
 	private final PaintListener geometryListener = event -> {
 		if (snapshot != null && !geometry().equals(laidOutFor)) {
 			event.display.asyncExec(() -> {
@@ -864,7 +866,8 @@ public final class InlineCompletionController {
 		final IRegion moved;
 		final Geometry geometry = geometry();
 		try {
-			specs = GhostTextLayout.layout(doc, ghost, textWidget.getTabs(), this::isLineVisible, contentAssistActive);
+			specs = GhostTextLayout.layout(doc, ghost, textWidget.getTabs(), this::isLineVisible, contentAssistActive,
+					geometry.wordWrap() ? this::lineBreaks : null);
 			moved = GhostTextLayout.movedText(doc, ghost, specs);
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
@@ -902,7 +905,28 @@ public final class InlineCompletionController {
 	}
 
 	private Geometry geometry() {
-		return new Geometry(textWidget.getTabs());
+		final boolean wordWrap = textWidget.getWordWrap() && !contentAssistActive;
+		return wordWrap ? new Geometry(textWidget.getTabs(), true, wrapWidth(), textWidget.getFont())
+				: new Geometry(textWidget.getTabs(), false, 0, null);
+	}
+
+	/** Returns the width StyledText wraps lines to. */
+	private int wrapWidth() {
+		return textWidget.getClientArea().width - textWidget.getLeftMargin() - textWidget.getRightMargin();
+	}
+
+	/** Returns where the editor breaks the given line with word wrap on, as StyledText does. */
+	private int[] lineBreaks(String line) {
+		final var layout = new TextLayout(display);
+		try {
+			layout.setFont(textWidget.getFont());
+			layout.setWidth(Math.max(1, wrapWidth()));
+			layout.setText(line);
+			final int[] offsets = layout.getLineOffsets();
+			return offsets.length <= 2 ? new int[0] : Arrays.copyOfRange(offsets, 1, offsets.length - 1);
+		} finally {
+			layout.dispose();
+		}
 	}
 
 	private void hide() {

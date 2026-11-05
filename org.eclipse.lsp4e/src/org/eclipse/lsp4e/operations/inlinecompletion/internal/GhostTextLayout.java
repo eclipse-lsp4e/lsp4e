@@ -37,6 +37,10 @@ import org.eclipse.osgi.util.NLS;
  * line is drawn on the line delimiter after it, and the rest is drawn at the end of the last line in
  * the editor's style rather than the ghost text's (see {@link MiningSpec#moved()}).
  * <p>
+ * With word wrap on, the rows are broken where the editor will break the lines once accepted (see
+ * {@link LineBreaker}): a first line too long for the visual line goes on below it, which moves the rest
+ * of the line as a further line would.
+ * <p>
  * Labels have tabs expanded (minings are drawn without tab stops), control characters replaced by
  * visible symbols, empty lines replaced by a space (empty trailing lines would otherwise not be drawn)
  * and are truncated to keep huge suggestions cheap to draw.
@@ -72,6 +76,15 @@ public final class GhostTextLayout {
 		}
 	}
 
+	/** Tells where the editor breaks a line into visual lines, with word wrap on. */
+	public interface LineBreaker {
+		/**
+		 * Returns the offsets in the given line, starting at the left edge of the editor, at which the
+		 * editor starts a new visual line, in ascending order.
+		 */
+		int[] breaks(String line);
+	}
+
 	/** The maximum number of characters of the first line that are drawn. */
 	public static final int MAX_FIRST_ROW_LENGTH = 2000;
 	/** The maximum number of further lines that are drawn. */
@@ -89,10 +102,11 @@ public final class GhostTextLayout {
 	 * @param isLineVisible tells whether a model line is visible (not folded away)
 	 * @param firstRowOnly whether to draw only the first line, e.g. while the completion popup covers
 	 *            the lines below
+	 * @param breaker where the editor breaks lines, {@code null} without word wrap
 	 * @return the minings to create, in document order
 	 */
 	public static List<MiningSpec> layout(IDocument document, GhostText ghost, int tabWidth, IntPredicate isLineVisible,
-			boolean firstRowOnly) throws BadLocationException {
+			boolean firstRowOnly, @Nullable LineBreaker breaker) throws BadLocationException {
 		final String[] lines = LINE_DELIMITER.split(ghost.text(), -1);
 		final int anchor = ghost.anchor();
 		final int anchorLine = document.getLineOfOffset(anchor);
@@ -106,21 +120,31 @@ public final class GhostTextLayout {
 		final IRegion rest = restOfLine(document, anchor);
 		final String restText = rest == null ? null : document.get(rest.getOffset(), rest.getLength());
 
-		// the lines below the anchor's line, the last one ending with the moved text
-		final var rows = new ArrayList<String>();
+		// the logical lines below the anchor's line, the last one ending with the moved text
+		final var logicalRows = new ArrayList<String>();
+		if (!firstRowOnly && breaker != null) {
+			// a first line too long for the visual line goes on below it, as the editor wraps it
+			final int fits = firstBreak(breaker, prefix + firstRow + (lines.length > 1 || restText == null ? "" //$NON-NLS-1$
+					: expandTabs(restText, prefix.length() + firstRow.length(), tabWidth)), prefix.length(), firstRow.length());
+			if (fits < firstRow.length()) {
+				logicalRows.add(firstRow.substring(fits));
+				firstRow = firstRow.substring(0, fits);
+			}
+		}
 		int movedLength = 0;
 		int movedColumn = 0;
-		if (!firstRowOnly && lines.length > 1) {
-			addRows(lines, tabWidth, restText != null, rows);
+		if (!firstRowOnly && (lines.length > 1 || !logicalRows.isEmpty())) {
+			addRows(lines, tabWidth, restText != null, logicalRows);
 			if (restText != null) {
-				final int last = rows.size() - 1;
-				movedColumn = rows.get(last).length();
+				final int last = logicalRows.size() - 1;
+				movedColumn = logicalRows.get(last).length();
 				final String movedRow = movedRow(restText, movedColumn, tabWidth);
-				rows.set(last, rows.get(last) + movedRow);
+				logicalRows.set(last, logicalRows.get(last) + movedRow);
 				movedLength = movedRow.length();
 			}
-			rows.replaceAll(row -> row.isEmpty() ? " " : row); //$NON-NLS-1$
+			logicalRows.replaceAll(row -> row.isEmpty() ? " " : row); //$NON-NLS-1$
 		}
+		final List<String> rows = breaker == null ? logicalRows : wrap(breaker, logicalRows);
 
 		final var result = new ArrayList<MiningSpec>(2);
 		final int documentLength = document.getLength();
@@ -147,6 +171,39 @@ public final class GhostTextLayout {
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Returns how many characters of the ghost text in the given line fit on the visual line the ghost
+	 * text starts on.
+	 */
+	private static int firstBreak(LineBreaker breaker, String line, int ghostStart, int ghostLength) {
+		for (final int offset : breaker.breaks(line)) {
+			if (offset > ghostStart && offset < ghostStart + ghostLength) {
+				return offset - ghostStart;
+			}
+			if (offset == ghostStart && ghostStart > 0) {
+				// the ghost text starts the next visual line
+				return 0;
+			}
+		}
+		return ghostLength;
+	}
+
+	/** Breaks the given rows into the visual lines the editor shows them on. */
+	private static List<String> wrap(LineBreaker breaker, List<String> rows) {
+		final var visual = new ArrayList<String>(rows.size());
+		for (final String row : rows) {
+			int start = 0;
+			for (final int offset : breaker.breaks(row)) {
+				if (offset > start && offset < row.length()) {
+					visual.add(row.substring(start, offset));
+					start = offset;
+				}
+			}
+			visual.add(row.substring(start));
+		}
+		return visual;
 	}
 
 	/**
