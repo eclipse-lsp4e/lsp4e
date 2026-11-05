@@ -24,6 +24,7 @@ import java.util.function.Supplier;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.ILogListener;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.preferences.InstanceScope;
 import org.eclipse.jface.bindings.TriggerSequence;
@@ -33,12 +34,16 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextOperationTarget;
+import org.eclipse.jface.text.codemining.ICodeMining;
+import org.eclipse.jface.text.codemining.ICodeMiningProvider;
 import org.eclipse.jface.text.link.LinkedModeModel;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.LSPMethods;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
+import org.eclipse.lsp4e.operations.codelens.CodeLensProvider;
+import org.eclipse.lsp4e.operations.inlayhint.InlayHintProvider;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostText;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.Kind;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.MiningSpec;
@@ -49,8 +54,10 @@ import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.InlineCompletionPreferencePage;
 import org.eclipse.lsp4e.ui.UI;
+import org.eclipse.lsp4j.CodeLens;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.ExecuteCommandParams;
+import org.eclipse.lsp4j.InlayHint;
 import org.eclipse.lsp4j.InlineCompletionItem;
 import org.eclipse.lsp4j.InlineCompletionList;
 import org.eclipse.lsp4j.InlineCompletionParams;
@@ -1124,5 +1131,72 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		} finally {
 			Platform.removeLogListener(listener);
 		}
+	}
+
+	// ---- other code minings ----------------------------------------------------------------------------
+
+	@Test
+	public void inlayHintAtTheCaretMakesRoomForTheGhost(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "lspt", "hello\n", () -> {
+			final ServerCapabilities capabilities = capabilities();
+			capabilities.setInlayHintProvider(true);
+			return capabilities;
+		}, items(item(" world")));
+		server(factory).getTextDocumentService()
+				.setInlayHints(List.of(new InlayHint(new Position(0, 5), Either.forLeft(": hint"))));
+		final var inlayHints = new InlayHintProvider();
+		assertEquals(1, minings(inlayHints, viewer).size());
+
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		assertEquals(0, minings(inlayHints, viewer).size(), "the hint at the caret is left out");
+
+		controller(viewer).dismiss();
+		assertEquals(1, minings(inlayHints, viewer).size(), "the hint comes back");
+	}
+
+	@Test
+	public void inlayHintAtTheCaretMakesRoomAlsoWhenTheGhostContinuesBelowTheLastLine(MockLanguageServerFactory factory)
+			throws Exception {
+		final ISourceViewer viewer = open(factory, "lspt", "hello\n", () -> {
+			final ServerCapabilities capabilities = capabilities();
+			capabilities.setInlayHintProvider(true);
+			return capabilities;
+		}, items(item("x\ny")));
+		server(factory).getTextDocumentService()
+				.setInlayHints(List.of(new InlayHint(new Position(0, 5), Either.forLeft(": hint"))));
+		final var inlayHints = new InlayHintProvider();
+		assertEquals(1, minings(inlayHints, viewer).size());
+
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		assertEquals(List.of(new MiningSpec(Kind.CONTENT, 5, 1, "x", List.of()),
+				new MiningSpec(Kind.END_OF_DOCUMENT, 6, 0, "", List.of("y"))), controller(viewer).getShownLayout());
+		assertEquals(0, minings(inlayHints, viewer).size(), "the hint at the caret is left out");
+	}
+
+	@Test
+	public void codeLensOnTheLineTheGhostContinuesAboveIsLeftOut(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "if x:\npass\n", items(item("\n    y()")));
+		server(factory).setCodeLens(List.of(new CodeLens(new Range(new Position(1, 0), new Position(1, 1)),
+				new Command("lens", "dummy"), null)));
+		final var codeLenses = new CodeLensProvider();
+		assertEquals(1, minings(codeLenses, viewer).size());
+
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		assertEquals(0, minings(codeLenses, viewer).size());
+		controller(viewer).dismiss();
+		assertEquals(1, minings(codeLenses, viewer).size());
+	}
+
+	private static List<? extends ICodeMining> minings(ICodeMiningProvider provider, ISourceViewer viewer)
+			throws Exception {
+		final var future = provider.provideCodeMinings(viewer, new NullProgressMonitor());
+		assertNotNull(future);
+		return future.get(TIMEOUT, TimeUnit.MILLISECONDS);
 	}
 }
