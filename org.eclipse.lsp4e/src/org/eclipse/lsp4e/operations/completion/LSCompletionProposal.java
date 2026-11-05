@@ -594,7 +594,7 @@ public class LSCompletionProposal
 				Command command = item.getCommand();
 				ServerCapabilities serverCapabilities = languageServerWrapper.getServerCapabilities();
 				ExecuteCommandOptions provider = serverCapabilities == null ? null : serverCapabilities.getExecuteCommandProvider();
-				if (provider != null && provider.getCommands().contains(command.getCommand())) {
+				if (provider != null && provider.getCommands() != null && provider.getCommands().contains(command.getCommand())) {
 					languageServerWrapper.execute(ls -> ls.getWorkspaceService()
 							.executeCommand(new ExecuteCommandParams(command.getCommand(), command.getArguments())));
 				} else {
