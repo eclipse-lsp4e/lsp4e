@@ -1,0 +1,159 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!-- Schema file written by PDE -->
+<schema targetNamespace="org.eclipse.lsp4e" xmlns="http://www.w3.org/2001/XMLSchema">
+<annotation>
+      <appinfo>
+         <meta.schema plugin="org.eclipse.lsp4e" id="inlineCompletion" name="Inline Completion"/>
+      </appinfo>
+      <documentation>
+         This extension point allows clients to observe and adapt inline completion (ghost text suggestions from &lt;code&gt;textDocument/inlineCompletion&lt;/code&gt;): to receive the events of shown, accepted and dismissed suggestions, to decide whether inline completion is enabled and to define the words used when accepting a suggestion word by word.
+      </documentation>
+   </annotation>
+
+   <element name="extension">
+      <annotation>
+         <appinfo>
+            <meta.element />
+         </appinfo>
+      </annotation>
+      <complexType>
+         <choice minOccurs="1" maxOccurs="unbounded">
+            <element ref="eventListener"/>
+            <element ref="enablement"/>
+            <element ref="wordDetector"/>
+         </choice>
+         <attribute name="point" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The fully qualified identifier of the extension point.
+               </documentation>
+            </annotation>
+         </attribute>
+         <attribute name="id" type="string">
+            <annotation>
+               <documentation>
+                  
+               </documentation>
+            </annotation>
+         </attribute>
+         <attribute name="name" type="string">
+            <annotation>
+               <documentation>
+                  
+               </documentation>
+               <appinfo>
+                  <meta.attribute translatable="true"/>
+               </appinfo>
+            </annotation>
+         </attribute>
+      </complexType>
+   </element>
+
+   <element name="eventListener">
+      <annotation>
+         <documentation>
+            A listener notified of the events of inline completions, for example to collect usage metrics. All contributed listeners are notified.
+         </documentation>
+      </annotation>
+      <complexType>
+         <attribute name="class" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The fully qualified name of a class implementing &lt;code&gt;org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEventListener&lt;/code&gt;.
+               </documentation>
+               <appinfo>
+                  <meta.attribute kind="java" basedOn=":org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEventListener"/>
+               </appinfo>
+            </annotation>
+         </attribute>
+      </complexType>
+   </element>
+
+   <element name="enablement">
+      <annotation>
+         <documentation>
+            Decides whether inline completion is enabled. Only the first contribution is used. Without a contribution, inline completion is enabled.
+         </documentation>
+      </annotation>
+      <complexType>
+         <attribute name="class" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The fully qualified name of a class implementing &lt;code&gt;org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEnablement&lt;/code&gt;.
+               </documentation>
+               <appinfo>
+                  <meta.attribute kind="java" basedOn=":org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEnablement"/>
+               </appinfo>
+            </annotation>
+         </attribute>
+      </complexType>
+   </element>
+
+   <element name="wordDetector">
+      <annotation>
+         <documentation>
+            Defines the words of documents of a content type, used when accepting the next word of a suggestion and when computing the text a suggestion replaces. Without a contribution, a word is a run of characters for which &lt;code&gt;Character.isUnicodeIdentifierPart&lt;/code&gt; is true.
+         </documentation>
+      </annotation>
+      <complexType>
+         <attribute name="class" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The fully qualified name of a class implementing &lt;code&gt;org.eclipse.jface.text.rules.IWordDetector&lt;/code&gt;.
+               </documentation>
+               <appinfo>
+                  <meta.attribute kind="java" basedOn=":org.eclipse.jface.text.rules.IWordDetector"/>
+               </appinfo>
+            </annotation>
+         </attribute>
+         <attribute name="contentType" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The identifier of the content type whose words are detected. The detector is also used for derived content types without a more specific detector.
+               </documentation>
+               <appinfo>
+                  <meta.attribute kind="identifier" basedOn="org.eclipse.core.contenttype.contentTypes/content-type/@id"/>
+               </appinfo>
+            </annotation>
+         </attribute>
+      </complexType>
+   </element>
+
+   <annotation>
+      <appinfo>
+         <meta.section type="since"/>
+      </appinfo>
+      <documentation>
+         0.20.0
+      </documentation>
+   </annotation>
+
+   <annotation>
+      <appinfo>
+         <meta.section type="examples"/>
+      </appinfo>
+      <documentation>
+         &lt;pre&gt;
+&lt;extension point=&quot;org.eclipse.lsp4e.inlineCompletion&quot;&gt;
+   &lt;eventListener class=&quot;com.example.UsageMetricsListener&quot;/&gt;
+   &lt;wordDetector class=&quot;com.example.MyLanguageWordDetector&quot; contentType=&quot;com.example.myLanguage&quot;/&gt;
+&lt;/extension&gt;
+&lt;/pre&gt;
+      </documentation>
+   </annotation>
+
+   <annotation>
+      <appinfo>
+         <meta.section type="copyright"/>
+      </appinfo>
+      <documentation>
+         Copyright (c) 2026 Avaloq Group AG.
+This program and the accompanying materials are made
+available under the terms of the Eclipse Public License 2.0
+which is available at https://www.eclipse.org/legal/epl-2.0/
+
+SPDX-License-Identifier: EPL-2.0
+      </documentation>
+   </annotation>
+
+</schema>
