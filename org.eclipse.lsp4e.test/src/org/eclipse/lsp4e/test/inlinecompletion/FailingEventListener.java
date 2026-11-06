@@ -11,13 +11,23 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.inlinecompletion;
 
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEvent;
 import org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEventListener;
 
 public class FailingEventListener implements InlineCompletionEventListener {
 
+	/** The UUIDs of the events this listener failed on. */
+	static final List<UUID> FAILED = new CopyOnWriteArrayList<>();
+
 	@Override
 	public void handle(InlineCompletionEvent event) {
-		throw new IllegalStateException("expected by InlineCompletionExtensionsTest");
+		if (InlineCompletionExtensionsTest.EVENT_URI.equals(event.uri())) {
+			FAILED.add(event.uuid());
+			throw new IllegalStateException("expected by InlineCompletionExtensionsTest");
+		}
 	}
 }

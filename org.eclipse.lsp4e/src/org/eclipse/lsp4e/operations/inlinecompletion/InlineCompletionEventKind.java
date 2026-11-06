@@ -14,6 +14,8 @@ package org.eclipse.lsp4e.operations.inlinecompletion;
 /**
  * The kinds of {@link InlineCompletionEvent}s emitted while inline completions
  * are requested, shown, accepted and dismissed.
+ * <p>
+ * This API is provisional: it may still change while inline completion matures.
  *
  * @since 0.20.0
  */
