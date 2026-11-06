@@ -10,10 +10,15 @@ package org.eclipse.lsp4e.test.folding;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.Iterator;
 import java.util.List;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jface.preference.IPreferenceStore;
+import org.eclipse.jface.text.source.Annotation;
+import org.eclipse.jface.text.source.projection.ProjectionAnnotationModel;
+import org.eclipse.jface.text.source.projection.ProjectionViewer;
+import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
@@ -89,6 +94,31 @@ public class FoldingTest {
 		// wait a few seconds before testing to ensure no folding happened
 		DisplayHelper.sleep(MAX_WAIT_FOR_FOLDING);
 		assertEquals(CONTENT, ((StyledText) editor.getAdapter(Control.class)).getText());
+	}
+
+	@Test
+	public void testFoldingRestoredWhenReenabled(MockLanguageServerFactory factory) throws CoreException {
+		configureCollapse(FoldingPreferencePage.PREF_AUTOFOLD_LICENSE_HEADERS_COMMENTS, false);
+		configureCollapse(FoldingPreferencePage.PREF_AUTOFOLD_IMPORT_STATEMENTS, false);
+		final var viewer = (ProjectionViewer) LSPEclipseUtils.getTextViewer(createEditor(factory));
+		TestUtils.waitForAndAssertCondition(MAX_WAIT_FOR_FOLDING, () -> assertEquals(2, countFoldingAnnotations(viewer)));
+
+		viewer.doOperation(ProjectionViewer.TOGGLE);
+		viewer.doOperation(ProjectionViewer.TOGGLE);
+
+		TestUtils.waitForAndAssertCondition(MAX_WAIT_FOR_FOLDING, () -> assertEquals(2, countFoldingAnnotations(viewer)));
+	}
+
+	private static int countFoldingAnnotations(ProjectionViewer viewer) {
+		final ProjectionAnnotationModel model = viewer.getProjectionAnnotationModel();
+		if (model == null) {
+			return 0;
+		}
+		int count = 0;
+		for (Iterator<Annotation> it = model.getAnnotationIterator(); it.hasNext(); it.next()) {
+			count++;
+		}
+		return count;
 	}
 
 	private IEditorPart createEditor(MockLanguageServerFactory factory) throws CoreException {
