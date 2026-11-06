@@ -30,8 +30,9 @@ public final class InlineCompletionUtil {
 
 	private static final List<String> TWO_CHAR_WORDS = List.of(":=", "=>", "!=", "--", "/*", "*/", "\r\n"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$ //$NON-NLS-7$
 	private static final int TWO_CHAR_LENGTH = 2;
-	private static final Pattern SINGLE_QUOTED_STRING = Pattern.compile("'([^'\\\\]|\\\\')*'"); //$NON-NLS-1$
-	private static final Pattern DOUBLE_QUOTED_STRING = Pattern.compile("\"([^\"\\\\]|\\\\\")*\""); //$NON-NLS-1$
+	// on one line, with backslash escapes; possessive, so that long strings do not overflow the stack
+	private static final Pattern SINGLE_QUOTED_STRING = Pattern.compile("'[^'\\\\\\r\\n]*+(?:\\\\.[^'\\\\\\r\\n]*+)*+'"); //$NON-NLS-1$
+	private static final Pattern DOUBLE_QUOTED_STRING = Pattern.compile("\"[^\"\\\\\\r\\n]*+(?:\\\\.[^\"\\\\\\r\\n]*+)*+\""); //$NON-NLS-1$
 
 	private InlineCompletionUtil() {
 	}
@@ -52,7 +53,8 @@ public final class InlineCompletionUtil {
 
 	/**
 	 * Returns the length of the word at the offset: a word of the detector, a run
-	 * of spaces, a quoted string, a two-character operator or a single character.
+	 * of spaces, a quoted string on one line, a two-character operator or a single
+	 * character.
 	 *
 	 * @param text
 	 *            the text
@@ -75,13 +77,14 @@ public final class InlineCompletionUtil {
 		if (character == ' ') {
 			return countSpaces(text, offset);
 		} else if (character == '\'' || character == '"') {
-			final Matcher matcher = (character == '\'' ? SINGLE_QUOTED_STRING : DOUBLE_QUOTED_STRING)
-					.matcher(text.substring(offset));
-			if (matcher.find()) {
-				return matcher.group().length();
+			final Matcher matcher = (character == '\'' ? SINGLE_QUOTED_STRING : DOUBLE_QUOTED_STRING).matcher(text)
+					.region(offset, text.length());
+			if (matcher.lookingAt()) {
+				return matcher.end() - offset;
 			}
 		} else if (offset + 1 < text.length()
-				&& TWO_CHAR_WORDS.contains(text.substring(offset, offset + TWO_CHAR_LENGTH))) {
+				&& (TWO_CHAR_WORDS.contains(text.substring(offset, offset + TWO_CHAR_LENGTH))
+						|| Character.isSurrogatePair(character, text.charAt(offset + 1)))) {
 			return TWO_CHAR_LENGTH;
 		}
 		return 1;

@@ -65,4 +65,28 @@ public class InlineCompletionUtilTest {
 		assertEquals(2, getReplaceRangeLength("\r\nfoo", 0, "\n", DEFAULT));
 		assertEquals(0, getReplaceRangeLength(" \nfoo", 0, "\n", DEFAULT));
 	}
+
+	@Test
+	public void testQuotedStringsAreMatchedAtTheOffsetOnly() {
+		assertEquals(1, getWordLength("'a \"b\"", DEFAULT), "not closed: the string further on does not count");
+		assertEquals(6, getWordLength("\"a\\nb\" \"c\"", DEFAULT), "an escape other than a quote");
+		assertEquals(5, getWordLength("\"a\\\\\" b", DEFAULT), "an escaped backslash does not escape the quote");
+	}
+
+	@Test
+	public void testQuotedStringsStayOnOneLine() {
+		assertEquals(1, getWordLength("'t do\nthis isn't", DEFAULT), "an apostrophe, not a string");
+		assertEquals(1, getWordLength("\"a\r\nb\"", DEFAULT));
+	}
+
+	@Test
+	public void testLongQuotedStringDoesNotOverflowTheStack() {
+		final String text = '"' + "a\\\" ".repeat(100_000) + '"';
+		assertEquals(text.length(), getWordLength(text, DEFAULT));
+	}
+
+	@Test
+	public void testSurrogatePairIsNotSplit() {
+		assertEquals(2, getWordLength("😀x", DEFAULT));
+	}
 }
