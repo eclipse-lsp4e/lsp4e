@@ -296,6 +296,15 @@ public class LanguageServiceAccessor {
 	}
 
 	protected static Collection<LanguageServerWrapper> getLSWrappers(final IDocument document) {
+		return getLSWrappers(document, definition -> true);
+	}
+
+	/**
+	 * Returns the existing or new wrappers matching the document, restricted to the server definitions accepted by
+	 * the given filter.
+	 */
+	static Collection<LanguageServerWrapper> getLSWrappers(final IDocument document,
+			final Predicate<LanguageServerDefinition> definitionFilter) {
 		final URI uri = LSPEclipseUtils.toUri(document);
 		if (uri == null) {
 			return Collections.emptyList();
@@ -306,6 +315,9 @@ public class LanguageServiceAccessor {
 		// look for already started compatible servers suitable for the given document
 		final Predicate<LanguageServerWrapper> selectServersForDocument = wrapper -> {
 			try {
+				if (!definitionFilter.test(wrapper.serverDefinition)) {
+					return false;
+				}
 				return wrapper.isConnectedTo(uri)
 						|| (lsRegistry.matches(document, wrapper.serverDefinition) && wrapper.canOperate(document));
 			} catch (Exception ex) {
@@ -330,10 +342,10 @@ public class LanguageServiceAccessor {
 			}
 
 			for (final ContentTypeToLanguageServerDefinition mapping : lsRegistry.findProviderFor(contentType)) {
-				if (!mapping.isEnabled(uri)) {
+				final LanguageServerDefinition serverDefinition = mapping.getValue();
+				if (!definitionFilter.test(serverDefinition) || !mapping.isEnabled(uri)) {
 					continue;
 				}
-				final LanguageServerDefinition serverDefinition = mapping.getValue();
 				final Predicate<LanguageServerWrapper> selectServersWithEqualDefinition = wrapper -> wrapper.serverDefinition
 						.equals(serverDefinition);
 				if (res.stream().anyMatch(selectServersWithEqualDefinition)) {
