@@ -151,6 +151,14 @@ If set to a number bigger than zero, the server will run until the timeout is re
                </documentation>
             </annotation>
          </attribute>
+         <attribute name="connectFileBuffers" type="boolean">
+            <annotation>
+               <documentation>
+                  Whether the server is also connected to (and started for) documents that are loaded without being shown in an editor, for example by builders, search, compare or other plug-ins reading files. Defaults to false: the server is connected when a matching document is opened in an editor, or when a feature sends it a request.
+Since 0.20
+               </documentation>
+            </annotation>
+         </attribute>
       </complexType>
    </element>
 
