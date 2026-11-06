@@ -99,6 +99,16 @@ public final class InlineCompletionSession {
 		return null;
 	}
 
+	/**
+	 * Returns the text typed if it completes the current candidate.
+	 *
+	 * @see GhostTextComputer#typedCompletion
+	 */
+	public @Nullable String typedCompletion(IDocument document, int caret) {
+		final TrackedRange range = ranges.get(index);
+		return range == null ? null : GhostTextComputer.typedCompletion(document, caret, range, candidates.get(index));
+	}
+
 	/** Makes the next (or, with {@code forward == false}, the previous) shown candidate current. */
 	public @Nullable GhostText cycle(IDocument document, int caret, boolean forward) {
 		final int size = candidates.size();

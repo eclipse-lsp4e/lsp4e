@@ -271,4 +271,44 @@ public class InlineCompletionEventsTest extends AbstractTestWithProject {
 		assertEquals("hello big\nworld\n", viewer.getDocument().get());
 		assertEquals(1, events(uri).stream().map(InlineCompletionEvent::uuid).distinct().count());
 	}
+
+	@Test
+	public void typingTheWholeSuggestionIsReported(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" you")));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " you");
+		type(viewer, " yo");
+		waitForGhostText(viewer, "u");
+		assertEquals(List.of(FETCH_FIRST, VIEW), kinds(uri));
+		type(viewer, 'u');
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_EDIT);
+		assertEquals(" you", last(uri).text());
+		assertNotNull(last(uri).elapsedTime());
+		waitForNoGhost(viewer);
+	}
+
+	@Test
+	public void typingASuggestionUpToATailItEndsWithIsReported(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "print()\n", items(item("ab)", 0, 6, 7)));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 6);
+		showAndView(viewer, "ab");
+		type(viewer, "ab");
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_EDIT);
+		assertEquals("ab", last(uri).text());
+	}
+
+	@Test
+	public void typingSomethingElseIsNotReported(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", params -> Either.forLeft(List.of(item(" you"))));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " you");
+		type(viewer, 'x');
+		waitForAndAssertCondition(TIMEOUT, () -> controller(viewer).getSession() == null
+				|| castNonNull(controller(viewer).getShownGhostText()).replaceStart() == 6);
+		processEvents(200);
+		assertFalse(kinds(uri).contains(ACCEPT_EDIT));
+	}
 }

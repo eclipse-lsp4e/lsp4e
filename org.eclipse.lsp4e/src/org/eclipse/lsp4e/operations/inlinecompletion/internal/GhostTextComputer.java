@@ -64,6 +64,25 @@ public final class GhostTextComputer {
 	}
 
 	/**
+	 * Returns the text typed if it, together with the text after the caret that is still inside the
+	 * range, is exactly the candidate's text: there is nothing left to show because the user typed it.
+	 *
+	 * @return the text typed, or {@code null} if it does not complete the candidate
+	 */
+	public static @Nullable String typedCompletion(IDocument document, int caret, TrackedRange range,
+			InlineCompletionCandidate candidate) {
+		if (caret <= range.start() || caret > range.end() || range.end() > document.getLength()) {
+			return null;
+		}
+		try {
+			final String typed = document.get(range.start(), caret - range.start());
+			return candidate.text().equals(typed + document.get(caret, range.end() - caret)) ? typed : null;
+		} catch (BadLocationException e) {
+			return null;
+		}
+	}
+
+	/**
 	 * Returns whether the candidate extends the item selected in the completion popup, as the
 	 * specification requires for completions requested with a {@code selectedCompletionInfo}: it uses
 	 * the same range and its text starts with the selected item's text.

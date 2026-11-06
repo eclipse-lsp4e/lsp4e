@@ -1001,12 +1001,28 @@ public final class InlineCompletionController {
 		if (disposed) {
 			return;
 		}
+		if (userEdit) {
+			fireIfTypedCompletion();
+		}
 		if (session != null && show()) {
 			return;
 		}
 		endSession();
 		if (userEdit) {
 			scheduleAutomaticRequest();
+		}
+	}
+
+	/** Reports it when what the user typed is the suggestion, rather than accepting it. */
+	private void fireIfTypedCompletion() {
+		final InlineCompletionSession current = session;
+		final RequestInfo info = sessionInfo;
+		final IDocument doc = document;
+		if (current != null && info != null && doc != null) {
+			final String typed = current.typedCompletion(doc, caretOffset());
+			if (typed != null) {
+				info.fire(InlineCompletionEventKind.ACCEPT_EDIT, typed, info.takeTimeSinceView());
+			}
 		}
 	}
 
