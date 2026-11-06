@@ -60,6 +60,7 @@ import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostText;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.Kind;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.MiningSpec;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionController;
+import org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionPopup;
 import org.eclipse.lsp4e.test.utils.AbstractTestWithProject;
 import org.eclipse.lsp4e.test.utils.TestUtils;
 import org.eclipse.lsp4e.tests.mock.MockLanguageServer;
@@ -1778,5 +1779,37 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		waitForGhost(viewer);
 		waitForAndAssertCondition(TIMEOUT, () -> bindings.getActiveBindingsFor(word).length > 0);
 		waitForAndAssertCondition(TIMEOUT, () -> bindings.getActiveBindingsFor(line).length > 0);
+	}
+
+	// ---- the position among the suggestions ------------------------------------------------------------
+
+	private static long shells() {
+		return UI.getDisplay().getShells().length;
+	}
+
+	@Test
+	public void cyclingShowsThePositionInASinglePopupThatGoesWithTheSuggestion(MockLanguageServerFactory factory)
+			throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" a"), item(" b")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " a");
+		assertNull(InlineCompletionPopup.getShownMessage());
+		final long shellsBefore = shells();
+
+		controller(viewer).cycle(true);
+		assertEquals("2/2", InlineCompletionPopup.getShownMessage());
+		processEvents(200);
+		waitForGhostText(viewer, " b");
+
+		controller(viewer).cycle(true);
+		controller(viewer).cycle(true);
+		controller(viewer).cycle(true);
+		assertEquals("1/2", InlineCompletionPopup.getShownMessage());
+		assertEquals(shellsBefore + 1, shells(), "one popup at a time");
+
+		controller(viewer).dismiss();
+		assertNull(InlineCompletionPopup.getShownMessage());
+		assertEquals(shellsBefore, shells());
 	}
 }

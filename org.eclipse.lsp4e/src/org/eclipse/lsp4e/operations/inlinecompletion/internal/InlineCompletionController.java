@@ -498,6 +498,7 @@ public final class InlineCompletionController {
 		final Snapshot shown = snapshot;
 		snapshot = null;
 		if (shown != null) {
+			InlineCompletionPopup.hidePopup();
 			invalidatePresentation(shown.moved());
 		}
 		if (shown != null || noSuggestionsShown) {
@@ -578,8 +579,10 @@ public final class InlineCompletionController {
 			request(InlineCompletionTriggerKind.Invoked, true);
 		}
 		final GhostText ghost = current.cycle(doc, caret, forward);
-		if (ghost != null) {
-			display(ghost, caret);
+		if (ghost != null && display(ghost, caret)) {
+			final int[] position = current.position(doc, caret);
+			InlineCompletionPopup.showPopup(viewer, NLS.bind(Messages.InlineCompletion_position, position[0], position[1]),
+					caret);
 		}
 	}
 
@@ -1204,6 +1207,7 @@ public final class InlineCompletionController {
 			return;
 		}
 		snapshot = null;
+		InlineCompletionPopup.hidePopup();
 		invalidatePresentation(shown.moved());
 		if (doc != null) {
 			GhostTextRegistry.clear(doc);

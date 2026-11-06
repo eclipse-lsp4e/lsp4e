@@ -15,13 +15,13 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.AbstractInformationControl;
 import org.eclipse.jface.text.IInformationControlCreator;
 import org.eclipse.jface.text.ITextViewer;
+import org.eclipse.jface.text.ITextViewerExtension5;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 
@@ -36,6 +36,9 @@ public class InlineCompletionPopup extends AbstractInformationControl {
 	private static final int MAX_POPUP_WIDTH = 400;
 	private static final int POPUP_OFFSET_FROM_CURSOR = 5;
 	private static final int AUTO_HIDE_DELAY_MS = 3000;
+
+	/** The popup shown, of which there is one at most; used on the UI thread only. */
+	private static @Nullable InlineCompletionPopup shown;
 
 	private @Nullable Label infoLabel;
 	private @Nullable String currentInfo;
@@ -88,7 +91,8 @@ public class InlineCompletionPopup extends AbstractInformationControl {
 	}
 
 	/**
-	 * Shows a popup with a message above the given offset for a few seconds.
+	 * Shows a popup with a message above the given offset for a few seconds, instead
+	 * of the one shown before, if any. Must be called on the UI thread.
 	 *
 	 * @param textViewer
 	 *            the viewer
@@ -98,30 +102,54 @@ public class InlineCompletionPopup extends AbstractInformationControl {
 	 *            the document offset above which the popup is shown
 	 */
 	public static void showPopup(ITextViewer textViewer, String message, int offset) {
-		if (message.isEmpty()) {
+		hidePopup();
+		final StyledText textWidget = textViewer.getTextWidget();
+		if (message.isEmpty() || textWidget == null || textWidget.isDisposed()) {
 			return;
 		}
-		Display.getDefault().asyncExec(() -> {
-			final StyledText textWidget = textViewer.getTextWidget();
-			if (textWidget == null || textWidget.isDisposed()) {
-				return;
+		// a folded offset has no place in the widget
+		final int widgetOffset = textViewer instanceof ITextViewerExtension5 extension
+				? extension.modelOffset2WidgetOffset(offset)
+				: offset;
+		if (widgetOffset < 0 || widgetOffset > textWidget.getCharCount()) {
+			return;
+		}
+		final var popup = new InlineCompletionPopup(textWidget.getShell());
+		popup.setInformation(message);
+
+		final Point location = textWidget.toDisplay(textWidget.getLocationAtOffset(widgetOffset));
+		final Point size = popup.computeSizeHint();
+		location.y -= size.y + POPUP_OFFSET_FROM_CURSOR;
+
+		popup.setLocation(location);
+		popup.setSize(size.x, size.y);
+		popup.setVisible(true);
+		shown = popup;
+
+		textWidget.getDisplay().timerExec(AUTO_HIDE_DELAY_MS, () -> {
+			if (shown == popup) {
+				hidePopup();
 			}
-			final var popup = new InlineCompletionPopup(textWidget.getShell());
-			popup.setInformation(message);
-
-			final Point location = textWidget.toDisplay(textWidget.getLocationAtOffset(offset));
-			final Point size = popup.computeSizeHint();
-			location.y -= size.y + POPUP_OFFSET_FROM_CURSOR;
-
-			popup.setLocation(location);
-			popup.setSize(size.x, size.y);
-			popup.setVisible(true);
-
-			textWidget.getDisplay().timerExec(AUTO_HIDE_DELAY_MS, () -> {
-				if (!popup.getShell().isDisposed()) {
-					popup.dispose();
-				}
-			});
 		});
+	}
+
+	/**
+	 * Hides the popup shown, if any. Must be called on the UI thread.
+	 */
+	public static void hidePopup() {
+		final InlineCompletionPopup popup = shown;
+		shown = null;
+		if (popup != null && !popup.getShell().isDisposed()) {
+			popup.dispose();
+		}
+	}
+
+	/**
+	 * Returns the message of the popup shown, or {@code null} if there is none; for
+	 * tests.
+	 */
+	public static @Nullable String getShownMessage() {
+		final InlineCompletionPopup popup = shown;
+		return popup == null || popup.getShell().isDisposed() ? null : popup.currentInfo;
 	}
 }
