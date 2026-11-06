@@ -14,6 +14,8 @@ package org.eclipse.lsp4e.operations.inlinecompletion.internal;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.ui.InlineCompletionPreferencePage;
 import org.eclipse.lsp4e.ui.Messages;
 
 /**
@@ -31,7 +33,7 @@ public final class InlineCompletionStatus {
 	 */
 	public enum State {
 		INITIALIZING(Messages.InlineCompletion_status_initializing),
-		READY(Messages.InlineCompletion_status_ready),
+		READY(Messages.InlineCompletion_status_ready_automatic),
 		FETCHING(Messages.InlineCompletion_status_fetching),
 		ERROR(Messages.InlineCompletion_status_error);
 
@@ -42,6 +44,10 @@ public final class InlineCompletionStatus {
 		}
 
 		public String getTooltip() {
+			if (this == READY && !LanguageServerPlugin.getDefault().getPreferenceStore()
+					.getBoolean(InlineCompletionPreferencePage.PREF_AUTOMATIC)) {
+				return Messages.InlineCompletion_status_ready_manual;
+			}
 			return tooltip;
 		}
 	}

@@ -12,6 +12,7 @@
 package org.eclipse.lsp4e.operations.inlinecompletion.internal;
 
 import org.eclipse.jface.action.IContributionItem;
+import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.ui.PlatformUI;
 import org.eclipse.ui.actions.CompoundContributionItem;
 import org.eclipse.ui.menus.CommandContributionItem;
@@ -27,8 +28,9 @@ public class InlineCompletionStatusContribution extends CompoundContributionItem
 	protected IContributionItem[] getContributionItems() {
 		final var parameters = new CommandContributionItemParameter(PlatformUI.getWorkbench(), null,
 				DisplayStatus.ID, CommandContributionItem.STYLE_PUSH);
-		parameters.label = InlineCompletionStatus.getInstance().getState().getTooltip();
-		// TODO show the icon of the state, as the status bar widget of the inline completion engine does
+		final InlineCompletionStatus.State state = InlineCompletionStatus.getInstance().getState();
+		parameters.label = state.getTooltip().replace('\n', ' ');
+		parameters.icon = ImageDescriptor.createFromImage(InlineCompletionStatusWidget.getImage(state));
 		return new IContributionItem[] { new CommandContributionItem(parameters) };
 	}
 }

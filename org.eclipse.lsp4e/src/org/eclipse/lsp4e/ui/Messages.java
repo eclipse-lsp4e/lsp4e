@@ -115,7 +115,11 @@ public final class Messages extends NLS {
 	public static String TH_cannot_find_file;
 	public static String occurrences;
 	public static String InlineCompletion_status_initializing;
-	public static String InlineCompletion_status_ready;
+	public static String InlineCompletion_status_ready_automatic;
+	public static String InlineCompletion_status_ready_manual;
+	public static String InlineCompletion_menu_automatic;
+	public static String InlineCompletion_menu_preferences;
+	public static String InlineCompletion_menu_keyBindings;
 	public static String InlineCompletion_status_fetching;
 	public static String InlineCompletion_status_error;
 	public static String InlineCompletion_keyBindingsFilter;

@@ -13,7 +13,10 @@ import java.util.function.Consumer;
 import org.eclipse.core.commands.AbstractHandler;
 import org.eclipse.core.commands.ExecutionEvent;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.text.source.ISourceViewer;
+import org.eclipse.lsp4e.LanguageServerPlugin;
+import org.eclipse.lsp4e.ui.InlineCompletionPreferencePage;
 import org.eclipse.lsp4e.ui.UI;
 
 /**
@@ -41,6 +44,21 @@ public final class InlineCompletionHandlers {
 			}
 			return null;
 		}
+	}
+
+	/** Switches between requesting inline completions automatically and only when asked to. */
+	public static final class ToggleTriggerMode extends AbstractHandler {
+		@Override
+		public @Nullable Object execute(ExecutionEvent event) {
+			toggleTriggerMode();
+			return null;
+		}
+	}
+
+	static void toggleTriggerMode() {
+		final IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC,
+				!store.getBoolean(InlineCompletionPreferencePage.PREF_AUTOMATIC));
 	}
 
 	/** Requests inline completions explicitly. */
