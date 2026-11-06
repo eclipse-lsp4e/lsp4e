@@ -53,6 +53,7 @@ public final class Messages extends NLS {
 	public static String InlineCompletion_status;
 	public static String InlineCompletion_moreLines;
 	public static String InlineCompletion_noSuggestions;
+	public static String InlineCompletion_position;
 	public static String NewContentTypeLSPLaunchDialog_associateContentType;
 	public static String NewContentTypeLSPLaunchDialog_withLSPLaunch;
 	public static String codeActions_description;
