@@ -291,6 +291,10 @@ public class LSPFoldingReconcilingStrategy
 		var theViewer = viewer;
 		if (theViewer != null) {
 			projectionAnnotationModel = theViewer.getProjectionAnnotationModel();
+			// the new annotation model is empty, so recompute the ranges instead of waiting for the next edit
+			if (document != null) {
+				reconcile(null);
+			}
 		}
 	}
 
