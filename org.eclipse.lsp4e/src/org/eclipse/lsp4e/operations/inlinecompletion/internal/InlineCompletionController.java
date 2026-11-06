@@ -1004,7 +1004,7 @@ public final class InlineCompletionController {
 		} else if (lastRequestFailed) {
 			state = InlineCompletionStatus.State.ERROR;
 		} else {
-			state = serverCapable ? InlineCompletionStatus.State.READY : InlineCompletionStatus.State.INITIALIZING;
+			state = serverCapable ? InlineCompletionStatus.State.ready() : InlineCompletionStatus.State.INITIALIZING;
 		}
 		InlineCompletionStatus.getInstance().setState(state);
 	}

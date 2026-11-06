@@ -70,12 +70,12 @@ public class InlineCompletionStatusTest extends AbstractTestWithProject {
 	public void readyOnceAServerHasTheCapabilityAndFetchingDuringARequest(MockLanguageServerFactory factory)
 			throws Exception {
 		final ISourceViewer viewer = open(factory, items(item(" world")));
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		final CompletableFuture<Void> replies = holdReplies(factory);
 		controller(viewer).trigger();
 		waitForStatus(FETCHING);
 		replies.complete(null);
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		waitForGhostText(viewer, " world");
 	}
 
@@ -93,7 +93,7 @@ public class InlineCompletionStatusTest extends AbstractTestWithProject {
 		final var fail = new AtomicBoolean(true);
 		final ISourceViewer viewer = open(factory,
 				params -> fail.get() ? failure(ResponseErrorCode.InternalError) : Either.forLeft(List.of(item(" world"))));
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		controller(viewer).trigger();
 		waitForStatus(ERROR);
 
@@ -102,38 +102,38 @@ public class InlineCompletionStatusTest extends AbstractTestWithProject {
 		controller(viewer).trigger();
 		waitForStatus(FETCHING);
 		replies.complete(null);
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 	}
 
 	@Test
 	public void anOutdatedRequestIsNoError(MockLanguageServerFactory factory) throws Exception {
 		final ISourceViewer viewer = open(factory, params -> failure(ResponseErrorCode.ContentModified));
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		final var requests = server(factory).getTextDocumentService().inlineCompletionRequests;
 		controller(viewer).trigger();
 		waitForAndAssertCondition(TIMEOUT, () -> !requests.isEmpty());
 		processEvents(300);
-		assertEquals(READY, status.getState());
+		assertEquals(READY_AUTOMATIC, status.getState());
 	}
 
 	@Test
 	public void cancellingEndsFetching(MockLanguageServerFactory factory) throws Exception {
 		final ISourceViewer viewer = open(factory, items(item(" world")));
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		final CompletableFuture<Void> replies = holdReplies(factory);
 		controller(viewer).trigger();
 		waitForStatus(FETCHING);
 		type(viewer, SWT.ESC);
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		replies.complete(null);
 		processEvents(200);
-		assertEquals(READY, status.getState());
+		assertEquals(READY_AUTOMATIC, status.getState());
 	}
 
 	@Test
 	public void closingTheEditorLeavesNothingToBeReadyFor(MockLanguageServerFactory factory) throws Exception {
 		open(factory, items());
-		waitForStatus(READY);
+		waitForStatus(READY_AUTOMATIC);
 		UI.getActivePage().closeEditor(UI.getActivePage().getActiveEditor(), false);
 		waitForStatus(INITIALIZING);
 	}
@@ -151,7 +151,7 @@ public class InlineCompletionStatusTest extends AbstractTestWithProject {
 		try {
 			status.setState(INITIALIZING);
 			assertEquals(0, first.get());
-			status.setState(READY);
+			status.setState(READY_AUTOMATIC);
 			assertEquals(1, first.get());
 			assertEquals(1, second.get());
 			status.removeListener(firstListener);

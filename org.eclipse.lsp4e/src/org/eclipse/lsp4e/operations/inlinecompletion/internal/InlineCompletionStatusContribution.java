@@ -30,7 +30,7 @@ public class InlineCompletionStatusContribution extends CompoundContributionItem
 		final var parameters = new CommandContributionItemParameter(PlatformUI.getWorkbench(), null,
 				DisplayStatus.ID, CommandContributionItem.STYLE_PUSH);
 		final InlineCompletionStatus.State state = InlineCompletionStatus.getInstance().getState();
-		parameters.label = state.getTooltip();
+		parameters.label = state.getTooltip().replace('\n', ' ');
 		final Image image = state.getImage();
 		if (image != null) {
 			parameters.icon = ImageDescriptor.createFromImage(image);

@@ -29,7 +29,7 @@ import org.eclipse.swt.widgets.Display;
 
 /**
  * Animates the {@link InlineCompletionStatus.State#FETCHING} state on a status
- * bar label by pulsing the icon of {@link InlineCompletionStatus.State#READY},
+ * bar label by pulsing the icon of {@link InlineCompletionStatus.State#ready()},
  * so that the icon stays the same while a request is in flight. All methods
  * must be called on the UI thread.
  */
@@ -66,11 +66,11 @@ public class InlineCompletionStatusSpinner {
 
 	/**
 	 * Starts the animation, pulsing the current icon of
-	 * {@link InlineCompletionStatus.State#READY}.
+	 * {@link InlineCompletionStatus.State#ready()}.
 	 */
 	public void start() {
 		stop();
-		final Image image = InlineCompletionStatus.State.READY.getImage();
+		final Image image = InlineCompletionStatus.State.ready().getImage();
 		if (image != pulsedImage) {
 			final List<Image> previous = images;
 			images = image == null ? List.of() : createFrames(image);
