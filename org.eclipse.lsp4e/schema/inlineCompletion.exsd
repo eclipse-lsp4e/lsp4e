@@ -92,7 +92,7 @@
    <element name="wordDetector">
       <annotation>
          <documentation>
-            Defines the words of documents of a content type, used when accepting the next word of a suggestion and when computing the text a suggestion replaces. Without a contribution, a word is a run of characters for which &lt;code&gt;Character.isUnicodeIdentifierPart&lt;/code&gt; is true.
+            Defines the words of documents of a content type, used when accepting the next word of a suggestion. Without a contribution, a word is a run of characters for which &lt;code&gt;Character.isUnicodeIdentifierPart&lt;/code&gt; is true.
          </documentation>
       </annotation>
       <complexType>
