@@ -90,6 +90,26 @@ public final class InlineCompletionUtil {
 		return 1;
 	}
 
+	/**
+	 * Returns the length of the text's first line, including its line break.
+	 *
+	 * @param text
+	 *            the text
+	 * @return the length of the first line, that of the text if it has no line break
+	 */
+	public static int getLineLength(String text) {
+		for (int i = 0; i < text.length(); i++) {
+			final char character = text.charAt(i);
+			if (character == '\n') {
+				return i + 1;
+			}
+			if (character == '\r') {
+				return i + 1 < text.length() && text.charAt(i + 1) == '\n' ? i + 2 : i + 1;
+			}
+		}
+		return text.length();
+	}
+
 	private static int getDetectedWordLength(String text, int offset, IWordDetector wordDetector) {
 		if (!wordDetector.isWordStart(text.charAt(offset))) {
 			return 0;
