@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.eclipse.core.filebuffers.FileBuffers;
+import org.eclipse.core.filebuffers.IFileBuffer;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.runtime.ILogListener;
 import org.eclipse.core.runtime.IStatus;
@@ -47,6 +49,7 @@ import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.ISourceViewerExtension5;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServers;
+import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
 import org.eclipse.lsp4e.internal.LSPMethods;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
 import org.eclipse.lsp4e.operations.codelens.CodeLensProvider;
@@ -1463,5 +1466,55 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		final var future = provider.provideCodeMinings(viewer, new NullProgressMonitor());
 		assertNotNull(future);
 		return future.get(TIMEOUT, TimeUnit.MILLISECONDS);
+	}
+
+	// ---- enablement and saving -----------------------------------------------------------------------
+
+	@Test
+	public void nothingIsRequestedWhileDisabled(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		setCaret(viewer, 5);
+		SwitchableEnablement.enabled = false;
+		try {
+			type(viewer, 'x');
+			controller(viewer).trigger();
+			processEvents(300);
+			assertEquals(0, requestCount(factory));
+		} finally {
+			SwitchableEnablement.enabled = true;
+		}
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+	}
+
+	@Test
+	public void editsMadeWhileSavingDoNotTriggerARequest(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items());
+		setCaret(viewer, 5);
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, false);
+		type(viewer, 'x');
+		processEvents(100);
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, true);
+		final var formatOnSave = new FileBufferListenerAdapter() {
+			@Override
+			public void stateChanging(IFileBuffer buffer) {
+				try {
+					viewer.getDocument().replace(viewer.getSelectedRange().x, 0, "y");
+				} catch (BadLocationException e) {
+					throw new IllegalStateException(e);
+				}
+			}
+		};
+		FileBuffers.getTextFileBufferManager().addFileBufferListener(formatOnSave);
+		try {
+			castNonNull(UI.getActiveTextEditor()).doSave(null);
+		} finally {
+			FileBuffers.getTextFileBufferManager().removeFileBufferListener(formatOnSave);
+		}
+		assertTrue(viewer.getDocument().get().contains("y"), "the edit was made");
+		processEvents(300);
+		assertEquals(0, requestCount(factory));
+		type(viewer, 'z');
+		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 1);
 	}
 }

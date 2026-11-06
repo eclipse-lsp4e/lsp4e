@@ -28,6 +28,10 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.core.commands.operations.IOperationHistory;
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
 import org.eclipse.core.commands.operations.OperationHistoryEvent;
+import org.eclipse.core.filebuffers.FileBuffers;
+import org.eclipse.core.filebuffers.IFileBuffer;
+import org.eclipse.core.filebuffers.IFileBufferListener;
+import org.eclipse.core.filebuffers.ITextFileBuffer;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.action.IStatusLineManager;
 import org.eclipse.jface.preference.IPreferenceStore;
@@ -63,6 +67,7 @@ import org.eclipse.lsp4e.LanguageServerWrapper;
 import org.eclipse.lsp4e.LanguageServers;
 import org.eclipse.lsp4e.internal.CancellationSupport;
 import org.eclipse.lsp4e.internal.CancellationUtil;
+import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
 import org.eclipse.lsp4e.internal.GhostTextRegistry;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.operations.inlinecompletion.CurrentCompletionInfo;
@@ -225,6 +230,8 @@ public final class InlineCompletionController {
 	private boolean changeInProgress;
 	private boolean applying;
 	private boolean undoRedoInProgress;
+	/** Whether the document is being saved: edits then are not the user's, such as formatting on save. */
+	private volatile boolean saving;
 	private boolean painted;
 	private boolean refreshScheduled;
 	private boolean disposed;
@@ -298,6 +305,23 @@ public final class InlineCompletionController {
 	};
 
 	private final VerifyKeyListener verifyKeyListener = this::onVerifyKey;
+
+	private final IFileBufferListener saveListener = new FileBufferListenerAdapter() {
+		@Override
+		public void stateChanging(IFileBuffer buffer) {
+			if (buffer.isDirty() && buffer instanceof ITextFileBuffer textBuffer && textBuffer.getDocument() == document) {
+				saving = true;
+				// saving runs in one go, or off the UI thread, where edits do not trigger requests anyway
+				display.asyncExec(() -> saving = false);
+			}
+		}
+
+		@Override
+		public void stateValidationChanged(IFileBuffer buffer, boolean isStateValidated) {
+			// the state was changing for the validation that a first edit causes, not for a save
+			saving = false;
+		}
+	};
 
 	/** What the layout of the shown ghost text depends on, other than the document. */
 	private record Geometry(int tabs, boolean wordWrap, int wrapWidth, @Nullable Font font) {
@@ -389,6 +413,7 @@ public final class InlineCompletionController {
 		textWidget.addPaintListener(geometryListener);
 		textWidget.addFocusListener(focusListener);
 		textWidget.addListener(SWT.Dispose, disposeListener);
+		FileBuffers.getTextFileBufferManager().addFileBufferListener(saveListener);
 		if (viewer instanceof ITextViewerExtension extension) {
 			extension.prependVerifyKeyListener(verifyKeyListener);
 		}
@@ -429,6 +454,7 @@ public final class InlineCompletionController {
 			GhostTextRegistry.clear(current);
 		}
 		setDocument(null);
+		FileBuffers.getTextFileBufferManager().removeFileBufferListener(saveListener);
 		viewer.removeTextInputListener(inputListener);
 		disposeStyledFonts();
 		if (!textWidget.isDisposed()) {
@@ -739,7 +765,10 @@ public final class InlineCompletionController {
 
 	private boolean canRequest(IDocument doc) {
 		if (!viewer.isEditable() || textWidget.isDisposed() || textWidget.getSelectionCount() > 0
-				|| textWidget.getBlockSelection() || LinkedModeModel.hasInstalledModel(doc) || isComposing()) {
+				|| textWidget.getBlockSelection() || LinkedModeModel.hasInstalledModel(doc) || isComposing() || saving) {
+			return false;
+		}
+		if (!InlineCompletionExtensions.getInstance().isEnabled()) {
 			return false;
 		}
 		final ISelection selection = viewer.getSelectionProvider().getSelection();
@@ -837,7 +866,7 @@ public final class InlineCompletionController {
 				inFlight.edits.add(new int[] { event.getOffset(), event.getLength(), text.length() });
 			}
 		}
-		final boolean userEdit = kind.triggersAutomatically() && !undoRedoInProgress;
+		final boolean userEdit = kind.triggersAutomatically() && !undoRedoInProgress && !saving;
 		display.asyncExec(() -> afterDocumentChanged(userEdit));
 	}
 
