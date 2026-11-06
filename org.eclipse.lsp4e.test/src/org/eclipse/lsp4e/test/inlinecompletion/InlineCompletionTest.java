@@ -265,7 +265,7 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		}
 	}
 
-	private static MockLanguageServer server(MockLanguageServerFactory factory) {
+	static MockLanguageServer server(MockLanguageServerFactory factory) {
 		return factory.getServer();
 	}
 
@@ -273,7 +273,7 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 	 * Makes the mock server hold back its inline completion replies until the returned future is
 	 * completed, so that what a test does during a request cannot race with the reply.
 	 */
-	private static CompletableFuture<Void> holdReplies(MockLanguageServerFactory factory) {
+	static CompletableFuture<Void> holdReplies(MockLanguageServerFactory factory) {
 		final var replies = new CompletableFuture<Void>();
 		server(factory).getTextDocumentService().holdInlineCompletionsUntil(replies);
 		return replies;

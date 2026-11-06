@@ -207,6 +207,9 @@ public final class InlineCompletionController {
 		boolean cancelled;
 		/** Whether candidates of this request were shown yet, for which a view is reported once. */
 		boolean viewScheduled;
+		/** Whether a server with the capability got this request. */
+		boolean reachedServer;
+		boolean failed;
 		private @Nullable Document sentDocument;
 
 		PendingRequest(RequestInfo info, String text, int caret, InlineCompletionTriggerKind triggerKind,
@@ -248,6 +251,10 @@ public final class InlineCompletionController {
 	private @Nullable PendingRequest pending;
 	/** Servers whose last request failed, so that a failing server is logged once rather than per request. */
 	private final Set<LanguageServerWrapper> failingServers = new HashSet<>();
+	/** Whether the last request that reached a server failed, until one succeeds again. */
+	private boolean lastRequestFailed;
+	/** Whether a server for the document is known to have the capability. */
+	private boolean serverCapable;
 	private boolean requestedAlternatives;
 
 	private int caretBeforeChange;
@@ -317,6 +324,8 @@ public final class InlineCompletionController {
 		@Override
 		public void focusGained(FocusEvent e) {
 			focusLost = false;
+			refreshServerCapable();
+			publishStatus();
 		}
 
 		@Override
@@ -434,6 +443,18 @@ public final class InlineCompletionController {
 				: new CurrentCompletionInfo(info.uuid, shown.ghost().candidate().text());
 	}
 
+	/** Shows the status of the active editor: nothing can be requested in one without a controller. */
+	public static void publishActiveEditorStatus() {
+		final InlineCompletionController controller = PlatformUI.isWorkbenchRunning()
+				&& UI.getActiveTextViewer() instanceof ISourceViewer activeViewer ? get(activeViewer) : null;
+		if (controller == null) {
+			InlineCompletionStatus.getInstance().setState(InlineCompletionStatus.State.INITIALIZING);
+		} else {
+			controller.refreshServerCapable();
+			controller.publishStatus();
+		}
+	}
+
 	/** Returns the controller of the given viewer, or {@code null} if it has none. */
 	public static @Nullable InlineCompletionController get(@Nullable ISourceViewer viewer) {
 		return viewer == null ? null : CONTROLLERS.get(viewer);
@@ -462,6 +483,7 @@ public final class InlineCompletionController {
 		if (history != null) {
 			history.addOperationHistoryListener(historyListener);
 		}
+		refreshServerCapable();
 	}
 
 	void uninstall() {
@@ -511,6 +533,9 @@ public final class InlineCompletionController {
 			history.removeOperationHistoryListener(historyListener);
 		}
 		setVisibleContext(false);
+		if (!display.isDisposed()) {
+			display.asyncExec(InlineCompletionController::publishActiveEditorStatus);
+		}
 	}
 
 	private void setDocument(@Nullable IDocument newDocument) {
@@ -745,6 +770,7 @@ public final class InlineCompletionController {
 					// only servers with the capability get here, each on a thread of its own
 					if (fetchReported.compareAndSet(false, true)) {
 						info.fire(fetchKind, null, null);
+						display.asyncExec(() -> requestReachedServer(request));
 					}
 					return request.cancellation.execute(server.getTextDocumentService().inlineCompletion(params))
 							.handle((response, error) -> new ServerResponse(wrapper, response, error));
@@ -767,10 +793,22 @@ public final class InlineCompletionController {
 		if (inFlight != null) {
 			inFlight.cancelled = true;
 			inFlight.cancellation.cancel();
+			publishStatus();
 		}
 	}
 
+	private void requestReachedServer(PendingRequest request) {
+		serverCapable = true;
+		request.reachedServer = true;
+		publishStatus();
+	}
+
 	private void onResponse(PendingRequest request, @Nullable ServerResponse result, @Nullable Throwable error) {
+		handleResponse(request, result, error);
+		publishStatus();
+	}
+
+	private void handleResponse(PendingRequest request, @Nullable ServerResponse result, @Nullable Throwable error) {
 		request.remainingResponses--;
 		final boolean last = request.remainingResponses == 0;
 		if (last && pending == request) {
@@ -781,9 +819,9 @@ public final class InlineCompletionController {
 			return;
 		}
 		if (error != null) {
-			logFailure(null, error);
+			request.failed |= logFailure(null, error);
 		} else if (result != null && result.error() != null) {
-			logFailure(result.wrapper(), castNonNull(result.error()));
+			request.failed |= logFailure(result.wrapper(), castNonNull(result.error()));
 		} else if (result != null) {
 			failingServers.remove(result.wrapper());
 			final Document sent = request.sentDocument();
@@ -828,6 +866,9 @@ public final class InlineCompletionController {
 		if (!last) {
 			return;
 		}
+		if (request.reachedServer) {
+			lastRequestFailed = request.failed;
+		}
 		if (snapshot == null && !request.edits.isEmpty()) {
 			// the user moved on while waiting and nothing fits any more: ask again for where they are now
 			final boolean explicit = request.triggerKind == InlineCompletionTriggerKind.Invoked;
@@ -864,19 +905,24 @@ public final class InlineCompletionController {
 				candidate.snippet(), candidate.filterText(), candidate.command());
 	}
 
-	/** Logs a failed request, once per server until it succeeds again. */
-	private void logFailure(@Nullable LanguageServerWrapper wrapper, Throwable error) {
+	/**
+	 * Logs a failed request, once per server until it succeeds again.
+	 *
+	 * @return whether it really failed, rather than being cancelled or outdated
+	 */
+	private boolean logFailure(@Nullable LanguageServerWrapper wrapper, Throwable error) {
 		Throwable cause = error;
 		while (cause instanceof CompletionException && cause.getCause() != null) {
 			cause = castNonNull(cause.getCause());
 		}
 		if (cause instanceof CancellationException || CancellationUtil.isRequestCancelledException(cause)
 				|| isContentModified(cause)) {
-			return;
+			return false;
 		}
 		if (wrapper == null || failingServers.add(wrapper)) {
 			LanguageServerPlugin.logError(cause);
 		}
+		return true;
 	}
 
 	/** Returns whether the server gave up because the document changed, which typing makes usual. */
@@ -907,6 +953,41 @@ public final class InlineCompletionController {
 		if (!disposed && !focusLost && store.getBoolean(InlineCompletionPreferencePage.PREF_AUTOMATIC)) {
 			display.timerExec(Math.max(0, store.getInt(InlineCompletionPreferencePage.PREF_DELAY)), automaticTrigger);
 		}
+	}
+
+	// ---- status --------------------------------------------------------------------------------------
+
+	/** Finds out, without blocking, whether a server for the document has the capability. */
+	private void refreshServerCapable() {
+		final IDocument doc = document;
+		if (doc == null) {
+			return;
+		}
+		LanguageServers.forDocument(doc).withCapability(ServerCapabilities::getInlineCompletionProvider)
+				.collectAll((wrapper, server) -> CompletableFuture.completedFuture(Boolean.TRUE))
+				.thenAccept(servers -> display.asyncExec(() -> {
+					if (!disposed && document == doc) {
+						serverCapable = !servers.isEmpty();
+						publishStatus();
+					}
+				}));
+	}
+
+	/** Shows the status of this editor, if it is the active one. */
+	private void publishStatus() {
+		if (disposed || UI.getActiveTextViewer() != viewer) {
+			return;
+		}
+		final PendingRequest inFlight = pending;
+		final InlineCompletionStatus.State state;
+		if (inFlight != null && inFlight.reachedServer) {
+			state = InlineCompletionStatus.State.FETCHING;
+		} else if (lastRequestFailed) {
+			state = InlineCompletionStatus.State.ERROR;
+		} else {
+			state = serverCapable ? InlineCompletionStatus.State.READY : InlineCompletionStatus.State.INITIALIZING;
+		}
+		InlineCompletionStatus.getInstance().setState(state);
 	}
 
 	// ---- edits, caret, keys ----------------------------------------------------------------------------

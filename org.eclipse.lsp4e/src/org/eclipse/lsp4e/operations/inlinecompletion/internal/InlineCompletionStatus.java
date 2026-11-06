@@ -11,7 +11,9 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.operations.inlinecompletion.internal;
 
-import org.eclipse.jdt.annotation.Nullable;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
+
 import org.eclipse.lsp4e.ui.Messages;
 
 /**
@@ -49,7 +51,7 @@ public final class InlineCompletionStatus {
 	}
 
 	private volatile State state = State.INITIALIZING;
-	private volatile @Nullable Runnable listener;
+	private final List<Runnable> listeners = new CopyOnWriteArrayList<>();
 
 	private InlineCompletionStatus() {
 	}
@@ -59,14 +61,24 @@ public final class InlineCompletionStatus {
 	}
 
 	/**
-	 * Sets the listener notified on every state change, on the thread changing the
+	 * Adds a listener notified on every state change, on the thread changing the
 	 * state.
 	 *
 	 * @param listener
-	 *            the listener, or {@code null} to remove it
+	 *            the listener
 	 */
-	public void setListener(@Nullable Runnable listener) {
-		this.listener = listener;
+	public void addListener(Runnable listener) {
+		listeners.add(listener);
+	}
+
+	/**
+	 * Removes a listener.
+	 *
+	 * @param listener
+	 *            the listener
+	 */
+	public void removeListener(Runnable listener) {
+		listeners.remove(listener);
 	}
 
 	public State getState() {
@@ -74,16 +86,15 @@ public final class InlineCompletionStatus {
 	}
 
 	/**
-	 * Sets the state and notifies the listener.
+	 * Sets the state and, if it changes, notifies the listeners.
 	 *
 	 * @param state
 	 *            the new state
 	 */
 	public void setState(State state) {
-		this.state = state;
-		final Runnable current = listener;
-		if (current != null) {
-			current.run();
+		if (this.state != state) {
+			this.state = state;
+			listeners.forEach(Runnable::run);
 		}
 	}
 }
