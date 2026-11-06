@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -148,12 +149,25 @@ public final class InlineCompletionController {
 	}
 
 	/**
+	 * Identifies what was requested for one position: events report its UUID, and requesting more
+	 * suggestions for the same position keeps it.
+	 */
+	private static final class RequestInfo {
+		final UUID uuid = UUID.randomUUID();
+		final URI uri;
+
+		RequestInfo(URI uri) {
+			this.uri = uri;
+		}
+	}
+
+	/**
 	 * The request in flight. Inline completions are requested one at a time: while the user keeps
 	 * editing at the caret, the request is kept, and its reply is shown if it still fits what was typed
 	 * meanwhile. For that it records the document as it was when sent and the edits made since.
 	 */
 	private static final class PendingRequest {
-		final long id;
+		final RequestInfo info;
 		final String text;
 		final int caret;
 		final InlineCompletionTriggerKind triggerKind;
@@ -166,9 +180,9 @@ public final class InlineCompletionController {
 		boolean cancelled;
 		private @Nullable Document sentDocument;
 
-		PendingRequest(long id, String text, int caret, InlineCompletionTriggerKind triggerKind,
+		PendingRequest(RequestInfo info, String text, int caret, InlineCompletionTriggerKind triggerKind,
 				@Nullable SelectedCompletion selected) {
-			this.id = id;
+			this.info = info;
 			this.text = text;
 			this.caret = caret;
 			this.triggerKind = triggerKind;
@@ -196,13 +210,12 @@ public final class InlineCompletionController {
 
 	private @Nullable IDocument document;
 	private @Nullable InlineCompletionSession session;
-	private long sessionRequestId = -1;
+	private @Nullable RequestInfo sessionInfo;
 	private @Nullable Snapshot snapshot;
 	private List<GhostMining> shownMinings = List.of();
 	private List<GhostMining> replacedMinings = List.of();
 	private final List<Position> trackedPositions = new ArrayList<>();
 
-	private long requestId;
 	private @Nullable PendingRequest pending;
 	/** Servers whose last request failed, so that a failing server is logged once rather than per request. */
 	private final Set<LanguageServerWrapper> failingServers = new HashSet<>();
@@ -224,6 +237,7 @@ public final class InlineCompletionController {
 	private @Nullable SelectedCompletion selectedCompletion;
 	private @Nullable SelectedCompletion appliedSelection;
 	private List<InlineCompletionCandidate> selectionCandidates = List.of();
+	private @Nullable RequestInfo selectionInfo;
 
 	private int originalBottomMargin = -1;
 	private @Nullable IContextActivation contextActivation;
@@ -491,7 +505,7 @@ public final class InlineCompletionController {
 
 	private void endSession() {
 		session = null;
-		sessionRequestId = -1;
+		sessionInfo = null;
 		requestedAlternatives = false;
 		hide();
 	}
@@ -580,8 +594,9 @@ public final class InlineCompletionController {
 			LanguageServerPlugin.logError(e);
 			return;
 		}
-		final long id = appendToSession ? sessionRequestId : ++requestId;
-		final var request = new PendingRequest(id, doc.get(), caret, triggerKind, selected);
+		final RequestInfo sessionRequest = sessionInfo;
+		final RequestInfo info = appendToSession && sessionRequest != null ? sessionRequest : new RequestInfo(uri);
+		final var request = new PendingRequest(info, doc.get(), caret, triggerKind, selected);
 		final List<CompletableFuture<@Nullable ServerResponse>> responses = LanguageServers.forDocument(doc)
 				.withCapability(ServerCapabilities::getInlineCompletionProvider)
 				.computeAll((wrapper, server) -> request.cancellation
@@ -641,10 +656,10 @@ public final class InlineCompletionController {
 			}
 			if (!candidates.isEmpty()) {
 				InlineCompletionSession current = session;
-				if (current == null || sessionRequestId != request.id) {
+				if (current == null || sessionInfo != request.info) {
 					current = new InlineCompletionSession(request.triggerKind, request.selected != null);
 					session = current;
-					sessionRequestId = request.id;
+					sessionInfo = request.info;
 					requestedAlternatives = false;
 					selectionCandidates = List.of();
 				}
@@ -653,6 +668,7 @@ public final class InlineCompletionController {
 					final var all = new ArrayList<>(selectionCandidates);
 					all.addAll(candidates);
 					selectionCandidates = List.copyOf(all);
+					selectionInfo = request.info;
 				}
 				show();
 			}
@@ -1331,7 +1347,8 @@ public final class InlineCompletionController {
 			appliedSelection = null;
 			selectionCandidates = List.of();
 			final IDocument doc = document;
-			if (selected == null || candidates.isEmpty() || doc == null) {
+			final RequestInfo info = selectionInfo;
+			if (selected == null || candidates.isEmpty() || doc == null || info == null) {
 				return;
 			}
 			// the selected text now replaces the selected range: continue with what the candidates add to it
@@ -1342,7 +1359,7 @@ public final class InlineCompletionController {
 			final var current = new InlineCompletionSession(InlineCompletionTriggerKind.Automatic, false);
 			current.addCandidates(moved);
 			session = current;
-			sessionRequestId = ++requestId;
+			sessionInfo = info;
 			display.asyncExec(() -> {
 				if (!disposed && session == current) {
 					show();
