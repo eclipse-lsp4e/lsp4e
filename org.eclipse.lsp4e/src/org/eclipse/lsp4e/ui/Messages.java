@@ -108,6 +108,11 @@ public final class Messages extends NLS {
 	public static String TH_diplay_hint;
 	public static String TH_cannot_find_file;
 	public static String occurrences;
+	public static String InlineCompletion_status_initializing;
+	public static String InlineCompletion_status_ready;
+	public static String InlineCompletion_status_fetching;
+	public static String InlineCompletion_status_error;
+	public static String InlineCompletion_keyBindingsFilter;
 
 	static {
 		NLS.initializeMessages("org.eclipse.lsp4e.ui.messages", Messages.class); //$NON-NLS-1$

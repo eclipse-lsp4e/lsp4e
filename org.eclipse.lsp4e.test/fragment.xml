@@ -279,4 +279,16 @@
               class="org.eclipse.lsp4e.test.edit.NonBufferEditor">
         </editor>
      </extension>
+     <extension
+           point="org.eclipse.lsp4e.inlineCompletion">
+        <eventListener
+              class="org.eclipse.lsp4e.test.inlinecompletion.FailingEventListener" />
+        <eventListener
+              class="org.eclipse.lsp4e.test.inlinecompletion.RecordingEventListener" />
+        <enablement
+              class="org.eclipse.lsp4e.test.inlinecompletion.SwitchableEnablement" />
+        <wordDetector
+              class="org.eclipse.lsp4e.test.inlinecompletion.HashWordDetector"
+              contentType="org.eclipse.lsp4e.test.content-type" />
+     </extension>
 </fragment>
