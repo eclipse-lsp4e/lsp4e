@@ -433,7 +433,7 @@ public class LanguageServerWrapper {
 			final Job job = createInitializeLanguageServerJob();
 			final LanguageServerContext workingContext = context;
 
-			this.initializeFuture = CompletableFuture.supplyAsync(() -> {
+			final CompletableFuture<@Nullable Void> currentInitializeFuture = this.initializeFuture = CompletableFuture.supplyAsync(() -> {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
 					final StreamConnectionProvider lspStreamProvider;
@@ -532,13 +532,6 @@ public class LanguageServerWrapper {
 			}).thenRun(() -> {
 				synchronized (workingContext) {
 					markInitializationProgress(workingContext);
-					final Map<URI, IDocument> toReconnect = filesToReconnect;
-					castNonNull(initializeFuture).thenRunAsync(() -> {
-						watchProjects();
-						for (Entry<URI, IDocument> fileToReconnect : toReconnect.entrySet()) {
-							connect(fileToReconnect.getKey(), fileToReconnect.getValue());
-						}
-					});
 					FileBuffers.getTextFileBufferManager().addFileBufferListener(fileBufferListener);
 					// Register a workspace-level fallback listener to catch resource events for
 					// files not backed by buffers, if enabled for this server
@@ -547,9 +540,6 @@ public class LanguageServerWrapper {
 								IResourceChangeEvent.POST_CHANGE | IResourceChangeEvent.PRE_DELETE
 										| IResourceChangeEvent.PRE_CLOSE);
 					}
-					castNonNull(initializeFuture).thenRunAsync(() -> {
-						processErrorStream(castNonNull(context.lspStreamProvider), l -> LanguageServerPlugin.getDefault().getLog().error(l), e -> {throw new UncheckedIOException(e);});
-					}, errorProcessor);
 				}
 			}).exceptionally(e -> {
 				shutdown(workingContext);
@@ -562,8 +552,18 @@ public class LanguageServerWrapper {
 					throw new RuntimeException(getRootCauseMessage(e),e);
 				}
 			});
+			// registered on the final future, the stages above may run before initializeFuture is assigned or after stop()
+			currentInitializeFuture.thenRunAsync(() -> {
+				watchProjects();
+				for (Entry<URI, IDocument> fileToReconnect : filesToReconnect.entrySet()) {
+					connect(fileToReconnect.getKey(), fileToReconnect.getValue());
+				}
+			});
+			currentInitializeFuture.thenRunAsync(() -> {
+				processErrorStream(castNonNull(workingContext.lspStreamProvider), l -> LanguageServerPlugin.getDefault().getLog().error(l), e -> {throw new UncheckedIOException(e);});
+			}, errorProcessor);
 
-			if (!this.initializeFuture.isCompletedExceptionally()) {
+			if (!currentInitializeFuture.isCompletedExceptionally()) {
 				job.schedule();
 			}
 		}
