@@ -15,6 +15,8 @@ package org.eclipse.lsp4e.operations.inlinecompletion;
  * Receives {@link InlineCompletionEvent}s, for example to collect usage
  * metrics. Contributed with the {@code eventListener} element of the
  * {@code org.eclipse.lsp4e.inlineCompletion} extension point.
+ * <p>
+ * This API is provisional: it may still change while inline completion matures.
  *
  * @since 0.20.0
  */

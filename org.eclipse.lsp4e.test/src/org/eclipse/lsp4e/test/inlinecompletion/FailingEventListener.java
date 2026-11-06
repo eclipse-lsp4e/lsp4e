@@ -18,6 +18,8 @@ public class FailingEventListener implements InlineCompletionEventListener {
 
 	@Override
 	public void handle(InlineCompletionEvent event) {
-		throw new IllegalStateException("expected by InlineCompletionExtensionsTest");
+		if (InlineCompletionExtensionsTest.EVENT_URI.equals(event.uri())) {
+			throw new IllegalStateException("expected by InlineCompletionExtensionsTest");
+		}
 	}
 }

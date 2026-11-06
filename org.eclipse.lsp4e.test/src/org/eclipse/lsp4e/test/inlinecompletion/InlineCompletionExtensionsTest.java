@@ -33,17 +33,20 @@ import org.junit.jupiter.api.Test;
 
 public class InlineCompletionExtensionsTest extends AbstractTestWithProject {
 
+	static final URI EVENT_URI = URI.create("file:///test.lspt");
+
 	private final InlineCompletionExtensions extensions = InlineCompletionExtensions.getInstance();
 
 	@Test
 	public void testEventReachesListenersDespiteFailingListener() throws Exception {
-		RecordingEventListener.EVENTS.clear();
 		final var event = new InlineCompletionEvent(UUID.randomUUID(), InlineCompletionEventKind.ACCEPT_WORD,
-				URI.create("file:///test.lspt"), "word", 42L);
+				EVENT_URI, "word", 42L);
 
 		extensions.fireEvent(event).get(5, TimeUnit.SECONDS);
 
-		assertEquals(List.of(event), RecordingEventListener.EVENTS);
+		// the engine fires events as well, as tests close editors for example
+		assertEquals(List.of(event), RecordingEventListener.EVENTS.stream()
+				.filter(recorded -> recorded.uuid().equals(event.uuid())).toList());
 	}
 
 	@Test

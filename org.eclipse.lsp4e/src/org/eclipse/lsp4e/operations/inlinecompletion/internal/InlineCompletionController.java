@@ -24,6 +24,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.core.commands.operations.IOperationHistory;
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
@@ -71,6 +72,8 @@ import org.eclipse.lsp4e.internal.FileBufferListenerAdapter;
 import org.eclipse.lsp4e.internal.GhostTextRegistry;
 import org.eclipse.lsp4e.operations.completion.LSCompletionProposal;
 import org.eclipse.lsp4e.operations.inlinecompletion.CurrentCompletionInfo;
+import org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEvent;
+import org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletionEventKind;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.Kind;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.MiningSpec;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextMinings.GhostMining;
@@ -161,9 +164,25 @@ public final class InlineCompletionController {
 	private static final class RequestInfo {
 		final UUID uuid = UUID.randomUUID();
 		final URI uri;
+		/** When the request was sent whose result is yet to be reported as viewed, if any. */
+		@Nullable Long viewDueSince;
+		/** When the result was viewed, until the time since then has been reported. */
+		@Nullable Long viewedAt;
 
 		RequestInfo(URI uri) {
 			this.uri = uri;
+		}
+
+		void fire(InlineCompletionEventKind kind, @Nullable String text, @Nullable Long elapsedMillis) {
+			InlineCompletionExtensions.getInstance()
+					.fireEvent(new InlineCompletionEvent(uuid, kind, uri, text, elapsedMillis));
+		}
+
+		/** Returns the milliseconds since the result was viewed, the first time it is asked after a view. */
+		@Nullable Long takeTimeSinceView() {
+			final Long since = viewedAt;
+			viewedAt = null;
+			return since == null ? null : TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - since);
 		}
 	}
 
@@ -184,6 +203,8 @@ public final class InlineCompletionController {
 		final List<int[]> edits = new ArrayList<>();
 		int remainingResponses;
 		boolean cancelled;
+		/** Whether candidates of this request were shown yet, for which a view is reported once. */
+		boolean viewScheduled;
 		private @Nullable Document sentDocument;
 
 		PendingRequest(RequestInfo info, String text, int caret, InlineCompletionTriggerKind triggerKind,
@@ -269,7 +290,7 @@ public final class InlineCompletionController {
 				// not the user typing, and what is shown belongs to the UI thread
 				display.asyncExec(() -> {
 					if (!disposed) {
-						dismiss();
+						clear();
 					}
 				});
 			}
@@ -300,7 +321,8 @@ public final class InlineCompletionController {
 		public void focusLost(FocusEvent e) {
 			if (!contentAssistActive) {
 				focusLost = true;
-				dismiss();
+				fireDisabled();
+				clear();
 			}
 		}
 	};
@@ -446,6 +468,7 @@ public final class InlineCompletionController {
 		}
 		disposed = true;
 		CONTROLLERS.remove(viewer);
+		fireDisabled();
 		cancelPending();
 		session = null;
 		final Snapshot shown = snapshot;
@@ -535,8 +558,26 @@ public final class InlineCompletionController {
 
 	/** Dismisses the ghost text, if any, and gives up on the inline completions requested or about to be. */
 	public void dismiss() {
+		final Snapshot shown = snapshot;
+		final RequestInfo info = sessionInfo;
+		clear();
+		if (shown != null && info != null) {
+			info.fire(InlineCompletionEventKind.DISMISS, shown.ghost().candidate().text(), info.takeTimeSinceView());
+		}
+	}
+
+	/** Ends what is shown and requested, without the user having dismissed it. */
+	private void clear() {
 		cancelPending();
 		endSession();
+	}
+
+	/** Reports that the ghost text shown, if any, goes away because the editor loses the focus or closes. */
+	private void fireDisabled() {
+		final RequestInfo info = sessionInfo;
+		if (snapshot != null && info != null) {
+			info.fire(InlineCompletionEventKind.DISABLED, null, info.takeTimeSinceView());
+		}
 	}
 
 	private void endSession() {
@@ -555,7 +596,8 @@ public final class InlineCompletionController {
 		}
 		final GhostText ghost = current.ghost();
 		final InlineCompletionCandidate candidate = ghost.candidate();
-		dismiss();
+		final RequestInfo info = sessionInfo;
+		clear();
 		if (editor instanceof ITextEditorExtension2 extension && !extension.validateEditorInputState()) {
 			return;
 		}
@@ -585,6 +627,9 @@ public final class InlineCompletionController {
 			if (selection != null && !LinkedModeModel.hasInstalledModel(doc)) {
 				viewer.setSelectedRange(selection.x, selection.y);
 				viewer.revealRange(selection.x, selection.y);
+			}
+			if (info != null) {
+				info.fire(InlineCompletionEventKind.ACCEPT_FULL, ghost.text(), info.takeTimeSinceView());
 			}
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
@@ -633,11 +678,19 @@ public final class InlineCompletionController {
 		final RequestInfo sessionRequest = sessionInfo;
 		final RequestInfo info = appendToSession && sessionRequest != null ? sessionRequest : new RequestInfo(uri);
 		final var request = new PendingRequest(info, doc.get(), caret, triggerKind, selected);
+		final InlineCompletionEventKind fetchKind = info == sessionRequest ? InlineCompletionEventKind.FETCH_ADDITIONAL
+				: InlineCompletionEventKind.FETCH_FIRST;
+		final var fetchReported = new AtomicBoolean();
 		final List<CompletableFuture<@Nullable ServerResponse>> responses = LanguageServers.forDocument(doc)
 				.withCapability(ServerCapabilities::getInlineCompletionProvider)
-				.computeAll((wrapper, server) -> request.cancellation
-						.execute(server.getTextDocumentService().inlineCompletion(params))
-						.handle((response, error) -> new ServerResponse(wrapper, response, error)));
+				.computeAll((wrapper, server) -> {
+					// only servers with the capability get here, each on a thread of its own
+					if (fetchReported.compareAndSet(false, true)) {
+						info.fire(fetchKind, null, null);
+					}
+					return request.cancellation.execute(server.getTextDocumentService().inlineCompletion(params))
+							.handle((response, error) -> new ServerResponse(wrapper, response, error));
+				});
 		if (responses.isEmpty()) {
 			return;
 		}
@@ -699,7 +752,12 @@ public final class InlineCompletionController {
 					requestedAlternatives = false;
 					selectionCandidates = List.of();
 				}
+				final int candidatesBefore = current.size();
 				current.addCandidates(candidates);
+				if (current.size() > candidatesBefore && !request.viewScheduled) {
+					request.viewScheduled = true;
+					request.info.viewDueSince = request.sentAt;
+				}
 				if (request.selected != null) {
 					final var all = new ArrayList<>(selectionCandidates);
 					all.addAll(candidates);
@@ -1280,6 +1338,14 @@ public final class InlineCompletionController {
 	void ghostPainted() {
 		painted = true;
 		final Snapshot current = snapshot;
+		final RequestInfo info = sessionInfo;
+		final Long viewDueSince = info == null ? null : info.viewDueSince;
+		if (info != null && viewDueSince != null && current != null) {
+			final long now = System.nanoTime();
+			info.viewDueSince = null;
+			info.viewedAt = now;
+			info.fire(InlineCompletionEventKind.VIEW, null, TimeUnit.NANOSECONDS.toMillis(now - viewDueSince));
+		}
 		final IRegion moved = current == null ? null : current.moved();
 		if (current != rehiddenFor) {
 			rehiddenFor = current;
@@ -1350,7 +1416,7 @@ public final class InlineCompletionController {
 				if (!proposalApplied && (current != null && current.isSelectionBound()
 						|| inFlight != null && inFlight.selected != null)) {
 					// what was shown or asked for extends a proposal that is gone
-					dismiss();
+					clear();
 					scheduleAutomaticRequest();
 				} else if (current != null) {
 					// show the further lines that were hidden under the popup

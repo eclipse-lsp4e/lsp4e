@@ -124,8 +124,8 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 	private static final int TIMEOUT = 5_000;
 	private static final String FAILURE = "mock inline completion failure";
 
-	private static final String AUTO_ACTIVATION = "contentAssistant.autoActivation";
-	private static final String AUTO_ACTIVATION_ON_TYPE = "contentAssistant.autoActivationOnType";
+	static final String AUTO_ACTIVATION = "contentAssistant.autoActivation";
+	static final String AUTO_ACTIVATION_ON_TYPE = "contentAssistant.autoActivationOnType";
 
 	private final IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
 	/**

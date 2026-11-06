@@ -19,6 +19,8 @@ import org.eclipse.jdt.annotation.Nullable;
 /**
  * An event in the life cycle of an inline completion, delivered to the
  * {@link InlineCompletionEventListener}s.
+ * <p>
+ * This API is provisional: it may still change while inline completion matures.
  *
  * @param uuid
  *            the completion request; all events of a request share it
