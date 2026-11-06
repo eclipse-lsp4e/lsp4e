@@ -11,6 +11,7 @@
  *******************************************************************************/
 package org.eclipse.lsp4e.test.inlinecompletion;
 
+import static org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionUtil.getLineLength;
 import static org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionUtil.getReplaceRangeLength;
 import static org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionUtil.getWordLength;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -88,5 +89,15 @@ public class InlineCompletionUtilTest {
 	@Test
 	public void testSurrogatePairIsNotSplit() {
 		assertEquals(2, getWordLength("😀x", DEFAULT));
+	}
+
+	@Test
+	public void testLineLength() {
+		assertEquals(4, getLineLength("foo\nbar"));
+		assertEquals(5, getLineLength("foo\r\nbar"));
+		assertEquals(4, getLineLength("foo\rbar"));
+		assertEquals(3, getLineLength("foo"));
+		assertEquals(1, getLineLength("\nfoo"));
+		assertEquals(0, getLineLength(""));
 	}
 }

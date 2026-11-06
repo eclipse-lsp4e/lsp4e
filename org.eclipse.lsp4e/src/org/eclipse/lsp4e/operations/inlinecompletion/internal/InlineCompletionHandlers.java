@@ -71,6 +71,20 @@ public final class InlineCompletionHandlers {
 		}
 	}
 
+	/** Accepts the next word of the inline completion shown. */
+	public static final class AcceptNextWord extends ControllerHandler {
+		public AcceptNextWord() {
+			super(InlineCompletionController::acceptNextWord);
+		}
+	}
+
+	/** Accepts the next line of the inline completion shown. */
+	public static final class AcceptNextLine extends ControllerHandler {
+		public AcceptNextLine() {
+			super(InlineCompletionController::acceptNextLine);
+		}
+	}
+
 	/** Dismisses the inline completion shown. */
 	public static final class Dismiss extends ControllerHandler {
 		public Dismiss() {

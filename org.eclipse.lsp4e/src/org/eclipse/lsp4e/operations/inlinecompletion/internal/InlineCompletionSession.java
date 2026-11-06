@@ -72,6 +72,16 @@ public final class InlineCompletionSession {
 	}
 
 	/**
+	 * Makes the current candidate keep matching what was inserted of its text, which its filter text
+	 * is not about: that is for what the user types.
+	 */
+	public void keepCurrentMatching() {
+		final InlineCompletionCandidate current = candidates.get(index);
+		candidates.set(index, new InlineCompletionCandidate(current.source(), current.start(), current.end(),
+				current.text(), current.snippet(), current.text(), current.command()));
+	}
+
+	/**
 	 * Returns what to show: the current candidate if it can still be shown, otherwise the next one that
 	 * can (which becomes current).
 	 *

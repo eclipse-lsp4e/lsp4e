@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.ToIntFunction;
 
 import org.eclipse.core.commands.operations.IOperationHistory;
 import org.eclipse.core.commands.operations.IOperationHistoryListener;
@@ -58,6 +59,7 @@ import org.eclipse.jface.text.contentassist.ICompletionListenerExtension2;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.link.LinkedModeModel;
 import org.eclipse.jface.text.source.ContentAssistantFacade;
+import org.eclipse.jface.text.rules.IWordDetector;
 import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.text.source.ISourceViewerExtension4;
 import org.eclipse.jface.text.source.ISourceViewerExtension5;
@@ -589,6 +591,62 @@ public final class InlineCompletionController {
 
 	/** Accepts the ghost text shown, if any. */
 	public void accept() {
+		accept(InlineCompletionEventKind.ACCEPT_FULL);
+	}
+
+	/** Accepts the next word of the ghost text shown, if any, and keeps showing the rest. */
+	public void acceptNextWord() {
+		final IDocument doc = document;
+		if (doc != null) {
+			final IWordDetector detector = InlineCompletionExtensions.getInstance().getWordDetector(doc);
+			acceptNextPart(text -> InlineCompletionUtil.getWordLength(text, detector), InlineCompletionEventKind.ACCEPT_WORD);
+		}
+	}
+
+	/** Accepts the ghost text shown, if any, up to and including its next line break, and keeps showing the rest. */
+	public void acceptNextLine() {
+		acceptNextPart(InlineCompletionUtil::getLineLength, InlineCompletionEventKind.ACCEPT_LINE);
+	}
+
+	/**
+	 * Inserts the start of the ghost text as if the user typed it, which keeps showing the rest. The last part is
+	 * accepted like a whole suggestion, since only that expands its snippet and runs its command.
+	 */
+	private void acceptNextPart(ToIntFunction<String> partLength, InlineCompletionEventKind kind) {
+		final Snapshot current = upToDateSnapshot();
+		final IDocument doc = document;
+		final InlineCompletionSession currentSession = session;
+		final RequestInfo info = sessionInfo;
+		if (current == null || doc == null || currentSession == null || info == null) {
+			return;
+		}
+		final GhostText ghost = current.ghost();
+		final int length = partLength.applyAsInt(ghost.text());
+		if (length >= ghost.text().length()) {
+			accept(kind);
+			return;
+		}
+		if (editor instanceof ITextEditorExtension2 extension && !extension.validateEditorInputState()) {
+			return;
+		}
+		final String part = ghost.text().substring(0, length);
+		final int anchor = ghost.anchor();
+		currentSession.keepCurrentMatching();
+		// the caret moves below belong to this edit
+		changeInProgress = true;
+		try {
+			viewer.setSelectedRange(anchor, 0);
+			doc.replace(anchor, 0, part);
+			viewer.setSelectedRange(anchor + length, 0);
+			viewer.revealRange(anchor + length, 0);
+			info.fire(kind, part, info.takeTimeSinceView());
+		} catch (BadLocationException e) {
+			changeInProgress = false;
+			LanguageServerPlugin.logError(e);
+		}
+	}
+
+	private void accept(InlineCompletionEventKind kind) {
 		final Snapshot current = upToDateSnapshot();
 		final IDocument doc = document;
 		if (current == null || doc == null) {
@@ -629,7 +687,7 @@ public final class InlineCompletionController {
 				viewer.revealRange(selection.x, selection.y);
 			}
 			if (info != null) {
-				info.fire(InlineCompletionEventKind.ACCEPT_FULL, ghost.text(), info.takeTimeSinceView());
+				info.fire(kind, ghost.text(), info.takeTimeSinceView());
 			}
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);

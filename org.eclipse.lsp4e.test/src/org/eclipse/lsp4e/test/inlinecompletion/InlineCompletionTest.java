@@ -1561,4 +1561,222 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		waitForGhost(viewer);
 		assertNotEquals(first, InlineCompletions.getCurrentCompletionInfo().requestUuid());
 	}
+
+	// ---- accepting part of a suggestion ----------------------------------------------------------------
+
+	@Test
+	public void acceptingWordByWordKeepsShowingTheRest(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" big world")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " big world");
+
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, "big world");
+		assertEquals("hello \n", viewer.getDocument().get());
+		assertEquals(6, viewer.getSelectedRange().x);
+
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, " world");
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, "world");
+		assertEquals("hello big \n", viewer.getDocument().get());
+
+		controller(viewer).acceptNextWord();
+		waitForNoGhost(viewer);
+		assertEquals("hello big world\n", viewer.getDocument().get());
+		assertEquals(15, viewer.getSelectedRange().x);
+		processEvents(200);
+		assertEquals(1, requestCount(factory), "what is left comes from the same request");
+	}
+
+	@Test
+	public void keysTypedRightAfterAPartStillApply(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" big world")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " big world");
+		// without processing UI events in between
+		controller(viewer).acceptNextWord();
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, " world");
+		assertEquals("hello big\n", viewer.getDocument().get());
+	}
+
+	@Test
+	public void theWordDetectorOfTheDocumentDecidesWhatAWordIs(MockLanguageServerFactory factory) throws Exception {
+		// the test fragment contributes a detector for this content type, with # in words
+		final ISourceViewer viewer = open(factory, "\n", items(item("my#var = 1")));
+		setCaret(viewer, 0);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "my#var = 1");
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, " = 1");
+		assertEquals("my#var\n", viewer.getDocument().get());
+	}
+
+	@Test
+	public void acceptingLineByLineKeepsShowingTheRest(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "x\n", items(item("one\ntwo\nthree")));
+		setCaret(viewer, 1);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "one\ntwo\nthree");
+
+		controller(viewer).acceptNextLine();
+		waitForGhostText(viewer, "two\nthree");
+		assertEquals("xone\n\n", viewer.getDocument().get());
+		assertEquals(5, viewer.getSelectedRange().x);
+
+		controller(viewer).acceptNextLine();
+		waitForGhostText(viewer, "three");
+		controller(viewer).acceptNextLine();
+		waitForNoGhost(viewer);
+		assertEquals("xone\ntwo\nthree\n", viewer.getDocument().get());
+	}
+
+	@Test
+	public void acceptingALineInsertsTheDocumentsLineBreak(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "x\r\n", items(item("one\ntwo")));
+		setCaret(viewer, 1);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "one\r\ntwo");
+		controller(viewer).acceptNextLine();
+		waitForGhostText(viewer, "two");
+		assertEquals("xone\r\n\r\n", viewer.getDocument().get());
+		assertEquals(6, viewer.getSelectedRange().x);
+	}
+
+	@Test
+	public void acceptingALineLeavesTheRestOfTheEditorsLineAfterTheSuggestion(MockLanguageServerFactory factory)
+			throws Exception {
+		final ISourceViewer viewer = open(factory, "call(arg)\n", items(item("x,\n  y, ")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "x,\n  y, ");
+
+		controller(viewer).acceptNextLine();
+		waitForGhostText(viewer, "  y, ");
+		assertEquals("call(x,\narg)\n", viewer.getDocument().get());
+
+		controller(viewer).acceptNextLine();
+		waitForNoGhost(viewer);
+		assertEquals("call(x,\n  y, arg)\n", viewer.getDocument().get());
+		assertEquals(13, viewer.getSelectedRange().x);
+	}
+
+	@Test
+	public void partsAreInsertedBeforeATailTheSuggestionEndsWith(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "print()\n", items(item("a, b)", 0, 6, 7)));
+		setCaret(viewer, 6);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "a, b");
+
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, ", b");
+		assertEquals("print(a)\n", viewer.getDocument().get());
+		assertEquals(7, viewer.getSelectedRange().x);
+
+		controller(viewer).accept();
+		waitForNoGhost(viewer);
+		assertEquals("print(a, b)\n", viewer.getDocument().get());
+	}
+
+	@Test
+	public void partsAreInsertedAfterATailTheSuggestionStartsWith(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "bar\n", items(item("barbaz qux", 0, 0, 3)));
+		setCaret(viewer, 0);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "baz qux");
+
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, " qux");
+		assertEquals("barbaz\n", viewer.getDocument().get());
+		assertEquals(6, viewer.getSelectedRange().x);
+	}
+
+	@Test
+	public void aFilterTextIsNoReasonToHideTheRestAfterAPart(MockLanguageServerFactory factory) throws Exception {
+		final InlineCompletionItem item = item(" world");
+		item.setFilterText("other");
+		final ISourceViewer viewer = open(factory, "hello\n", items(item));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, "world");
+	}
+
+	@Test
+	public void theCommandRunsWithTheLastPart(MockLanguageServerFactory factory) throws Exception {
+		final InlineCompletionItem item = item(" big world");
+		item.setCommand(new Command("title", MockLanguageServer.SUPPORTED_COMMAND_ID));
+		final ISourceViewer viewer = open(factory, "hello\n", items(item));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " big world");
+		controller(viewer).acceptNextLine();
+		waitForNoGhost(viewer);
+		assertEquals("hello big world\n", viewer.getDocument().get());
+		assertEquals(MockLanguageServer.SUPPORTED_COMMAND_ID, server(factory).getWorkspaceService().getExecutedCommand()
+				.get(TIMEOUT, TimeUnit.MILLISECONDS).getCommand());
+	}
+
+	@Test
+	public void theCommandDoesNotRunBeforeTheLastPart(MockLanguageServerFactory factory) throws Exception {
+		final InlineCompletionItem item = item(" big world");
+		item.setCommand(new Command("title", MockLanguageServer.SUPPORTED_COMMAND_ID));
+		final ISourceViewer viewer = open(factory, "hello\n", items(item));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " big world");
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, "big world");
+		processEvents(200);
+		assertFalse(server(factory).getWorkspaceService().getExecutedCommand().isDone());
+	}
+
+	@Test
+	public void aSnippetIsExpandedWhenAcceptedAfterAPart(MockLanguageServerFactory factory) throws Exception {
+		final var snippet = new InlineCompletionItem();
+		snippet.setInsertText(new StringValue(StringValueKind.SNIPPET, "foo(${1:a})$0"));
+		final ISourceViewer viewer = open(factory, "\n", items(snippet));
+		setCaret(viewer, 0);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "foo(a)");
+		controller(viewer).acceptNextWord();
+		waitForGhostText(viewer, "(a)");
+		controller(viewer).accept();
+		waitForNoGhost(viewer);
+		assertEquals("foo(a)\n", viewer.getDocument().get());
+		assertTrue(LinkedModeModel.hasInstalledModel(viewer.getDocument()));
+	}
+
+	@Test
+	public void partsAreAcceptedThroughTheCommands(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" big\nworld")));
+		setCaret(viewer, 5);
+		final IHandlerService handlers = PlatformUI.getWorkbench().getService(IHandlerService.class);
+		handlers.executeCommand("org.eclipse.lsp4e.inlineCompletion.trigger", null);
+		waitForGhostText(viewer, " big\nworld");
+		handlers.executeCommand("org.eclipse.lsp4e.inlineCompletion.acceptNextWord", null);
+		waitForGhostText(viewer, "big\nworld");
+		handlers.executeCommand("org.eclipse.lsp4e.inlineCompletion.acceptNextLine", null);
+		waitForGhostText(viewer, "world");
+		assertEquals("hello big\n\n", viewer.getDocument().get());
+	}
+
+	@Test
+	public void partsAreBoundOnlyWhileASuggestionIsShown(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		setCaret(viewer, 5);
+		final IBindingService bindings = PlatformUI.getWorkbench().getService(IBindingService.class);
+		final String word = "org.eclipse.lsp4e.inlineCompletion.acceptNextWord";
+		final String line = "org.eclipse.lsp4e.inlineCompletion.acceptNextLine";
+		assertEquals(0, bindings.getActiveBindingsFor(word).length);
+		assertEquals(0, bindings.getActiveBindingsFor(line).length);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		waitForAndAssertCondition(TIMEOUT, () -> bindings.getActiveBindingsFor(word).length > 0);
+		waitForAndAssertCondition(TIMEOUT, () -> bindings.getActiveBindingsFor(line).length > 0);
+	}
 }

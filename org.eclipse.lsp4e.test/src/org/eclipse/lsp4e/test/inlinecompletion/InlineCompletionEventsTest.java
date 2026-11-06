@@ -244,4 +244,31 @@ public class InlineCompletionEventsTest extends AbstractTestWithProject {
 		processEvents(300);
 		assertEquals(List.of(), kinds(uri));
 	}
+
+	@Test
+	public void partsAreReportedAndTheTimeSinceTheViewOnlyOnce(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" big\nworld")));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " big\nworld");
+
+		controller(viewer).acceptNextWord();
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_WORD);
+		assertEquals(" ", last(uri).text());
+		assertNotNull(last(uri).elapsedTime());
+		waitForGhostText(viewer, "big\nworld");
+
+		controller(viewer).acceptNextLine();
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_WORD, ACCEPT_LINE);
+		assertEquals("big\n", last(uri).text());
+		assertNull(last(uri).elapsedTime());
+		waitForGhostText(viewer, "world");
+
+		controller(viewer).acceptNextWord();
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_WORD, ACCEPT_LINE, ACCEPT_WORD);
+		assertEquals("world", last(uri).text());
+		assertNull(last(uri).elapsedTime());
+		assertEquals("hello big\nworld\n", viewer.getDocument().get());
+		assertEquals(1, events(uri).stream().map(InlineCompletionEvent::uuid).distinct().count());
+	}
 }

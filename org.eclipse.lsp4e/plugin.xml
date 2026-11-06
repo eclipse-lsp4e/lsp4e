@@ -196,6 +196,14 @@
             name="%command.inlineCompletion.accept.name" />
       <command
             categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.acceptNextWord"
+            name="%command.inlineCompletion.acceptNextWord.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.acceptNextLine"
+            name="%command.inlineCompletion.acceptNextLine.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
             id="org.eclipse.lsp4e.inlineCompletion.dismiss"
             name="%command.inlineCompletion.dismiss.name" />
    </extension>
@@ -241,6 +249,26 @@
          </activeWhen>
       </handler>
       <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$AcceptNextWord"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextWord">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$AcceptNextLine"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextLine">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
             class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$Dismiss"
             commandId="org.eclipse.lsp4e.inlineCompletion.dismiss">
          <activeWhen>
@@ -264,6 +292,14 @@
             commandId="org.eclipse.lsp4e.inlineCompletion.previous"
             contextId="org.eclipse.lsp4e.inlineCompletion.visible"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+;"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextWord"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+'"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextLine"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
       <!-- on macOS, Option+key types a character (e.g. Option+\ types «): use Ctrl there -->
       <key sequence="M3+\" platform="cocoa"
             contextId="org.eclipse.ui.textEditorScope"
@@ -272,6 +308,12 @@
             contextId="org.eclipse.lsp4e.inlineCompletion.visible"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
       <key sequence="M3+[" platform="cocoa"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+;" platform="cocoa"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+'" platform="cocoa"
             contextId="org.eclipse.lsp4e.inlineCompletion.visible"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
       <key sequence="M4+\" platform="cocoa"
@@ -284,6 +326,14 @@
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
       <key sequence="M4+[" platform="cocoa"
             commandId="org.eclipse.lsp4e.inlineCompletion.previous"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+;" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextWord"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+'" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextLine"
             contextId="org.eclipse.lsp4e.inlineCompletion.visible"
             schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
    </extension>
