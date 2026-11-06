@@ -113,6 +113,10 @@ public final class LSPImages {
 	public static final String IMG_KEY = "IMG_KEY"; //$NON-NLS-1$
 	public static final String IMG_OPERATOR = "IMG_OPERATOR"; //$NON-NLS-1$
 
+	public static final String IMG_INLINE_COMPLETION_AUTOMATIC = "IMG_INLINE_COMPLETION_AUTOMATIC"; //$NON-NLS-1$
+	public static final String IMG_INLINE_COMPLETION_MANUAL = "IMG_INLINE_COMPLETION_MANUAL"; //$NON-NLS-1$
+	public static final String IMG_INLINE_COMPLETION_PROGRESS = "IMG_INLINE_COMPLETION_PROGRESS"; //$NON-NLS-1$
+
 	public static final String IMG_SUPERTYPE = "IMG_SUPERTYPE"; //$NON-NLS-1$
 	public static final String IMG_SUBTYPE = "IMG_SUBTYPE"; //$NON-NLS-1$
 
@@ -194,6 +198,10 @@ public final class LSPImages {
 		declareRegistryImage(IMG_SUPERTYPE, ACTION + "super_co.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_SUBTYPE, ACTION + "sub_co.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_TERMINATE_CO, OBJECT + "terminate_co.svg"); //$NON-NLS-1$
+
+		declareRegistryImage(IMG_INLINE_COMPLETION_AUTOMATIC, OBJECT + "inlinecompletion/automatic.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_INLINE_COMPLETION_MANUAL, OBJECT + "inlinecompletion/manual.svg"); //$NON-NLS-1$
+		declareRegistryImage(IMG_INLINE_COMPLETION_PROGRESS, OBJECT + "inlinecompletion/progress_task.svg"); //$NON-NLS-1$
 
 		declareRegistryImage(IMG_OVR_CONSTRUCTOR, OVERLAY + "constr_ovr.svg"); //$NON-NLS-1$
 		declareRegistryImage(IMG_OVR_DEPRECATED, OVERLAY + "deprecated.svg"); //$NON-NLS-1$

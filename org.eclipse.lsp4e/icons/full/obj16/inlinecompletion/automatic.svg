@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Derived from resume_co.svg of org.eclipse.debug.ui: a second triangle, with the bar moved to the end -->
+<svg
+   width="16"
+   height="16"
+   version="1.1"
+   xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="triangleFill" x1="0" y1="3.5" x2="0" y2="12.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color:#accf8e;stop-opacity:1" />
+      <stop offset="0.29019928" style="stop-color:#93c586;stop-opacity:1" />
+      <stop offset="0.4292171" style="stop-color:#58ab71;stop-opacity:1" />
+      <stop offset="0.57545984" style="stop-color:#4da766;stop-opacity:1" />
+      <stop offset="0.70769268" style="stop-color:#61af61;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#78ba5e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="triangleStroke" x1="0" y1="3.5" x2="0" y2="12.5" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color:#36825e;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#257550;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="barFill" x1="0" y1="10.4" x2="0" y2="5.6" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color:#f8e088;stop-opacity:1" />
+      <stop offset="0.5" style="stop-color:#f8d880;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#f8f0b0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="barStroke" x1="0" y1="12.9" x2="0" y2="3.1" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color:#a07818;stop-opacity:1" />
+      <stop offset="1" style="stop-color:#b89828;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="barHighlight" x1="0" y1="4.3" x2="0" y2="11.7" gradientUnits="userSpaceOnUse">
+      <stop offset="0" style="stop-color:#ffffff;stop-opacity:1" />
+      <stop offset="0.25" style="stop-color:#ffffff;stop-opacity:0.25" />
+      <stop offset="0.77477288" style="stop-color:#ffffff;stop-opacity:0.251" />
+      <stop offset="1" style="stop-color:#ffffff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <path
+     style="fill:url(#triangleFill);stroke:url(#triangleStroke);stroke-width:1;stroke-linejoin:round"
+     d="M 0.75,3.5 6.25,8 0.75,12.5 Z" />
+  <path
+     style="fill:url(#triangleFill);stroke:url(#triangleStroke);stroke-width:1;stroke-linejoin:round"
+     d="M 5.75,3.5 11.25,8 5.75,12.5 Z" />
+  <rect
+     style="fill:url(#barFill);stroke:url(#barStroke);stroke-width:1;stroke-linecap:round;stroke-linejoin:round"
+     x="12" y="3.5" width="3.25" height="9" />
+  <rect
+     style="fill:none;stroke:url(#barHighlight);stroke-width:0.72;stroke-linecap:round;stroke-linejoin:round"
+     x="12.72" y="4.22" width="1.81" height="7.56" />
+</svg>

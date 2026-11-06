@@ -3,6 +3,7 @@
 <plugin>
    <extension-point id="languageServer" name="Language Server" schema="schema/languageServer.exsd" />
    <extension-point id="symbolIconsProvider" name="Symbol Icons Provider" schema="schema/symbolIconsProvider.exsd"/>
+   <extension-point id="inlineCompletion" name="Inline Completion" schema="schema/inlineCompletion.exsd"/>
 
    <!-- ===================================== -->
    <!-- Setup Text Doc To LS Connection       -->
@@ -1115,6 +1116,27 @@
             converter="org.eclipse.lsp4e.command.internal.PathConverter"
             id="org.eclipse.lsp4e.pathParameterType"
             type="org.eclipse.core.runtime.IPath" />
+   </extension>
+
+
+   <!-- ===================================== -->
+   <!-- Inline Completion                     -->
+   <!-- ===================================== -->
+   <!-- TODO commands, key bindings, context, preferences and status bar of the inline completion engine -->
+   <extension point="org.eclipse.ui.commands">
+      <category
+            id="org.eclipse.lsp4e.inlineCompletion.category"
+            name="%inlineCompletion.category.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            defaultHandler="org.eclipse.lsp4e.operations.inlinecompletion.internal.DisplayStatus"
+            id="org.eclipse.lsp4e.inlineCompletion.displayStatus"
+            name="%command.inlineCompletion.displayStatus.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            defaultHandler="org.eclipse.lsp4e.operations.inlinecompletion.internal.CustomizeKeyBindings"
+            id="org.eclipse.lsp4e.inlineCompletion.customizeKeyBindings"
+            name="%command.inlineCompletion.customizeKeyBindings.name" />
    </extension>
 
 </plugin>
