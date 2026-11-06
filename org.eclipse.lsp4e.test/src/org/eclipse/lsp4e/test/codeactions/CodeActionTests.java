@@ -166,12 +166,15 @@ public class CodeActionTests extends AbstractTestWithProject {
 		action.update();
 		action.run();
 		waitForAndAssertCondition(3000, () -> {
-			Shell completionShell= TestUtils.findNewShell(beforeShells, editor.getSite().getShell().getDisplay());
-			if (completionShell == null) {
-				return false;
+			// other popups may open as well, and the proposal table is created after its shell
+			for (Shell shell : editor.getSite().getShell().getDisplay().getShells()) {
+				if (shell.isVisible() && !beforeShells.contains(shell)
+						&& TestUtils.findCompletionSelectionControl(shell) instanceof Table proposals
+						&& proposals.getItemCount() == 1 && "fixme".equals(proposals.getItem(0).getText())) {
+					return true;
+				}
 			}
-			final Table completionProposalList = TestUtils.findCompletionSelectionControl(completionShell);
-			return completionProposalList.getItemCount() == 1 && "fixme".equals(completionProposalList.getItem(0).getText());
+			return false;
 		});
 		assertEquals(1, factory.getServer().getTextDocumentService().codeActionRequests);
 	}
