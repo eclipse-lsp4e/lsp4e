@@ -16,13 +16,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.eclipse.jface.text.rules.IWordDetector;
-import org.eclipse.lsp4e.LSPEclipseUtils;
-import org.eclipse.lsp4e.internal.DocumentUtil;
-import org.eclipse.ui.texteditor.ITextEditor;
 
 /**
- * Text computations for accepting inline completions word by word and for
- * replacing the text after the cursor. Words are recognized by the
+ * Text computations for accepting inline completions word by word and line by
+ * line. Words are recognized by the
  * {@link IWordDetector} of the document, see
  * {@link InlineCompletionExtensions#getWordDetector(org.eclipse.jface.text.IDocument)}.
  */
@@ -127,50 +124,5 @@ public final class InlineCompletionUtil {
 			end++;
 		}
 		return end - offset;
-	}
-
-	/**
-	 * Returns the modification stamp of the document of an editor.
-	 *
-	 * @param textEditor
-	 *            the editor
-	 * @return the modification stamp, or
-	 *         {@link org.eclipse.jface.text.IDocumentExtension4#UNKNOWN_MODIFICATION_STAMP}
-	 *         if not available
-	 */
-	public static long getDocumentModificationStamp(ITextEditor textEditor) {
-		return DocumentUtil.getDocumentModificationStamp(LSPEclipseUtils.getDocument(textEditor));
-	}
-
-	/**
-	 * Returns the length of the text after the offset that inserting a completion
-	 * replaces: nothing before a line end, except a line end itself if the
-	 * completion is a single line feed; all but one of the spaces after the
-	 * offset; or the word at the offset.
-	 *
-	 * @param documentText
-	 *            the text of the document
-	 * @param offset
-	 *            the offset at which the completion is inserted
-	 * @param textToInsert
-	 *            the completion text
-	 * @param wordDetector
-	 *            the detector of the document's words
-	 * @return the length of the range to replace
-	 */
-	public static int getReplaceRangeLength(String documentText, int offset, String textToInsert,
-			IWordDetector wordDetector) {
-		final int spaceCount = countSpaces(documentText, offset);
-		final int offsetAfterSpaces = offset + spaceCount;
-		final char nextCharacter = offsetAfterSpaces < documentText.length() ? documentText.charAt(offsetAfterSpaces)
-				: '\0';
-		if (nextCharacter == '\n' || nextCharacter == '\r') {
-			final int newLineLength = nextCharacter == '\r' && offsetAfterSpaces + 1 < documentText.length()
-					&& documentText.charAt(offsetAfterSpaces + 1) == '\n' ? 2 : 1;
-			return spaceCount + textToInsert.length() == 1 && textToInsert.charAt(0) == '\n' ? newLineLength : 0;
-		} else if (spaceCount > 0) {
-			return spaceCount - 1;
-		}
-		return getWordLength(documentText, offset, wordDetector);
 	}
 }

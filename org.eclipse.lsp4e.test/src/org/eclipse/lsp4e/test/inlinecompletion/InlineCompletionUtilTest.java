@@ -12,7 +12,6 @@
 package org.eclipse.lsp4e.test.inlinecompletion;
 
 import static org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionUtil.getLineLength;
-import static org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionUtil.getReplaceRangeLength;
 import static org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionUtil.getWordLength;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -49,22 +48,6 @@ public class InlineCompletionUtilTest {
 		final var detector = new HashWordDetector();
 		assertEquals(6, getWordLength("my#var x", detector));
 		assertEquals(2, getWordLength("#1 x", detector));
-	}
-
-	@Test
-	public void testReplaceRangeLength() {
-		assertEquals(3, getReplaceRangeLength("abc def", 0, "x", DEFAULT));
-		assertEquals(2, getReplaceRangeLength("   foo", 0, "x", DEFAULT));
-		assertEquals(0, getReplaceRangeLength("\nfoo", 0, "x", DEFAULT));
-		assertEquals(0, getReplaceRangeLength("  \nfoo", 0, "x", DEFAULT));
-		assertEquals(0, getReplaceRangeLength("", 0, "x", DEFAULT));
-	}
-
-	@Test
-	public void testReplaceRangeLengthOfLineFeed() {
-		assertEquals(1, getReplaceRangeLength("\nfoo", 0, "\n", DEFAULT));
-		assertEquals(2, getReplaceRangeLength("\r\nfoo", 0, "\n", DEFAULT));
-		assertEquals(0, getReplaceRangeLength(" \nfoo", 0, "\n", DEFAULT));
 	}
 
 	@Test
