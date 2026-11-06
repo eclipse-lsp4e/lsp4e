@@ -54,6 +54,8 @@ import org.eclipse.lsp4e.internal.LSPMethods;
 import org.eclipse.lsp4e.internal.SupportedFeatures;
 import org.eclipse.lsp4e.operations.codelens.CodeLensProvider;
 import org.eclipse.lsp4e.operations.inlayhint.InlayHintProvider;
+import org.eclipse.lsp4e.operations.inlinecompletion.CurrentCompletionInfo;
+import org.eclipse.lsp4e.operations.inlinecompletion.InlineCompletions;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostText;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.Kind;
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.MiningSpec;
@@ -1516,5 +1518,47 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		assertEquals(0, requestCount(factory));
 		type(viewer, 'z');
 		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 1);
+	}
+
+	// ---- the suggestion shown --------------------------------------------------------------------------
+
+	@Test
+	public void currentCompletionInfoDescribesTheSuggestionShown(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world"), item(" there")));
+		assertEquals(CurrentCompletionInfo.NONE, InlineCompletions.getCurrentCompletionInfo());
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+
+		final CurrentCompletionInfo first = InlineCompletions.getCurrentCompletionInfo();
+		assertTrue(first.hasActiveCompletion());
+		assertNotNull(first.requestUuid());
+		assertEquals(" world", first.proposedCompletion());
+
+		controller(viewer).cycle(true);
+		final CurrentCompletionInfo cycled = InlineCompletions.getCurrentCompletionInfo();
+		assertEquals(first.requestUuid(), cycled.requestUuid());
+		assertEquals(" there", cycled.proposedCompletion());
+
+		type(viewer, ' ');
+		waitForGhostText(viewer, "there");
+		assertEquals(" there", InlineCompletions.getCurrentCompletionInfo().proposedCompletion(),
+				"the whole suggestion, not what is left of it");
+
+		controller(viewer).dismiss();
+		assertEquals(CurrentCompletionInfo.NONE, InlineCompletions.getCurrentCompletionInfo());
+	}
+
+	@Test
+	public void eachRequestForANewPositionHasItsOwnUuid(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		final var first = InlineCompletions.getCurrentCompletionInfo().requestUuid();
+		controller(viewer).dismiss();
+		controller(viewer).trigger();
+		waitForGhost(viewer);
+		assertNotEquals(first, InlineCompletions.getCurrentCompletionInfo().requestUuid());
 	}
 }

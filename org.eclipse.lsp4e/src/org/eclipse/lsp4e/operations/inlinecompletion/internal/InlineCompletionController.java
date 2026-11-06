@@ -76,6 +76,7 @@ import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextLayout.Mi
 import org.eclipse.lsp4e.operations.inlinecompletion.internal.GhostTextMinings.GhostMining;
 import org.eclipse.lsp4e.ui.InlineCompletionPreferencePage;
 import org.eclipse.lsp4e.ui.Messages;
+import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.CompletionItem;
 import org.eclipse.lsp4j.InlineCompletionContext;
 import org.eclipse.lsp4j.InlineCompletionItem;
@@ -391,13 +392,22 @@ public final class InlineCompletionController {
 	}
 
 	/**
-	 * Returns the suggestion currently shown.
+	 * Returns the suggestion currently shown in the active editor.
 	 *
-	 * @return the suggestion, or {@link CurrentCompletionInfo#NONE} if none is shown
+	 * @return the suggestion, or {@link CurrentCompletionInfo#NONE} if none is shown or the caller is
+	 *         not on the UI thread, which the controllers belong to
 	 */
 	public static CurrentCompletionInfo getCurrentCompletionInfo() {
-		// TODO return the suggestion shown
-		return CurrentCompletionInfo.NONE;
+		if (Display.getCurrent() == null) {
+			return CurrentCompletionInfo.NONE;
+		}
+		final InlineCompletionController controller = UI.getActiveTextViewer() instanceof ISourceViewer activeViewer
+				? get(activeViewer)
+				: null;
+		final Snapshot shown = controller == null ? null : controller.snapshot;
+		final RequestInfo info = controller == null ? null : controller.sessionInfo;
+		return shown == null || info == null ? CurrentCompletionInfo.NONE
+				: new CurrentCompletionInfo(info.uuid, shown.ghost().candidate().text());
 	}
 
 	/** Returns the controller of the given viewer, or {@code null} if it has none. */
