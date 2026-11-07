@@ -2,11 +2,11 @@ Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Language Server Protocol client for Eclipse IDE (Incubation)
 Bundle-SymbolicName: org.eclipse.lsp4e;singleton:=true
-Bundle-Version: 0.19.17.qualifier
+Bundle-Version: 0.20.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-21
 Require-Bundle: org.eclipse.core.runtime;bundle-version="3.12.0",
  org.eclipse.equinox.common;bundle-version="3.8.0",
- org.eclipse.jface.text;bundle-version="3.23.0",
+ org.eclipse.jface.text;bundle-version="3.28.0",
  org.eclipse.ui.workbench.texteditor;bundle-version="3.16.700",
  org.eclipse.jface;bundle-version="3.28.0",
  org.eclipse.jface.notifications,
@@ -56,6 +56,8 @@ Export-Package: org.eclipse.lsp4e;x-friends:="org.eclipse.lsp4e.debug,org.eclips
  org.eclipse.lsp4e.operations.completion;x-internal:=true,
  org.eclipse.lsp4e.operations.format;x-internal:=true,
  org.eclipse.lsp4e.operations.hover;x-internal:=true,
+ org.eclipse.lsp4e.operations.inlinecompletion,
+ org.eclipse.lsp4e.operations.inlinecompletion.internal;x-internal:=true,
  org.eclipse.lsp4e.operations.rename;x-internal:=true,
  org.eclipse.lsp4e.operations.semanticTokens,
  org.eclipse.lsp4e.outline;x-internal:=true,

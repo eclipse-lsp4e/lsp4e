@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -64,6 +65,11 @@ import org.eclipse.lsp4j.FoldingRange;
 import org.eclipse.lsp4j.FoldingRangeRequestParams;
 import org.eclipse.lsp4j.Hover;
 import org.eclipse.lsp4j.HoverParams;
+import org.eclipse.lsp4j.InlayHint;
+import org.eclipse.lsp4j.InlayHintParams;
+import org.eclipse.lsp4j.InlineCompletionItem;
+import org.eclipse.lsp4j.InlineCompletionList;
+import org.eclipse.lsp4j.InlineCompletionParams;
 import org.eclipse.lsp4j.LinkedEditingRangeParams;
 import org.eclipse.lsp4j.LinkedEditingRanges;
 import org.eclipse.lsp4j.Location;
@@ -133,6 +139,16 @@ public class MockTextDocumentService implements TextDocumentService {
 	private List<DocumentSymbol> documentSymbols;
 	private SemanticTokens mockSemanticTokens;
 	private List<FoldingRange> foldingRanges;
+	/**
+	 * Computes the response to a {@code textDocument/inlineCompletion} request; {@code null} answers
+	 * {@code null}.
+	 */
+	private Function<InlineCompletionParams, Either<List<InlineCompletionItem>, InlineCompletionList>> inlineCompletionResponder = params -> null;
+	/** Every {@code textDocument/inlineCompletion} request received, in order. */
+	public final ConcurrentLinkedQueue<InlineCompletionParams> inlineCompletionRequests = new ConcurrentLinkedQueue<>();
+	private CompletableFuture<?> inlineCompletionGate = CompletableFuture.completedFuture(null);
+	private List<InlayHint> mockInlayHints = Collections.emptyList();
+	public final AtomicInteger inlayHintRequests = new AtomicInteger();
 	public int codeActionRequests = 0;
 
 	public <U> MockTextDocumentService(Function<U, CompletableFuture<U>> futureFactory) {
@@ -538,5 +554,35 @@ public class MockTextDocumentService implements TextDocumentService {
 	@Override
 	public CompletableFuture<List<FoldingRange>> foldingRange(FoldingRangeRequestParams params) {
 		return CompletableFuture.completedFuture(this.foldingRanges);
+	}
+
+	public void setInlineCompletionResponder(
+			Function<InlineCompletionParams, Either<List<InlineCompletionItem>, InlineCompletionList>> responder) {
+		this.inlineCompletionResponder = responder;
+	}
+
+	/**
+	 * Holds back the replies to {@code textDocument/inlineCompletion} requests until the given future is
+	 * completed. Requests are recorded when they arrive.
+	 */
+	public void holdInlineCompletionsUntil(CompletableFuture<?> gate) {
+		this.inlineCompletionGate = gate;
+	}
+
+	@Override
+	public CompletableFuture<Either<List<InlineCompletionItem>, InlineCompletionList>> inlineCompletion(
+			InlineCompletionParams params) {
+		inlineCompletionRequests.add(params);
+		return inlineCompletionGate.thenCompose(released -> futureFactory(inlineCompletionResponder.apply(params)));
+	}
+
+	public void setInlayHints(List<InlayHint> inlayHints) {
+		this.mockInlayHints = inlayHints;
+	}
+
+	@Override
+	public CompletableFuture<List<InlayHint>> inlayHint(InlayHintParams params) {
+		inlayHintRequests.incrementAndGet();
+		return CompletableFuture.completedFuture(this.mockInlayHints);
 	}
 }

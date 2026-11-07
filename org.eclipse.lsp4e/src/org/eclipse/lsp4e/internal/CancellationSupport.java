@@ -26,6 +26,11 @@ import org.eclipse.lsp4j.jsonrpc.CancelChecker;
  * process is cancelled (ex: when completion is re-triggered, when hover is give
  * up, etc)
  *
+ * <p>
+ * A support is cancelled once: a request registered after {@link #cancel()} is cancelled right away,
+ * so that one sent from another thread while it was being cancelled is cancelled too. Use a new support
+ * for the next requests.
+ *
  * @see <a href=
  *      "https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#cancelRequest">https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#cancelRequest</a>
  */
@@ -33,7 +38,7 @@ public class CancellationSupport implements CancelChecker {
 
 	private final List<CompletableFuture<?>> futuresToCancel;
 
-	private boolean cancelled;
+	private volatile boolean cancelled;
 
 	public CancellationSupport() {
 		this.futuresToCancel = new ArrayList<>();
@@ -47,7 +52,14 @@ public class CancellationSupport implements CancelChecker {
 			// if null is encountered.
 			LanguageServerPlugin.logError(new NullPointerException("[future] must not be null")); //$NON-NLS-1$
 		} else {
-			this.futuresToCancel.add(future);
+			// requests are often sent from another thread than the one cancelling them
+			synchronized (futuresToCancel) {
+				if (!cancelled) {
+					this.futuresToCancel.add(future);
+					return future;
+				}
+			}
+			future.cancel(true);
 		}
 		return future;
 	}
@@ -56,13 +68,17 @@ public class CancellationSupport implements CancelChecker {
 	 * Cancel all LSP requests.
 	 */
 	public void cancel() {
-		this.cancelled = true;
-		for (CompletableFuture<?> futureToCancel : futuresToCancel) {
+		final List<CompletableFuture<?>> toCancel;
+		synchronized (futuresToCancel) {
+			this.cancelled = true;
+			toCancel = List.copyOf(futuresToCancel);
+			futuresToCancel.clear();
+		}
+		for (CompletableFuture<?> futureToCancel : toCancel) {
 			if (!futureToCancel.isDone()) {
 				futureToCancel.cancel(true);
 			}
 		}
-		futuresToCancel.clear();
 	}
 
 	@Override

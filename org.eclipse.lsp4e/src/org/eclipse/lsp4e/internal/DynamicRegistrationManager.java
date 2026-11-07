@@ -40,6 +40,7 @@ import org.eclipse.lsp4j.DocumentRangeFormattingOptions;
 import org.eclipse.lsp4j.DocumentRangeFormattingRegistrationOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.ExecuteCommandRegistrationOptions;
+import org.eclipse.lsp4j.InlineCompletionRegistrationOptions;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.SelectionRangeRegistrationOptions;
@@ -454,6 +455,17 @@ public final class DynamicRegistrationManager {
 					caps.setTypeHierarchyProvider(o);
 				} else {
 					caps.setTypeHierarchyProvider(Boolean.TRUE);
+				}
+			}
+		},
+
+		INLINE_COMPLETION(LSPMethods.TEXT_DOCUMENT_INLINE_COMPLETION, InlineCompletionRegistrationOptions.class, false) {
+			@Override
+			void applyTo(final ServerCapabilities caps, final @Nullable Object options) {
+				if (options instanceof InlineCompletionRegistrationOptions o) {
+					caps.setInlineCompletionProvider(o);
+				} else {
+					caps.setInlineCompletionProvider(Boolean.TRUE);
 				}
 			}
 		},

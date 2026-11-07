@@ -53,6 +53,7 @@ import org.eclipse.lsp4j.DocumentRangeFormattingRegistrationOptions;
 import org.eclipse.lsp4j.ExecuteCommandOptions;
 import org.eclipse.lsp4j.ExecuteCommandRegistrationOptions;
 import org.eclipse.lsp4j.FileSystemWatcher;
+import org.eclipse.lsp4j.InlineCompletionRegistrationOptions;
 import org.eclipse.lsp4j.Registration;
 import org.eclipse.lsp4j.RegistrationParams;
 import org.eclipse.lsp4j.RelativePattern;
@@ -438,6 +439,34 @@ class DynamicRegistrationManagerTest {
 
 		unregister("r1", LSPMethods.TEXT_DOCUMENT_FORMATTING);
 		assertNull(effectiveCapabilities().getDocumentFormattingProvider());
+	}
+
+	@Test
+	void inlineCompletionRegistrationIsDecodedAndApplied() {
+		manager.registerInitializationCapabilities(staticCapabilities());
+		final var options = new InlineCompletionRegistrationOptions("inline");
+		options.setDocumentSelector(List.of(new DocumentFilter("python", null, null)));
+		register("r1", LSPMethods.TEXT_DOCUMENT_INLINE_COMPLETION, options);
+
+		final Either<Boolean, InlineCompletionRegistrationOptions> provider = effectiveCapabilities()
+				.getInlineCompletionProvider();
+		assertNotNull(provider);
+		assertTrue(provider.isRight());
+		assertEquals("inline", provider.getRight().getId());
+
+		unregister("r1", LSPMethods.TEXT_DOCUMENT_INLINE_COMPLETION);
+		assertNull(effectiveCapabilities().getInlineCompletionProvider());
+	}
+
+	@Test
+	void inlineCompletionRegistrationWithoutOptionsEnablesTheProvider() {
+		manager.registerInitializationCapabilities(staticCapabilities());
+		register("r1", LSPMethods.TEXT_DOCUMENT_INLINE_COMPLETION, null);
+
+		final Either<Boolean, InlineCompletionRegistrationOptions> provider = effectiveCapabilities()
+				.getInlineCompletionProvider();
+		assertNotNull(provider);
+		assertEquals(Boolean.TRUE, provider.getLeft());
 	}
 
 	@Test
