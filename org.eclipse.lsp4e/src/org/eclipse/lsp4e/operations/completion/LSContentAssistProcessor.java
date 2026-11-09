@@ -85,7 +85,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	 * The cancellation support used to cancel previous LSP requests
 	 * 'textDocument/completion' when completion is retriggered
 	 */
-	private CancellationSupport completionCancellationSupport;
+	private volatile CancellationSupport completionCancellationSupport;
 	/**
 	 * The cancellation support used to cancel previous LSP requests
 	 * for fetching the trigger characters
@@ -141,15 +141,17 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 
 		final var proposals = Collections.synchronizedList(new ArrayList<ICompletionProposal>());
 		final var anyIncomplete = new AtomicBoolean(false);
-		try {
-			// Cancel the previous LSP requests 'textDocument/completions' and
-			// completionLanguageServersFuture
-			this.completionCancellationSupport.cancel();
+		// Cancel the previous LSP requests 'textDocument/completions' and
+		// completionLanguageServersFuture
+		this.completionCancellationSupport.cancel();
 
-			// Initialize a new cancel support to register:
-			// - LSP requests 'textDocument/completions'
-			// - completionLanguageServersFuture
-			final var cancellationSupport = new CancellationSupport();
+		// Initialize a new cancel support to register:
+		// - LSP requests 'textDocument/completions'
+		// - completionLanguageServersFuture
+		final var cancellationSupport = new CancellationSupport();
+		this.completionCancellationSupport = cancellationSupport;
+
+		try {
 			final var completionLanguageServersFuture = cancellationSupport.execute(
 					LanguageServers.forDocument(document).withFilter(capabilities -> capabilities.getCompletionProvider() != null) //
 					.collectAll((w, ls) -> cancellationSupport.execute(ls.getTextDocumentService().completion(param)) //
@@ -168,7 +170,6 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 								}
 								return null;
 							})));
-			this.completionCancellationSupport = cancellationSupport;
 
 			// Wait for the result of all LSP requests 'textDocument/completions', this
 			// future will be canceled with the next completion
@@ -182,7 +183,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			// The current thread has been interrupted by the AsyncCompletionProposalPopup#cancelFutures to
 			// indicate that we can stop computing results, because they won't be used anymore.
 			// Forward cancellation to LS and return dummy result
-			completionCancellationSupport.cancel();
+			cancellationSupport.cancel();
 			return NO_COMPLETION_PROPOSALS;
 		} catch (CancellationException e) {
 			// return the elements already collected, if any
@@ -234,6 +235,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 		if (currentDocument != document) {
 			currentDocument = document;
 			triggerCharsCancellationSupport.cancel();
+			triggerCharsCancellationSupport = new CancellationSupport();
 
 			completionTriggerChars = NO_CHARS;
 			contextTriggerChars = NO_CHARS;
