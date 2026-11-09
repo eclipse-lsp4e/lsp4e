@@ -16,11 +16,13 @@ import java.util.function.Consumer;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.Position;
+import org.eclipse.jface.text.codemining.ICodeMining;
 import org.eclipse.jface.text.codemining.LineContentCodeMining;
 import org.eclipse.jface.util.Geometry;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
+import org.eclipse.lsp4e.internal.ReusableCodeMining;
 import org.eclipse.lsp4j.ColorInformation;
 import org.eclipse.lsp4j.ColorPresentationParams;
 import org.eclipse.lsp4j.Range;
@@ -42,8 +44,12 @@ import org.eclipse.swt.widgets.Shell;
  * Draw the LSP color information with a colorized square.
  *
  */
-public class ColorInformationMining extends LineContentCodeMining {
+public class ColorInformationMining extends LineContentCodeMining implements ReusableCodeMining {
 
+	private final ColorInformation colorInformation;
+	private final IDocument document;
+	private final TextDocumentIdentifier textDocumentIdentifier;
+	private final LanguageServerWrapper languageServerWrapper;
 	private final RGBA rgba;
 	private final DocumentColorProvider colorProvider;
 
@@ -111,10 +117,20 @@ public class ColorInformationMining extends LineContentCodeMining {
 			DocumentColorProvider colorProvider) throws BadLocationException {
 		super(toPosition(colorInformation.getRange(), document), colorProvider,
 				new UpdateColorWithDialog(textDocumentIdentifier, colorInformation, languageServerWrapper, document));
+		this.colorInformation = colorInformation;
+		this.document = document;
+		this.textDocumentIdentifier = textDocumentIdentifier;
+		this.languageServerWrapper = languageServerWrapper;
 		this.rgba = LSPEclipseUtils.toRGBA(colorInformation.getColor());
 		this.colorProvider = colorProvider;
 		// set label with space to mark the mining as resolved.
 		super.setLabel(" "); //$NON-NLS-1$
+	}
+
+	@Override
+	public ICodeMining copy() throws BadLocationException {
+		return new ColorInformationMining(colorInformation, document, textDocumentIdentifier, languageServerWrapper,
+				colorProvider);
 	}
 
 	@Override

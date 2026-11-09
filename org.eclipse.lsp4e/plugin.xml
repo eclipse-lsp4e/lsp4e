@@ -3,6 +3,7 @@
 <plugin>
    <extension-point id="languageServer" name="Language Server" schema="schema/languageServer.exsd" />
    <extension-point id="symbolIconsProvider" name="Symbol Icons Provider" schema="schema/symbolIconsProvider.exsd"/>
+   <extension-point id="inlineCompletion" name="Inline Completion" schema="schema/inlineCompletion.exsd"/>
 
    <!-- ===================================== -->
    <!-- Setup Text Doc To LS Connection       -->
@@ -136,6 +137,11 @@
             name="%languageservers.preferences.folding.page" />
       <page
             category="org.eclipse.lsp4e.preferences"
+            class="org.eclipse.lsp4e.ui.InlineCompletionPreferencePage"
+            id="org.eclipse.lsp4e.preferences.inlineCompletion"
+            name="%languageservers.preferences.inlineCompletion.page" />
+      <page
+            category="org.eclipse.lsp4e.preferences"
             class="org.eclipse.lsp4e.ui.FormatterPreferencePage"
             id="org.eclipse.lsp4e.preferences.formatter"
             name="%languageservers.preferences.formatter.page">
@@ -144,6 +150,7 @@
 
    <extension point="org.eclipse.core.runtime.preferences">
       <initializer class="org.eclipse.lsp4e.ui.FoldingPreferencePage$PreferenceInitializer"/>
+      <initializer class="org.eclipse.lsp4e.ui.InlineCompletionPreferencePage$PreferenceInitializer"/>
       <initializer
             class="org.eclipse.lsp4e.operations.linkedediting.LSPLinkedEditingBase$PreferenceInitializer">
       </initializer>
@@ -160,6 +167,191 @@
             <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
          </enabledWhen>
       </foldingReconcilingStrategy>
+   </extension>
+
+   <!-- inline completion: commands, handlers, key bindings -->
+   <extension point="org.eclipse.ui.contexts">
+      <context
+            id="org.eclipse.lsp4e.inlineCompletion.visible"
+            name="%context.inlineCompletion.visible.name"
+            description="%context.inlineCompletion.visible.description"
+            parentId="org.eclipse.ui.textEditorScope" />
+   </extension>
+   <extension point="org.eclipse.ui.commands">
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.trigger"
+            name="%command.inlineCompletion.trigger.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.next"
+            name="%command.inlineCompletion.next.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.previous"
+            name="%command.inlineCompletion.previous.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.accept"
+            name="%command.inlineCompletion.accept.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.acceptNextWord"
+            name="%command.inlineCompletion.acceptNextWord.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.acceptNextLine"
+            name="%command.inlineCompletion.acceptNextLine.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            id="org.eclipse.lsp4e.inlineCompletion.dismiss"
+            name="%command.inlineCompletion.dismiss.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            defaultHandler="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$ToggleTriggerMode"
+            id="org.eclipse.lsp4e.inlineCompletion.toggleTriggerMode"
+            name="%command.inlineCompletion.toggleTriggerMode.name" />
+   </extension>
+   <extension point="org.eclipse.ui.handlers">
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$Trigger"
+            commandId="org.eclipse.lsp4e.inlineCompletion.trigger">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$Next"
+            commandId="org.eclipse.lsp4e.inlineCompletion.next">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$Previous"
+            commandId="org.eclipse.lsp4e.inlineCompletion.previous">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$Accept"
+            commandId="org.eclipse.lsp4e.inlineCompletion.accept">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$AcceptNextWord"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextWord">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$AcceptNextLine"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextLine">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+      <handler
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionHandlers$Dismiss"
+            commandId="org.eclipse.lsp4e.inlineCompletion.dismiss">
+         <activeWhen>
+            <or>
+               <reference definitionId="org.eclipse.lsp4e.textSelectionHasLanguageServer" />
+               <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+            </or>
+         </activeWhen>
+      </handler>
+   </extension>
+   <extension point="org.eclipse.ui.bindings">
+      <key sequence="M3+\"
+            commandId="org.eclipse.lsp4e.inlineCompletion.trigger"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+]"
+            commandId="org.eclipse.lsp4e.inlineCompletion.next"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+["
+            commandId="org.eclipse.lsp4e.inlineCompletion.previous"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+;"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextWord"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+'"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextLine"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M2+M3+\"
+            commandId="org.eclipse.lsp4e.inlineCompletion.toggleTriggerMode"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <!-- on macOS, Option+key types a character (e.g. Option+\ types «): use Ctrl there -->
+      <key sequence="M3+\" platform="cocoa"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+]" platform="cocoa"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+[" platform="cocoa"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+;" platform="cocoa"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M3+'" platform="cocoa"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M2+M3+\" platform="cocoa"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M2+M4+\" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.toggleTriggerMode"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+\" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.trigger"
+            contextId="org.eclipse.ui.textEditorScope"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+]" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.next"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+[" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.previous"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+;" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextWord"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
+      <key sequence="M4+'" platform="cocoa"
+            commandId="org.eclipse.lsp4e.inlineCompletion.acceptNextLine"
+            contextId="org.eclipse.lsp4e.inlineCompletion.visible"
+            schemeId="org.eclipse.ui.defaultAcceleratorConfiguration" />
    </extension>
 
    <!-- folding: define commands -->
@@ -578,6 +770,15 @@
    <!-- ===================================== -->
 
    <extension point="org.eclipse.ui.workbench.texteditor.codeMiningProviders">
+      <!-- first, so that ghost text comes before other minings at the same place -->
+      <codeMiningProvider
+            class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionProvider"
+            id="org.eclipse.lsp4e.inlineCompletion"
+            label="Inline Completion">
+         <enabledWhen>
+            <reference definitionId="org.eclipse.lsp4e.editorHasLanguageServer" />
+         </enabledWhen>
+      </codeMiningProvider>
       <codeMiningProvider
             class="org.eclipse.lsp4e.operations.codelens.CodeLensProvider"
             id="org.eclipse.lsp4e.codelens"
@@ -1115,6 +1316,35 @@
             converter="org.eclipse.lsp4e.command.internal.PathConverter"
             id="org.eclipse.lsp4e.pathParameterType"
             type="org.eclipse.core.runtime.IPath" />
+   </extension>
+
+
+   <!-- ===================================== -->
+   <!-- Inline Completion                     -->
+   <!-- ===================================== -->
+   <extension point="org.eclipse.ui.commands">
+      <category
+            id="org.eclipse.lsp4e.inlineCompletion.category"
+            name="%inlineCompletion.category.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            defaultHandler="org.eclipse.lsp4e.operations.inlinecompletion.internal.DisplayStatus"
+            id="org.eclipse.lsp4e.inlineCompletion.displayStatus"
+            name="%command.inlineCompletion.displayStatus.name" />
+      <command
+            categoryId="org.eclipse.lsp4e.inlineCompletion.category"
+            defaultHandler="org.eclipse.lsp4e.operations.inlinecompletion.internal.CustomizeKeyBindings"
+            id="org.eclipse.lsp4e.inlineCompletion.customizeKeyBindings"
+            name="%command.inlineCompletion.customizeKeyBindings.name" />
+   </extension>
+   <extension point="org.eclipse.ui.menus">
+      <menuContribution locationURI="toolbar:org.eclipse.ui.trim.status">
+         <toolbar id="org.eclipse.lsp4e.inlineCompletion.status">
+            <control
+                  class="org.eclipse.lsp4e.operations.inlinecompletion.internal.InlineCompletionStatusWidget"
+                  id="org.eclipse.lsp4e.inlineCompletion.statusWidget" />
+         </toolbar>
+      </menuContribution>
    </extension>
 
 </plugin>

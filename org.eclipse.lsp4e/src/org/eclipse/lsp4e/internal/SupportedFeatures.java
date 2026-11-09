@@ -45,6 +45,7 @@ import org.eclipse.lsp4j.FoldingRangeSupportCapabilities;
 import org.eclipse.lsp4j.FormattingCapabilities;
 import org.eclipse.lsp4j.HoverCapabilities;
 import org.eclipse.lsp4j.InlayHintCapabilities;
+import org.eclipse.lsp4j.InlineCompletionCapabilities;
 import org.eclipse.lsp4j.InsertTextMode;
 import org.eclipse.lsp4j.MarkupKind;
 import org.eclipse.lsp4j.OnTypeFormattingCapabilities;
@@ -93,6 +94,7 @@ public class SupportedFeatures {
 		textDocumentClientCapabilities.setCodeAction(codeAction);
 		textDocumentClientCapabilities.setCodeLens(new CodeLensCapabilities());
 		textDocumentClientCapabilities.setInlayHint(new InlayHintCapabilities());
+		textDocumentClientCapabilities.setInlineCompletion(new InlineCompletionCapabilities(true));
 		textDocumentClientCapabilities.setColorProvider(new ColorProviderCapabilities());
 		textDocumentClientCapabilities.setPublishDiagnostics(new PublishDiagnosticsCapabilities());
 		textDocumentClientCapabilities.setDiagnostic(new DiagnosticCapabilities(true));

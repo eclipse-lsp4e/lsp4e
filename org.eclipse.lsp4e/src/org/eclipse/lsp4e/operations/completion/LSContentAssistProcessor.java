@@ -85,7 +85,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	 * The cancellation support used to cancel previous LSP requests
 	 * 'textDocument/completion' when completion is retriggered
 	 */
-	private CancellationSupport completionCancellationSupport;
+	private volatile CancellationSupport completionCancellationSupport;
 	/**
 	 * The cancellation support used to cancel previous LSP requests
 	 * for fetching the trigger characters
@@ -150,6 +150,8 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			// - LSP requests 'textDocument/completions'
 			// - completionLanguageServersFuture
 			final var cancellationSupport = new CancellationSupport();
+			// before the requests are sent, so that a cancellation meanwhile reaches them
+			this.completionCancellationSupport = cancellationSupport;
 			final var completionLanguageServersFuture = cancellationSupport.execute(
 					LanguageServers.forDocument(document).withFilter(capabilities -> capabilities.getCompletionProvider() != null) //
 					.collectAll((w, ls) -> cancellationSupport.execute(ls.getTextDocumentService().completion(param)) //
@@ -168,7 +170,6 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 								}
 								return null;
 							})));
-			this.completionCancellationSupport = cancellationSupport;
 
 			// Wait for the result of all LSP requests 'textDocument/completions', this
 			// future will be canceled with the next completion
@@ -234,6 +235,7 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 		if (currentDocument != document) {
 			currentDocument = document;
 			triggerCharsCancellationSupport.cancel();
+			triggerCharsCancellationSupport = new CancellationSupport();
 
 			completionTriggerChars = NO_CHARS;
 			contextTriggerChars = NO_CHARS;

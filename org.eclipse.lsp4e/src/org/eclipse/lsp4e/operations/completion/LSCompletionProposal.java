@@ -469,58 +469,95 @@ public class LSCompletionProposal
 		return completionOffset;
 	}
 
-	protected void apply(IDocument document, char trigger, int stateMask, int offset) {
+	/**
+	 * Computes the edit this proposal applies when accepted at the given offset, without modifying the
+	 * document or this proposal's item.
+	 */
+	private TextEdit computeTextEdit(IDocument document, int offset) throws BadLocationException {
 		String insertText = null;
 		Either<TextEdit, InsertReplaceEdit> eitherTextEdit = item.getTextEdit();
 		TextEdit textEdit = null;
 		if (eitherTextEdit != null) {
 			if(eitherTextEdit.isLeft()) {
-				textEdit = eitherTextEdit.getLeft();
+				TextEdit itemTextEdit = eitherTextEdit.getLeft();
+				textEdit = new TextEdit(copy(itemTextEdit.getRange()), itemTextEdit.getNewText());
 			} else {
 				// trick to partially support the new InsertReplaceEdit from LSP 3.16. Reuse previously code for TextEdit.
 				InsertReplaceEdit insertReplaceEdit = eitherTextEdit.getRight();
-				textEdit = new TextEdit(insertReplaceEdit.getInsert(), insertReplaceEdit.getNewText());
+				textEdit = new TextEdit(copy(insertReplaceEdit.getInsert()), insertReplaceEdit.getNewText());
 			}
 		}
-		try {
-			if (textEdit == null) {
-				insertText = getInsertText();
-				textEdit = new TextEdit(LSPEclipseUtils.toRange(bestOffset, offset, document), insertText);
-			} else if (offset > initialOffset) {
-				// characters were added after completion was activated
-				int shift = offset - initialOffset;
-				textEdit.getRange().getEnd().setCharacter(textEdit.getRange().getEnd().getCharacter() + shift);
+		if (textEdit == null) {
+			insertText = getInsertText();
+			textEdit = new TextEdit(LSPEclipseUtils.toRange(bestOffset, offset, document), insertText);
+		} else if (offset > initialOffset) {
+			// characters were added after completion was activated
+			int shift = offset - initialOffset;
+			textEdit.getRange().getEnd().setCharacter(textEdit.getRange().getEnd().getCharacter() + shift);
+		}
+		{ // workaround https://github.com/Microsoft/vscode/issues/17036
+			Position start = textEdit.getRange().getStart();
+			Position end = textEdit.getRange().getEnd();
+			if (start.getLine() > end.getLine() || (start.getLine() == end.getLine() && start.getCharacter() > end.getCharacter())) {
+				textEdit.getRange().setEnd(start);
+				textEdit.getRange().setStart(end);
 			}
-			{ // workaround https://github.com/Microsoft/vscode/issues/17036
-				Position start = textEdit.getRange().getStart();
-				Position end = textEdit.getRange().getEnd();
-				if (start.getLine() > end.getLine() || (start.getLine() == end.getLine() && start.getCharacter() > end.getCharacter())) {
-					textEdit.getRange().setEnd(start);
-					textEdit.getRange().setStart(end);
-				}
+		}
+		{ // allow completion items to be wrong with a too wide range
+			Position documentEnd = LSPEclipseUtils.toPosition(document.getLength(), document);
+			Position textEditEnd = textEdit.getRange().getEnd();
+			if (documentEnd.getLine() < textEditEnd.getLine()
+				|| (documentEnd.getLine() == textEditEnd.getLine() && documentEnd.getCharacter() < textEditEnd.getCharacter())) {
+				textEdit.getRange().setEnd(documentEnd);
 			}
-			{ // allow completion items to be wrong with a too wide range
-				Position documentEnd = LSPEclipseUtils.toPosition(document.getLength(), document);
-				Position textEditEnd = textEdit.getRange().getEnd();
-				if (documentEnd.getLine() < textEditEnd.getLine()
-					|| (documentEnd.getLine() == textEditEnd.getLine() && documentEnd.getCharacter() < textEditEnd.getCharacter())) {
-					textEdit.getRange().setEnd(documentEnd);
-				}
-			}
+		}
 
-			if (insertText != null) {
-				// try to reuse existing characters after completion location
-				int shift = offset - bestOffset;
-				int commonSize = 0;
-				final int insertTextLength = insertText.length();
-				while (commonSize < insertTextLength - shift
-					&& document.getLength() > offset + commonSize
-					&& Character.toLowerCase(document.getChar(bestOffset + shift + commonSize)) == Character.toLowerCase(insertText.charAt(commonSize + shift))) {
-					commonSize++;
-				}
-				textEdit.getRange().getEnd().setCharacter(textEdit.getRange().getEnd().getCharacter() + commonSize);
+		if (insertText != null) {
+			// try to reuse existing characters after completion location
+			int shift = offset - bestOffset;
+			int commonSize = 0;
+			final int insertTextLength = insertText.length();
+			while (commonSize < insertTextLength - shift
+				&& document.getLength() > offset + commonSize
+				&& Character.toLowerCase(document.getChar(bestOffset + shift + commonSize)) == Character.toLowerCase(insertText.charAt(commonSize + shift))) {
+				commonSize++;
 			}
-			insertText = textEdit.getNewText();
+			textEdit.getRange().getEnd().setCharacter(textEdit.getRange().getEnd().getCharacter() + commonSize);
+		}
+		return textEdit;
+	}
+
+	private static Range copy(Range range) {
+		return new Range(new Position(range.getStart().getLine(), range.getStart().getCharacter()),
+				new Position(range.getEnd().getLine(), range.getEnd().getCharacter()));
+	}
+
+	/**
+	 * Returns the edit this proposal would apply if accepted at the given offset: its range and the text
+	 * that replaces it, with any snippet expanded. Neither the document nor this proposal is modified.
+	 */
+	public TextEdit getEffectiveEdit(ITextViewer viewer, int offset) throws BadLocationException {
+		TextEdit textEdit = computeTextEdit(document, offset);
+		if (item.getInsertTextFormat() == InsertTextFormat.Snippet) {
+			int insertionOffset = LSPEclipseUtils.toOffset(textEdit.getRange().getStart(), document);
+			textEdit.setNewText(expandSnippet(viewer, textEdit.getNewText(), insertionOffset));
+		}
+		return textEdit;
+	}
+
+	/**
+	 * Expands the given snippet as it would be inserted at the given offset of this proposal's document,
+	 * resolving variables against the given viewer, and returns the resulting plain text.
+	 */
+	public String expandSnippet(ITextViewer viewer, String snippet, int insertionOffset) {
+		this.viewer = viewer;
+		return new CompletionSnippetParser(document, snippet, insertionOffset, this::getVariableValue).parse();
+	}
+
+	protected void apply(IDocument document, char trigger, int stateMask, int offset) {
+		try {
+			TextEdit textEdit = computeTextEdit(document, offset);
+			String insertText = textEdit.getNewText();
 			Map<String, List<LinkedPosition>> regions = Collections.emptyMap();
 			int insertionOffset = LSPEclipseUtils.toOffset(textEdit.getRange().getStart(), document);
 			if (item.getInsertTextMode() == InsertTextMode.AdjustIndentation || item.getInsertTextMode() == null) {
@@ -594,7 +631,7 @@ public class LSCompletionProposal
 				Command command = item.getCommand();
 				ServerCapabilities serverCapabilities = languageServerWrapper.getServerCapabilities();
 				ExecuteCommandOptions provider = serverCapabilities == null ? null : serverCapabilities.getExecuteCommandProvider();
-				if (provider != null && provider.getCommands().contains(command.getCommand())) {
+				if (provider != null && provider.getCommands() != null && provider.getCommands().contains(command.getCommand())) {
 					languageServerWrapper.execute(ls -> ls.getWorkspaceService()
 							.executeCommand(new ExecuteCommandParams(command.getCommand(), command.getArguments())));
 				} else {

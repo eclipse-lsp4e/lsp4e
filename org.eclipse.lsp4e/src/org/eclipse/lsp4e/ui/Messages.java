@@ -48,6 +48,12 @@ public final class Messages extends NLS {
 	public static String PreferencesPage_restartWarning_message;
 	public static String PreferencesPage_restartWarning_restart;
 	public static String PreferencesPage_enableOnTypeFormatting;
+	public static String PreferencesPage_inlineCompletionAutomatic;
+	public static String PreferencesPage_inlineCompletionDelay;
+	public static String InlineCompletion_status;
+	public static String InlineCompletion_moreLines;
+	public static String InlineCompletion_noSuggestions;
+	public static String InlineCompletion_position;
 	public static String NewContentTypeLSPLaunchDialog_associateContentType;
 	public static String NewContentTypeLSPLaunchDialog_withLSPLaunch;
 	public static String codeActions_description;
@@ -108,6 +114,15 @@ public final class Messages extends NLS {
 	public static String TH_diplay_hint;
 	public static String TH_cannot_find_file;
 	public static String occurrences;
+	public static String InlineCompletion_status_initializing;
+	public static String InlineCompletion_status_ready_automatic;
+	public static String InlineCompletion_status_ready_manual;
+	public static String InlineCompletion_menu_automatic;
+	public static String InlineCompletion_menu_preferences;
+	public static String InlineCompletion_menu_keyBindings;
+	public static String InlineCompletion_status_fetching;
+	public static String InlineCompletion_status_error;
+	public static String InlineCompletion_keyBindingsFilter;
 
 	static {
 		NLS.initializeMessages("org.eclipse.lsp4e.ui.messages", Messages.class); //$NON-NLS-1$
