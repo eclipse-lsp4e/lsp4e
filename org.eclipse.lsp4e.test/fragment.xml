@@ -29,6 +29,17 @@
       </server>
       <server
             class="org.eclipse.lsp4e.tests.mock.MockConnectionProvider"
+            connectFileBuffers="true"
+            id="org.eclipse.lsp4e.test.server-connect-file-buffers"
+            lastDocumentDisconnectedTimeout="0"
+            label="Test LS connected to file buffers">
+      </server>
+      <contentTypeMapping
+            contentType="org.eclipse.lsp4e.test.content-type-connect-file-buffers"
+            id="org.eclipse.lsp4e.test.server-connect-file-buffers">
+      </contentTypeMapping>
+      <server
+            class="org.eclipse.lsp4e.tests.mock.MockConnectionProvider"
             id="org.eclipse.lsp4e.test.server-with-last-document-disconnected-timeout"
             lastDocumentDisconnectedTimeout="2"
             label="Test LS with LastDocumentDisconnectedTimeout set to two seconds">
@@ -142,6 +153,13 @@
             file-extensions="lsptWithLastDocumentDisconnectedTimeout"
             id="org.eclipse.lsp4e.test.content-type-server-with-last-document-disconnected-timeout"
             name="Test Content Type Server with LastDocumentDisconnectedTimeout set to two seconds"
+            priority="normal">
+      </content-type>
+      <content-type
+            base-type="org.eclipse.core.runtime.text"
+            file-extensions="lsptbuffer"
+            id="org.eclipse.lsp4e.test.content-type-connect-file-buffers"
+            name="Test Content Type for a server connected to file buffers"
             priority="normal">
       </content-type>
       <content-type
