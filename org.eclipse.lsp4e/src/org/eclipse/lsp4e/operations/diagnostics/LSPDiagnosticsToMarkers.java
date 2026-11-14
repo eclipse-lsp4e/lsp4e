@@ -16,6 +16,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -46,6 +47,7 @@ import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.internal.ArrayUtil;
 import org.eclipse.lsp4j.Diagnostic;
+import org.eclipse.lsp4j.DiagnosticSeverity;
 import org.eclipse.lsp4j.PublishDiagnosticsParams;
 import org.eclipse.lsp4j.jsonrpc.messages.Either;
 import org.eclipse.ui.IEditorReference;
@@ -121,7 +123,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 				}
 			});
 			final var toAdd = new HashMap<Annotation, Position>(diagnostics.getDiagnostics().size(), 1.f);
-			diagnostics.getDiagnostics().forEach(diagnostic -> {
+			withoutDuplicateHints(diagnostics.getDiagnostics()).forEach(diagnostic -> {
 				try {
 					final var doc = sourceViewer.getDocument();
 					if (doc != null) {
@@ -181,7 +183,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 						document = LSPEclipseUtils.getDocument(resource);
 					}
 				}
-				for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
+				for (Diagnostic diagnostic : withoutDuplicateHints(diagnostics.getDiagnostics())) {
 					IMarker associatedMarker = getExistingMarkerFor(document, diagnostic, toDeleteMarkers);
 					if (associatedMarker == null) {
 						newDiagnostics.add(diagnostic);
@@ -223,6 +225,35 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 		job.setRule(resource.getWorkspace().getRuleFactory().markerRule(resource));
 		job.schedule();
 		return job;
+	}
+
+	/**
+	 * Removes hints that repeat the text of a stronger diagnostic on the same line.
+	 * For example, rust-analyzer sends a hint at the macro call for an error in the
+	 * macro arguments. Without this filter, the line has two markers with the same
+	 * text. A hint with data stays, because a quick fix can need it.
+	 */
+	List<Diagnostic> withoutDuplicateHints(List<Diagnostic> diagnostics) {
+		final var result = new ArrayList<Diagnostic>(diagnostics.size());
+		for (Diagnostic diagnostic : diagnostics) {
+			if (diagnostic.getSeverity() != DiagnosticSeverity.Hint || diagnostic.getData() != null
+					|| !hasStrongerTwin(diagnostic, diagnostics)) {
+				result.add(diagnostic);
+			}
+		}
+		return result;
+	}
+
+	private boolean hasStrongerTwin(Diagnostic hint, List<Diagnostic> diagnostics) {
+		final String hintMessage = markerAttributeComputer.computeMarkerMessage(hint);
+		for (Diagnostic other : diagnostics) {
+			if (other.getSeverity() != DiagnosticSeverity.Hint
+					&& other.getRange().getStart().getLine() == hint.getRange().getStart().getLine()
+					&& hintMessage.equals(markerAttributeComputer.computeMarkerMessage(other))) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	protected void updateMarker(Map<String, Object> targetAttributes, IMarker marker) {

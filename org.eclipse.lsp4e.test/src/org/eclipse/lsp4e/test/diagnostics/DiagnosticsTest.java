@@ -121,6 +121,44 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	public void testHintWithSameMessageAsErrorOnSameLineGivesNoMarker() throws CoreException {
+		IFile file = TestUtils.createUniqueTestFile(project, "    println!(\"{s}\");\n}");
+
+		final var error = createDiagnostic("E0382", "borrow of moved value",
+				new Range(new Position(0, 15), new Position(0, 16)), DiagnosticSeverity.Error, "rustc");
+		final var duplicateHint = createDiagnostic("E0382", "borrow of moved value",
+				new Range(new Position(0, 4), new Position(0, 12)), DiagnosticSeverity.Hint, "rustc");
+		final var otherHint = createDiagnostic("E0382", "value moved here",
+				new Range(new Position(0, 4), new Position(0, 12)), DiagnosticSeverity.Hint, "rustc");
+		final var hintOnOtherLine = createDiagnostic("E0382", "borrow of moved value",
+				new Range(new Position(1, 0), new Position(1, 1)), DiagnosticSeverity.Hint, "rustc");
+		final var hintWithData = createDiagnostic("E0382", "borrow of moved value",
+				new Range(new Position(0, 4), new Position(0, 12)), DiagnosticSeverity.Hint, "rustc");
+		hintWithData.setData("fix");
+
+		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(file.getLocationURI().toString(),
+				List.of(error, duplicateHint, otherHint, hintOnOtherLine, hintWithData)));
+
+		waitForAndAssertCondition(10_000, () -> {
+			IMarker[] markers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, false,
+					IResource.DEPTH_INFINITE);
+			assertEquals(4, markers.length);
+			final var diagnostics = Stream.of(markers).map(m -> {
+				try {
+					return m.getAttribute(LSPDiagnosticsToMarkers.LSP_DIAGNOSTIC);
+				} catch (CoreException ex) {
+					throw new RuntimeException(ex);
+				}
+			}).toList();
+			assertTrue(diagnostics.contains(error));
+			assertTrue(diagnostics.contains(otherHint));
+			assertTrue(diagnostics.contains(hintOnOtherLine));
+			assertTrue(diagnostics.contains(hintWithData));
+			return true;
+		});
+	}
+
+	@Test
 	public void testDiagnosticsForMarkerUpdateAfterProjectClose() throws CoreException, InterruptedException {
 		IFile file = TestUtils.createUniqueTestFile(project, "Diagnostic Marker Update After Project Close");
 		int markerLineIndex = 0;
