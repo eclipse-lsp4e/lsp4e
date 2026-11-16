@@ -14,12 +14,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.IRegion;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.codemining.LineContentCodeMining;
 import org.eclipse.lsp4e.LSPEclipseUtils;
@@ -58,12 +60,67 @@ public class LSPLineContentCodeMining extends LineContentCodeMining {
 
 	public LSPLineContentCodeMining(InlayHint inlayHint, IDocument document,
 			LanguageServerWrapper languageServerWrapper, InlayHintProvider provider) throws BadLocationException {
-		super(toPosition(inlayHint.getPosition(), document), provider);
+		super(toPosition(inlayHint.getPosition(), document), isAfterPosition(inlayHint.getPosition(), document),
+				provider);
 		this.inlayHint = inlayHint;
 		this.wrapper = languageServerWrapper;
 		this.document = document;
 		setLabel(getInlayHintString(inlayHint));
 	}
+
+	/**
+	 * Tells if the hint belongs to the text before it (for example {@code x: i32})
+	 * or to the text after it (for example a parameter name {@code foo(a: 1)}). For
+	 * a hint that belongs to the text before it, the caret can stop between that
+	 * text and the hint.
+	 * <p>
+	 * This uses a similar rule as VS Code (see {@code InlayHintsFragments} in
+	 * {@code inlayHints.ts}), because language servers are made to work with
+	 * VS Code. VS Code attaches the hint to the word at the hint position. If no
+	 * word touches the position, VS Code attaches the hint to the token before it,
+	 * unless the token at the position is longer than one character. LSP4E has no
+	 * tokens, so it finds only some of these tokens: a number, a string literal,
+	 * {@code ...} and {@code ::}. In the future, this logic could use TM models of
+	 * TM4E and have language specific rules (in the same way that VS Code does).
+	 */
+	static boolean isAfterPosition(Position position, IDocument document) {
+		try {
+			int offset = LSPEclipseUtils.toOffset(position, document);
+			IRegion line = document.getLineInformationOfOffset(offset);
+			int lineStart = line.getOffset();
+			int lineEnd = lineStart + line.getLength();
+			if (offset > lineStart && isWordCharacter(document.getChar(offset - 1))) {
+				return true; // a word ends at the hint, for example x|: i32
+			}
+			if (offset >= lineEnd) {
+				// an empty line, or a hint after the last token, for example }| // main
+				return offset > lineStart;
+			}
+			String rest = document.get(offset, lineEnd - offset);
+			if (isWordCharacter(rest.charAt(0))) {
+				return false; // a word starts at the hint, for example foo(|a: 1)
+			}
+			return offset > lineStart && !LONG_TOKEN_START.matcher(rest).lookingAt();
+		} catch (BadLocationException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * The default word definition of VS Code: all characters except white space and
+	 * the separators below.
+	 */
+	private static boolean isWordCharacter(char c) {
+		return !Character.isWhitespace(c) && !Character.isSpaceChar(c)
+				&& "`~!@#$%^&*()-=+[{]}\\|;:'\",.<>/?".indexOf(c) < 0; //$NON-NLS-1$
+	}
+
+	/**
+	 * The start of a token that is longer than one character and does not start
+	 * with a word character: a number such as {@code -1.5} or {@code .5} (as in the
+	 * VS Code word definition), a string literal, {@code ...} or {@code ::}.
+	 */
+	private static final Pattern LONG_TOKEN_START = Pattern.compile("-?\\d*\\.\\d|[@$]?[\"'`]|\\.\\.\\.|::"); //$NON-NLS-1$
 
 	@Override
 	public void setLabel(final @Nullable String label) {
