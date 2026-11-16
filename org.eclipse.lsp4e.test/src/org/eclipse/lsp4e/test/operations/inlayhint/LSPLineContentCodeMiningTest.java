@@ -13,11 +13,16 @@
 package org.eclipse.lsp4e.test.operations.inlayhint;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.jface.text.Document;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.lsp4e.LanguageServerWrapper;
@@ -42,6 +47,9 @@ import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
@@ -101,6 +109,78 @@ public class LSPLineContentCodeMiningTest extends AbstractTestWithProject {
 
 		// Text edit should be applied.
 		assertEquals("x: list[int] = [1, 2]", document.get());
+	}
+
+	/**
+	 * Hint places that real language servers send. {@code ^} marks the hint
+	 * position. The expected values are the same as in VS Code.
+	 */
+	static Stream<Arguments> hintPlaces() {
+		return Stream.of( //
+				// rust-analyzer
+				arguments("let x^ = 5;", ": i32", true), //
+				arguments("let c = |y|^ y + 1;", " -> i32", true), //
+				arguments("let n = add(^x, 2);", "a:", false), //
+				arguments("let f = first(^\"a\", \"b\");", "s:", false), //
+				arguments("fn first(s: &^str) -> &str { s }", "'s", false), //
+				arguments("fn first^(s: &str) -> &str { s }", "<'s>", true), //
+				arguments("enum E { A^, B }", " = 0", true), //
+				arguments("let s = ^String::new();", "(&*", false), //
+				arguments("let ^(m, k) = p;", "&", true), //
+				arguments("    let s = String::new()^", "String", true), //
+				arguments("}^", "fn main", true), //
+				// clangd
+				arguments("auto f()^ { return 1; }", "-> int", true), //
+				arguments("P q{^3, 4};", ".x=", false), //
+				arguments("auto n = add(4^);", ", b: 3", true), //
+				// basedpyright
+				arguments("def g()^:", "-> Literal['s']", true), //
+				arguments("x = add(^1, 2)", "a=", false), //
+				// typescript-language-server
+				arguments("foo(^\"str\");", "text:", false), //
+				arguments("const arr = [1, 2].map(n^ => n * 2);", ": number", true), //
+				// other places
+				arguments("scale(^-1.5)", "factor:", false), //
+				arguments("scale(^.5)", "factor:", false), //
+				arguments("f(^...xs)", "args:", false), //
+				arguments("f(^::g())", "x:", false), //
+				arguments("f(^@\"s\")", "x:", false), //
+				arguments("foo(^(1))", "x:", true), //
+				arguments("foo(\u00a0^a)", "x:", false), //
+				arguments("^x", "hint", false), //
+				arguments("  ^", "hint", true));
+	}
+
+	@ParameterizedTest
+	@MethodSource("hintPlaces")
+	void hintIsAfterPositionLikeInVSCode(String line, String label, boolean expected) throws Exception {
+		int offset = line.indexOf('^');
+		String text = line.substring(0, offset) + line.substring(offset + 1) + "\nnext line";
+		assertEquals(expected, isAfterPosition(text, new Position(0, offset), label), line);
+	}
+
+	@Test
+	void hintAtLineEndOrDocumentEnd() throws Exception {
+		assertTrue(isAfterPosition("let x", new Position(0, 5), ": i32"));
+		assertTrue(isAfterPosition("let x\r\nnext", new Position(0, 5), ": i32"));
+		// positions that are not valid any more
+		assertTrue(isAfterPosition("let x\r\nnext", new Position(0, 6), ": i32"));
+		assertTrue(isAfterPosition("let x", new Position(0, 99), ": i32"));
+		assertTrue(isAfterPosition("let x", new Position(5, 0), ": i32"));
+	}
+
+	@Test
+	void hintOnEmptyLine() throws Exception {
+		assertFalse(isAfterPosition("", new Position(0, 0), "hint"));
+		assertFalse(isAfterPosition("a\n\nb", new Position(1, 0), "hint"));
+	}
+
+	private boolean isAfterPosition(String text, Position position, String label) throws Exception {
+		LanguageServerWrapper wrapper = LanguageServiceAccessor.getLSWrapper(project,
+				LanguageServersRegistry.getInstance().getDefinition(MOCK_SERVER_ID));
+		final var inlayHint = new InlayHint(position, Either.forLeft(label));
+		return new LSPLineContentCodeMining(inlayHint, new Document(text), wrapper, new InlayHintProvider())
+				.isAfterPosition();
 	}
 
 	private static InlayHintLabelPart createInlayLabelPart(String text, String commandID) {
