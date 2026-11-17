@@ -36,7 +36,7 @@ class DiagnosticAnnotation extends Annotation {
 		case Error -> TYPE_ERROR;
 		case Warning -> TYPE_WARNING;
 		case Information -> TYPE_INFO;
-		case Hint -> TYPE_INFO;
+		case Hint -> LSPDiagnosticsToMarkers.HINT_ANNOTATION_TYPE;
 		case null -> TYPE_ERROR;
 		};
 	}

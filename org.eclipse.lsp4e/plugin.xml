@@ -76,6 +76,11 @@
          name="%markers.name">
       <super type="org.eclipse.core.resources.problemmarker" />
    </extension>
+   <extension point="org.eclipse.core.resources.markers"
+         id="org.eclipse.lsp4e.diagnostic.hint"
+         name="%markers.hint.name">
+      <super type="org.eclipse.lsp4e.diagnostic" />
+   </extension>
 
    <extension point="org.eclipse.ui.ide.markerResolution">
       <markerResolutionGenerator
@@ -681,6 +686,35 @@
       <type name="org.eclipse.lsp4e.read" />
       <type name="org.eclipse.lsp4e.write" />
       <type name="org.eclipse.lsp4e.text" />
+      <!-- LSP hint diagnostics: VS Code shows them only as a small mark in the text.
+           No super type: the vertical ruler also shows subtypes of the info type. -->
+      <type name="org.eclipse.lsp4e.hint"
+         markerType="org.eclipse.lsp4e.diagnostic.hint"
+         markerSeverity="0" />
+   </extension>
+   <extension point="org.eclipse.ui.editors.markerAnnotationSpecification">
+      <specification annotationType="org.eclipse.lsp4e.hint"
+         label="%annotation.hint.label"
+         symbolicIcon="info"
+         textPreferenceKey="LSP4EHintIndication"
+         textPreferenceValue="true"
+         textStylePreferenceKey="LSP4EHintTextStyle"
+         textStylePreferenceValue="DASHED_BOX"
+         highlightPreferenceKey="LSP4EHintHighlighting"
+         highlightPreferenceValue="false"
+         overviewRulerPreferenceKey="LSP4EHintIndicationInOverviewRuler"
+         overviewRulerPreferenceValue="false"
+         verticalRulerPreferenceKey="LSP4EHintIndicationInVerticalRuler"
+         verticalRulerPreferenceValue="false"
+         colorPreferenceKey="LSP4EHintIndicationColor"
+         colorPreferenceValue="160,160,160"
+         contributesToHeader="false"
+         presentationLayer="3"
+         isGoToNextNavigationTarget="false"
+         isGoToNextNavigationTargetKey="LSP4EHintIsGoToNextNavigationTarget"
+         showInNextPrevDropdownToolbarAction="false"
+         showInNextPrevDropdownToolbarActionKey="LSP4EHintShowInNextPrevDropdownToolbarAction"
+         includeOnPreferencePage="true" />
    </extension>
    <extension point="org.eclipse.ui.editors.markerAnnotationSpecification">
       <specification annotationType="org.eclipse.lsp4e.read"
