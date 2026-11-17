@@ -17,6 +17,7 @@ import static org.eclipse.lsp4e.test.utils.TestUtils.waitForAndAssertCondition;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,7 +60,11 @@ import org.eclipse.swt.custom.StyledText;
 import org.eclipse.swt.graphics.Font;
 import org.eclipse.swt.graphics.FontData;
 import org.eclipse.swt.graphics.RGB;
+import org.eclipse.ui.editors.text.EditorsUI;
 import org.eclipse.ui.ide.IDE;
+import org.eclipse.ui.texteditor.AnnotationPreference;
+import org.eclipse.ui.texteditor.AnnotationTypeLookup;
+import org.eclipse.ui.texteditor.DefaultMarkerAnnotationAccess;
 import org.eclipse.ui.texteditor.MarkerUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -87,12 +92,12 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(file.getLocationURI().toString(), diagnostics));
 
 		waitForAndAssertCondition(10_000, () -> {
-			assertEquals(diagnostics.size(), file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, false,
+			assertEquals(diagnostics.size(), file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
 					IResource.DEPTH_INFINITE).length);
 			return true;
 		});
 
-		IMarker[] markers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, false,
+		IMarker[] markers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
 				IResource.DEPTH_INFINITE);
 		for (Diagnostic diagnostic : diagnostics) {
 			var marker = Stream.of(markers).filter(m -> {
@@ -114,48 +119,48 @@ public class DiagnosticsTest extends AbstractTestWithProject {
 		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(file.getLocationURI().toString(), Collections.emptyList()));
 
 		waitForAndAssertCondition(10_000, () -> {
-			assertEquals(0, file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, false,
+			assertEquals(0, file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
 					IResource.DEPTH_INFINITE).length);
 			return true;
 		});
 	}
 
 	@Test
-	public void testHintWithSameMessageAsErrorOnSameLineGivesNoMarker() throws CoreException {
-		IFile file = TestUtils.createUniqueTestFile(project, "    println!(\"{s}\");\n}");
+	public void testHintGetsHintMarkerAndAnnotationType() throws CoreException {
+		IFile file = TestUtils.createUniqueTestFile(project, "    println!(\"{s}\");");
 
+		// rust-analyzer sends the error at the argument and a hint with the same text at the macro call
 		final var error = createDiagnostic("E0382", "borrow of moved value",
 				new Range(new Position(0, 15), new Position(0, 16)), DiagnosticSeverity.Error, "rustc");
-		final var duplicateHint = createDiagnostic("E0382", "borrow of moved value",
+		final var hint = createDiagnostic("E0382", "borrow of moved value",
 				new Range(new Position(0, 4), new Position(0, 12)), DiagnosticSeverity.Hint, "rustc");
-		final var otherHint = createDiagnostic("E0382", "value moved here",
-				new Range(new Position(0, 4), new Position(0, 12)), DiagnosticSeverity.Hint, "rustc");
-		final var hintOnOtherLine = createDiagnostic("E0382", "borrow of moved value",
-				new Range(new Position(1, 0), new Position(1, 1)), DiagnosticSeverity.Hint, "rustc");
-		final var hintWithData = createDiagnostic("E0382", "borrow of moved value",
-				new Range(new Position(0, 4), new Position(0, 12)), DiagnosticSeverity.Hint, "rustc");
-		hintWithData.setData("fix");
-
-		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(file.getLocationURI().toString(),
-				List.of(error, duplicateHint, otherHint, hintOnOtherLine, hintWithData)));
+		diagnosticsToMarkers.accept(new PublishDiagnosticsParams(file.getLocationURI().toString(), List.of(error, hint)));
 
 		waitForAndAssertCondition(10_000, () -> {
-			IMarker[] markers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, false,
-					IResource.DEPTH_INFINITE);
-			assertEquals(4, markers.length);
-			final var diagnostics = Stream.of(markers).map(m -> {
-				try {
-					return m.getAttribute(LSPDiagnosticsToMarkers.LSP_DIAGNOSTIC);
-				} catch (CoreException ex) {
-					throw new RuntimeException(ex);
-				}
-			}).toList();
-			assertTrue(diagnostics.contains(error));
-			assertTrue(diagnostics.contains(otherHint));
-			assertTrue(diagnostics.contains(hintOnOtherLine));
-			assertTrue(diagnostics.contains(hintWithData));
+			assertEquals(2, file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, true,
+					IResource.DEPTH_ZERO).length);
 			return true;
 		});
+		IMarker[] hintMarkers = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_HINT_MARKER_TYPE, false,
+				IResource.DEPTH_ZERO);
+		assertEquals(1, hintMarkers.length);
+		assertEquals(hint, hintMarkers[0].getAttribute(LSPDiagnosticsToMarkers.LSP_DIAGNOSTIC));
+		assertEquals(IMarker.SEVERITY_INFO, MarkerUtilities.getSeverity(hintMarkers[0]));
+
+		AnnotationTypeLookup lookup = EditorsUI.getAnnotationTypeLookup();
+		assertEquals(LSPDiagnosticsToMarkers.HINT_ANNOTATION_TYPE, lookup.getAnnotationType(hintMarkers[0]));
+		IMarker errorMarker = file.findMarkers(LSPDiagnosticsToMarkers.LS_DIAGNOSTIC_MARKER_TYPE, false,
+				IResource.DEPTH_ZERO)[0];
+		assertEquals("org.eclipse.ui.workbench.texteditor.error", lookup.getAnnotationType(errorMarker));
+
+		// No icon in the vertical ruler, so the ruler hover does not list the hint
+		AnnotationPreference preference = EditorsUI.getAnnotationPreferenceLookup()
+				.getAnnotationPreference(LSPDiagnosticsToMarkers.HINT_ANNOTATION_TYPE);
+		assertFalse(EditorsUI.getPreferenceStore().getBoolean(preference.getVerticalRulerPreferenceKey()));
+		// The vertical ruler shows subtypes of the info type, so the hint type must not be one
+		assertFalse(new DefaultMarkerAnnotationAccess().isSubtype(LSPDiagnosticsToMarkers.HINT_ANNOTATION_TYPE,
+				"org.eclipse.ui.workbench.texteditor.info"));
+		assertTrue(EditorsUI.getPreferenceStore().getBoolean(preference.getTextPreferenceKey()));
 	}
 
 	@Test

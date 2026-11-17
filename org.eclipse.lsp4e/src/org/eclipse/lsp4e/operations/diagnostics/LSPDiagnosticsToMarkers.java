@@ -16,7 +16,6 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -58,6 +57,17 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 	public static final String LSP_DIAGNOSTIC = "lspDiagnostic"; //$NON-NLS-1$
 	public static final String LANGUAGE_SERVER_ID = "languageServerId"; //$NON-NLS-1$
 	public static final String LS_DIAGNOSTIC_MARKER_TYPE = "org.eclipse.lsp4e.diagnostic"; //$NON-NLS-1$
+	/**
+	 * Marker type for diagnostics with the severity Hint. It is a child of
+	 * {@link #LS_DIAGNOSTIC_MARKER_TYPE}.
+	 */
+	public static final String LS_DIAGNOSTIC_HINT_MARKER_TYPE = "org.eclipse.lsp4e.diagnostic.hint"; //$NON-NLS-1$
+	/**
+	 * Annotation type for diagnostics with the severity Hint. By default it shows
+	 * no icon in the vertical ruler, so a hint does not look like an info
+	 * diagnostic. Users can change this in the annotation preferences.
+	 */
+	public static final String HINT_ANNOTATION_TYPE = "org.eclipse.lsp4e.hint"; //$NON-NLS-1$
 
 	// LSP range attributes stored on markers to allow matching without computing
 	// document offsets
@@ -123,7 +133,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 				}
 			});
 			final var toAdd = new HashMap<Annotation, Position>(diagnostics.getDiagnostics().size(), 1.f);
-			withoutDuplicateHints(diagnostics.getDiagnostics()).forEach(diagnostic -> {
+			diagnostics.getDiagnostics().forEach(diagnostic -> {
 				try {
 					final var doc = sourceViewer.getDocument();
 					if (doc != null) {
@@ -183,7 +193,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 						document = LSPEclipseUtils.getDocument(resource);
 					}
 				}
-				for (Diagnostic diagnostic : withoutDuplicateHints(diagnostics.getDiagnostics())) {
+				for (Diagnostic diagnostic : diagnostics.getDiagnostics()) {
 					IMarker associatedMarker = getExistingMarkerFor(document, diagnostic, toDeleteMarkers);
 					if (associatedMarker == null) {
 						newDiagnostics.add(diagnostic);
@@ -197,7 +207,7 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 					for (Diagnostic diagnostic : newDiagnostics) {
 						if (resource.exists()) {
 							Map<String, Object> markerAttributes = computeMarkerAttributes(document, diagnostic, resource);
-							resource.createMarker(markerType, markerAttributes);
+							resource.createMarker(getMarkerType(diagnostic), markerAttributes);
 						}
 					}
 					for (Entry<IMarker, Diagnostic> entry : toUpdate.entrySet()) {
@@ -228,32 +238,13 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 	}
 
 	/**
-	 * Removes hints that repeat the text of a stronger diagnostic on the same line.
-	 * For example, rust-analyzer sends a hint at the macro call for an error in the
-	 * macro arguments. Without this filter, the line has two markers with the same
-	 * text. A hint with data stays, because a quick fix can need it.
+	 * A hint gets its own marker type, so that its annotation is not an info
+	 * annotation. A custom marker type stays the same for all severities.
 	 */
-	List<Diagnostic> withoutDuplicateHints(List<Diagnostic> diagnostics) {
-		final var result = new ArrayList<Diagnostic>(diagnostics.size());
-		for (Diagnostic diagnostic : diagnostics) {
-			if (diagnostic.getSeverity() != DiagnosticSeverity.Hint || diagnostic.getData() != null
-					|| !hasStrongerTwin(diagnostic, diagnostics)) {
-				result.add(diagnostic);
-			}
-		}
-		return result;
-	}
-
-	private boolean hasStrongerTwin(Diagnostic hint, List<Diagnostic> diagnostics) {
-		final String hintMessage = markerAttributeComputer.computeMarkerMessage(hint);
-		for (Diagnostic other : diagnostics) {
-			if (other.getSeverity() != DiagnosticSeverity.Hint
-					&& other.getRange().getStart().getLine() == hint.getRange().getStart().getLine()
-					&& hintMessage.equals(markerAttributeComputer.computeMarkerMessage(other))) {
-				return true;
-			}
-		}
-		return false;
+	private String getMarkerType(Diagnostic diagnostic) {
+		return diagnostic.getSeverity() == DiagnosticSeverity.Hint && LS_DIAGNOSTIC_MARKER_TYPE.equals(markerType)
+				? LS_DIAGNOSTIC_HINT_MARKER_TYPE
+				: markerType;
 	}
 
 	protected void updateMarker(Map<String, Object> targetAttributes, IMarker marker) {
@@ -275,9 +266,10 @@ public class LSPDiagnosticsToMarkers implements Consumer<PublishDiagnosticsParam
 				continue;
 			}
 			try {
-				// Always require same server and same user-visible message
+				// Always require same server, same user-visible message and same marker type
 				if (!languageServerId.equals(marker.getAttribute(LANGUAGE_SERVER_ID))
-						|| !markerMessage.equals(marker.getAttribute(IMarker.MESSAGE))) {
+						|| !markerMessage.equals(marker.getAttribute(IMarker.MESSAGE))
+						|| !getMarkerType(diagnostic).equals(marker.getType())) {
 					continue;
 				}
 				if (document != null) {
