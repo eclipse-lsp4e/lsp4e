@@ -110,6 +110,35 @@ public class GhostTextModelTest {
 		}
 
 		@Test
+		void insertedTextCloseToTheSuggestion() {
+			// one character in five may differ
+			assertTrue(GhostTextComputer.isNearMatch("hallo", "hello world"));
+			assertTrue(GhostTextComputer.isNearMatch("hxllo wxrld", "hello world"));
+			assertFalse(GhostTextComputer.isNearMatch("hxxlo", "hello world"));
+			assertFalse(GhostTextComputer.isNearMatch("hall", "hello world"));
+			// a missing or an added character is one difference
+			assertTrue(GhostTextComputer.isNearMatch("helo world", "hello world"));
+			// only the start of the longer text is compared
+			assertTrue(GhostTextComputer.isNearMatch("hallo there", "hello"));
+			// case counts
+			assertTrue(GhostTextComputer.isNearMatch("Hello", "hello"));
+			assertFalse(GhostTextComputer.isNearMatch("HELLO", "hello"));
+		}
+
+		@Test
+		void insertedTextThatIsNotCloseToTheSuggestion() {
+			// the start of the suggestion itself is typing through it
+			assertFalse(GhostTextComputer.isNearMatch("hello", "hello world"));
+			assertFalse(GhostTextComputer.isNearMatch("hello world", "hello"));
+			// a single character either is the start of the suggestion or is not
+			assertFalse(GhostTextComputer.isNearMatch("x", "hello"));
+			assertFalse(GhostTextComputer.isNearMatch("", "hello"));
+			assertFalse(GhostTextComputer.isNearMatch("hello", ""));
+			final String longText = "a".repeat(1001);
+			assertFalse(GhostTextComputer.isNearMatch("b" + longText, "c" + longText));
+		}
+
+		@Test
 		void typedTextNotMatchingHidesTheGhost() {
 			assertNull(ghost("hello x", 7, 5, 7, candidate(5, 5, " world")));
 		}

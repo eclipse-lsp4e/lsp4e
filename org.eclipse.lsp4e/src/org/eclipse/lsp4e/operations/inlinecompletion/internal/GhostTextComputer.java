@@ -85,6 +85,48 @@ public final class GhostTextComputer {
 		}
 	}
 
+	/** Longer texts are not compared: the comparison takes time and memory by the square of the length. */
+	private static final int NEAR_MATCH_MAX_LENGTH = 1000;
+
+	/**
+	 * Returns whether text inserted where a suggestion is shown is close to the start of the suggestion
+	 * without being it, as when the user pastes or completes much the same text instead of accepting the
+	 * suggestion. Both are cut to the length of the shorter one, and at most one character in five may
+	 * differ, by the edit distance. Case and white space count. A single character is thus never close:
+	 * it is the start of the suggestion or it is not.
+	 *
+	 * @param inserted the text inserted
+	 * @param suggestion the text of the suggestion not yet typed
+	 */
+	public static boolean isNearMatch(String inserted, String suggestion) {
+		final int length = Math.min(inserted.length(), suggestion.length());
+		if (length == 0 || length > NEAR_MATCH_MAX_LENGTH) {
+			return false;
+		}
+		final int distance = editDistance(inserted.substring(0, length), suggestion.substring(0, length));
+		return distance > 0 && distance * 5 <= length;
+	}
+
+	/** Returns the Levenshtein distance of two texts. */
+	private static int editDistance(String a, String b) {
+		int[] previous = new int[b.length() + 1];
+		int[] current = new int[b.length() + 1];
+		for (int j = 0; j <= b.length(); j++) {
+			previous[j] = j;
+		}
+		for (int i = 1; i <= a.length(); i++) {
+			current[0] = i;
+			for (int j = 1; j <= b.length(); j++) {
+				final int substitution = previous[j - 1] + (a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1);
+				current[j] = Math.min(substitution, Math.min(previous[j], current[j - 1]) + 1);
+			}
+			final int[] swap = previous;
+			previous = current;
+			current = swap;
+		}
+		return previous[b.length()];
+	}
+
 	/**
 	 * Returns whether the candidate extends the item selected in the completion popup, as the
 	 * specification requires for completions requested with a {@code selectedCompletionInfo}: it uses
