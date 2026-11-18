@@ -1952,6 +1952,60 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 	}
 
 	@Test
+	public void undoingAnAcceptDoesNotBringTheSuggestionBack(MockLanguageServerFactory factory) throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+		// the follow-up request is still waiting for its reply when the user undoes, which moves the caret
+		// and so cancels the request
+		final CompletableFuture<Void> replies = holdReplies(factory);
+		controller(viewer).accept();
+		assertEquals("hello world\n", viewer.getDocument().get());
+		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 2);
+		((ITextOperationTarget) viewer).doOperation(ITextOperationTarget.UNDO);
+		assertEquals("hello\n", viewer.getDocument().get());
+		replies.complete(null);
+		processEvents(300);
+		assertNull(controller(viewer).getShownGhostText());
+		assertEquals(2, requestCount(factory), "nothing is asked again for where the suggestion was accepted");
+	}
+
+	@Test
+	public void typingDuringAFollowUpRequestAsksAgainOnlyWhenRequestsAreAutomatic(MockLanguageServerFactory factory)
+			throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, false);
+		final ISourceViewer viewer = open(factory, "hello\n", inTurn(" world", "!", "?"));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+		CompletableFuture<Void> replies = holdReplies(factory);
+		controller(viewer).accept();
+		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 2);
+		// what was typed does not fit the reply
+		type(viewer, 'x');
+		replies.complete(null);
+		processEvents(300);
+		assertNull(controller(viewer).getShownGhostText());
+		assertEquals(2, requestCount(factory), "requests are not automatic");
+
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, true);
+		// not the automatic request after the delay
+		store.setValue(InlineCompletionPreferencePage.PREF_DELAY, 60_000);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "?");
+		replies = holdReplies(factory);
+		controller(viewer).accept();
+		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 4);
+		type(viewer, 'x');
+		replies.complete(null);
+		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 5);
+		assertEquals(InlineCompletionTriggerKind.Automatic, lastRequest(factory).getContext().getTriggerKind());
+	}
+
+	@Test
 	public void typingASuggestionToItsEndRequestsNothingWhenRequestsAreNotAutomatic(MockLanguageServerFactory factory)
 			throws Exception {
 		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
