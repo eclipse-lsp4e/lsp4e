@@ -76,6 +76,7 @@ public class LanguageServersRegistry {
 	private static final boolean DEFAULT_SINGLETON = false;
 	private static final String LAST_DOCUMENT_DISCONNECTED_TIMEOUT = "lastDocumentDisconnectedTimeout"; //$NON-NLS-1$
 	private static final int DEFAULT_LAST_DOCUMENTED_DISCONNECTED_TIEMOUT = 5;
+	private static final String CONNECT_FILE_BUFFERS_ATTRIBUTE = "connectFileBuffers"; //$NON-NLS-1$
 	private static final String CONTENT_TYPE_ATTRIBUTE = "contentType"; //$NON-NLS-1$
 	private static final String LANGUAGE_ID_ATTRIBUTE = "languageId"; //$NON-NLS-1$
 	private static final String CLASS_ATTRIBUTE = "class"; //$NON-NLS-1$
@@ -94,13 +95,25 @@ public class LanguageServersRegistry {
 		public final String label;
 		public final boolean isSingleton;
 		public final int lastDocumentDisconnectedTimeout;
+		/**
+		 * Whether the server is also connected to documents that are loaded without being shown in an editor.
+		 *
+		 * @since 0.20
+		 */
+		public final boolean connectFileBuffers;
 		public final Map<IContentType, String> languageIdMappings;
 
 		LanguageServerDefinition(String id, String label, boolean isSingleton, int lastDocumentDisconnectedTimeout) {
+			this(id, label, isSingleton, lastDocumentDisconnectedTimeout, false);
+		}
+
+		LanguageServerDefinition(String id, String label, boolean isSingleton, int lastDocumentDisconnectedTimeout,
+				boolean connectFileBuffers) {
 			this.id = id;
 			this.label = label;
 			this.isSingleton = isSingleton;
 			this.lastDocumentDisconnectedTimeout = lastDocumentDisconnectedTimeout;
+			this.connectFileBuffers = connectFileBuffers;
 			this.languageIdMappings = new ConcurrentHashMap<>();
 		}
 
@@ -158,7 +171,9 @@ public class LanguageServersRegistry {
 		}
 
 		public ExtensionLanguageServerDefinition(IConfigurationElement element) {
-			super(element.getAttribute(ID_ATTRIBUTE), element.getAttribute(LABEL_ATTRIBUTE), getIsSingleton(element), getLastDocumentDisconnectedTimeout(element));
+			super(element.getAttribute(ID_ATTRIBUTE), element.getAttribute(LABEL_ATTRIBUTE), getIsSingleton(element),
+					getLastDocumentDisconnectedTimeout(element),
+					Boolean.parseBoolean(element.getAttribute(CONNECT_FILE_BUFFERS_ATTRIBUTE)));
 			this.extension = element;
 		}
 
