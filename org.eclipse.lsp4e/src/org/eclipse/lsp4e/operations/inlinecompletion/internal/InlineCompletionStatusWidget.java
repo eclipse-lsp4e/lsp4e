@@ -29,6 +29,7 @@ import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
+import org.eclipse.swt.widgets.ToolBar;
 import org.eclipse.ui.IPartListener2;
 import org.eclipse.ui.IWorkbenchPartReference;
 import org.eclipse.ui.IWorkbenchWindow;
@@ -73,6 +74,7 @@ public class InlineCompletionStatusWidget extends WorkbenchWindowControlContribu
 
 	@Override
 	protected Control createControl(Composite parent) {
+		redrawHostingToolBar(parent);
 		final var control = new CLabel(parent, SWT.NONE);
 		label = control;
 		control.setMargins(2, 0, 2, 0);
@@ -106,6 +108,23 @@ public class InlineCompletionStatusWidget extends WorkbenchWindowControlContribu
 		});
 		update();
 		return control;
+	}
+
+	/**
+	 * The tool bar creates the item hosting the control while it does not redraw, and on Windows it then
+	 * sizes the item as a button with neither text nor image, too small for the icon. Lets it redraw while
+	 * the item is created, and afterwards restores the balance of the calls to {@link Control#setRedraw}.
+	 */
+	private static void redrawHostingToolBar(Composite parent) {
+		final Composite host = parent instanceof ToolBar ? parent : parent.getParent();
+		if (host instanceof ToolBar toolBar) {
+			toolBar.setRedraw(true);
+			toolBar.getDisplay().asyncExec(() -> {
+				if (!toolBar.isDisposed()) {
+					toolBar.setRedraw(false);
+				}
+			});
+		}
 	}
 
 	private MenuManager createMenuManager() {
