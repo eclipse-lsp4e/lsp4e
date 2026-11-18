@@ -317,4 +317,62 @@ public class InlineCompletionEventsTest extends AbstractTestWithProject {
 		processEvents(200);
 		assertFalse(kinds(uri).contains(ACCEPT_EDIT));
 	}
+
+	/** Inserts text at the caret in one change, as pasting it or applying another completion does. */
+	private static void insert(ISourceViewer viewer, String text) throws Exception {
+		final int caret = viewer.getSelectedRange().x;
+		viewer.getDocument().replace(caret, 0, text);
+		setCaret(viewer, caret + text.length());
+		processEvents(0);
+	}
+
+	@Test
+	public void insertingTextCloseToTheSuggestionIsReported(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " world");
+		insert(viewer, " wurld");
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_EDIT);
+		assertEquals(" wurld", last(uri).text());
+		assertNotNull(last(uri).elapsedTime());
+		assertEquals(1, events(uri).stream().map(InlineCompletionEvent::uuid).distinct().count());
+		waitForNoGhost(viewer);
+	}
+
+	@Test
+	public void insertingTextCloseToTheRestOfATypedSuggestionIsReported(MockLanguageServerFactory factory)
+			throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " world");
+		type(viewer, ' ');
+		waitForGhostText(viewer, "world");
+		insert(viewer, "wurld");
+		waitForKinds(uri, FETCH_FIRST, VIEW, ACCEPT_EDIT);
+		assertEquals("wurld", last(uri).text());
+	}
+
+	@Test
+	public void insertingOtherTextIsNotReported(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", params -> Either.forLeft(List.of(item(" world"))));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " world");
+		insert(viewer, " there");
+		processEvents(200);
+		assertFalse(kinds(uri).contains(ACCEPT_EDIT));
+	}
+
+	@Test
+	public void insertingTheStartOfTheSuggestionKeepsShowingTheRest(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", items(item(" world")));
+		final URI uri = uri(viewer);
+		setCaret(viewer, 5);
+		showAndView(viewer, " world");
+		insert(viewer, " wor");
+		waitForGhostText(viewer, "ld");
+		assertEquals(List.of(FETCH_FIRST, VIEW), kinds(uri));
+	}
 }

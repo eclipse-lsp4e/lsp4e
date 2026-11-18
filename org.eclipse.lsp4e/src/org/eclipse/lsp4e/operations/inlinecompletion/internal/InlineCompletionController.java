@@ -1115,6 +1115,11 @@ public final class InlineCompletionController {
 		final String text = event.getText() == null ? "" : event.getText(); //$NON-NLS-1$
 		final EditKind kind = EditKind.classify(caretBeforeChange, event.getOffset(), event.getLength(), text);
 		final InlineCompletionSession current = session;
+		final Snapshot shown = snapshot;
+		// text inserted where the ghost text is shown that is close to it, see afterDocumentChanged
+		final String nearMatch = kind == EditKind.TYPE_AT_CARET && current != null && !current.isSelectionBound()
+				&& shown != null && shown.caret() == caretBeforeChange && shown.ghost().anchor() == event.getOffset()
+				&& GhostTextComputer.isNearMatch(text, shown.ghost().text()) ? text : null;
 		if (current != null) {
 			if (current.isSelectionBound()) {
 				// keep the candidates in case this change is the application of the selected proposal
@@ -1136,19 +1141,28 @@ public final class InlineCompletionController {
 			}
 		}
 		final boolean userEdit = kind.triggersAutomatically() && !undoRedoInProgress && !saving;
-		display.asyncExec(() -> afterDocumentChanged(userEdit));
+		display.asyncExec(() -> afterDocumentChanged(userEdit, nearMatch));
 	}
 
-	private void afterDocumentChanged(boolean userEdit) {
+	/**
+	 * @param nearMatch the text inserted if it is close to the suggestion that was shown, see
+	 *            {@link GhostTextComputer#isNearMatch}
+	 */
+	private void afterDocumentChanged(boolean userEdit, @Nullable String nearMatch) {
 		changeInProgress = false;
 		if (disposed) {
 			return;
 		}
+		final RequestInfo info = sessionInfo;
 		final boolean typedCompletion = userEdit && fireIfTypedCompletion();
 		if (session != null && show()) {
 			return;
 		}
 		endSession();
+		if (userEdit && nearMatch != null && info != null && !typedCompletion) {
+			// the user wrote much the same as the suggestion, which ends it: that counts as taking it over
+			info.fire(InlineCompletionEventKind.ACCEPT_EDIT, nearMatch, info.takeTimeSinceView());
+		}
 		if (userEdit && !(typedCompletion && requestFollowUp(InlineCompletionTriggerKind.Automatic))) {
 			scheduleAutomaticRequest();
 		}
