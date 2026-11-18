@@ -192,7 +192,11 @@ public class InlineCompletionStatusWidgetTest extends AbstractTestWithProject {
 		final var labels = new ArrayList<CLabel>();
 		collectStatusLabels(UI.getActiveShell(), labels);
 		assertEquals(1, labels.size(), labels.toString());
-		assertTrue(labels.get(0).getVisible());
+		final CLabel label = labels.get(0);
+		assertTrue(label.getVisible());
+		final int imageHeight = label.getImage().getBounds().height;
+		waitForAndAssertCondition(TIMEOUT, () -> assertTrue(label.getSize().y >= imageHeight,
+				"the icon is clipped: " + label.getSize() + " for an image of height " + imageHeight));
 	}
 
 	private static void collectStatusLabels(Composite parent, List<CLabel> labels) {
