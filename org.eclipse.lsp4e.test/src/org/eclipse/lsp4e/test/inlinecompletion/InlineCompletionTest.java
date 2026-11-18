@@ -144,6 +144,8 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 	public void setUpPreferences() {
 		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, true);
 		store.setValue(InlineCompletionPreferencePage.PREF_DELAY, 20);
+		// what follows a used up suggestion has tests of its own
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, false);
 		genericEditorStore.setValue(AUTO_ACTIVATION, false);
 		genericEditorStore.setValue(AUTO_ACTIVATION_ON_TYPE, false);
 	}
@@ -152,6 +154,7 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 	public void resetPreferences() {
 		store.setToDefault(InlineCompletionPreferencePage.PREF_AUTOMATIC);
 		store.setToDefault(InlineCompletionPreferencePage.PREF_DELAY);
+		store.setToDefault(InlineCompletionPreferencePage.PREF_FOLLOW_UP);
 		genericEditorStore.setToDefault(AUTO_ACTIVATION);
 		genericEditorStore.setToDefault(AUTO_ACTIVATION_ON_TYPE);
 	}
@@ -1865,5 +1868,116 @@ public class InlineCompletionTest extends AbstractTestWithProject {
 		controller(viewer).dismiss();
 		assertNull(InlineCompletionPopup.getShownMessage());
 		assertEquals(shellsBefore, shells());
+	}
+
+	// ---- the request that follows a used up suggestion ---------------------------------------------
+
+	/** Answers the first request with the first text, the second with the second, and so on, then with nothing. */
+	private static Function<InlineCompletionParams, Either<List<InlineCompletionItem>, InlineCompletionList>> inTurn(
+			String... texts) {
+		final var requests = new AtomicInteger();
+		return params -> {
+			final int request = requests.getAndIncrement();
+			return Either.forLeft(request < texts.length ? List.of(item(texts[request])) : List.of());
+		};
+	}
+
+	@Test
+	public void acceptingRequestsTheNextSuggestionAtOnce(MockLanguageServerFactory factory) throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		// asked for by the user: also when requests are not automatic
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, false);
+		final ISourceViewer viewer = open(factory, "hello\n", inTurn(" world", "!"));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+		controller(viewer).accept();
+		assertEquals("hello world\n", viewer.getDocument().get());
+		waitForGhostText(viewer, "!");
+		assertEquals(2, requestCount(factory));
+		assertEquals(InlineCompletionTriggerKind.Invoked, lastRequest(factory).getContext().getTriggerKind());
+		assertEquals(new Position(0, 11), lastRequest(factory).getPosition());
+
+		// nothing follows the second suggestion, which is not worth a message
+		controller(viewer).accept();
+		assertEquals("hello world!\n", viewer.getDocument().get());
+		waitForAndAssertCondition(TIMEOUT, () -> requestCount(factory) == 3);
+		processEvents(200);
+		assertNull(controller(viewer).getShownGhostText());
+		assertFalse(controller(viewer).isNoSuggestionsShown());
+	}
+
+	@Test
+	public void acceptingRequestsNothingWithoutThePreference(MockLanguageServerFactory factory) throws Exception {
+		final ISourceViewer viewer = open(factory, "hello\n", inTurn(" world", "!"));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " world");
+		controller(viewer).accept();
+		processEvents(300);
+		assertEquals(1, requestCount(factory));
+		assertNull(controller(viewer).getShownGhostText());
+	}
+
+	@Test
+	public void onlyTheLastPartAcceptedRequestsTheNextSuggestion(MockLanguageServerFactory factory) throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		final ISourceViewer viewer = open(factory, "\n", inTurn("a\nb", "c"));
+		setCaret(viewer, 0);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "a\nb");
+		controller(viewer).acceptNextLine();
+		waitForGhostText(viewer, "b");
+		processEvents(300);
+		assertEquals(1, requestCount(factory), "the rest of the suggestion is still shown");
+		controller(viewer).acceptNextLine();
+		assertEquals("a\nb\n", viewer.getDocument().get());
+		waitForGhostText(viewer, "c");
+		assertEquals(InlineCompletionTriggerKind.Invoked, lastRequest(factory).getContext().getTriggerKind());
+	}
+
+	@Test
+	public void typingASuggestionToItsEndRequestsTheNextOneAtOnce(MockLanguageServerFactory factory) throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		// not the automatic request after the delay
+		store.setValue(InlineCompletionPreferencePage.PREF_DELAY, 5_000);
+		final ISourceViewer viewer = open(factory, "hello\n", inTurn(" you", "!"));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " you");
+		type(viewer, " you");
+		waitForGhostText(viewer, "!");
+		assertEquals(2, requestCount(factory));
+		assertEquals(InlineCompletionTriggerKind.Automatic, lastRequest(factory).getContext().getTriggerKind());
+	}
+
+	@Test
+	public void typingASuggestionToItsEndRequestsNothingWhenRequestsAreNotAutomatic(MockLanguageServerFactory factory)
+			throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, false);
+		final ISourceViewer viewer = open(factory, "hello\n", inTurn(" you", "!"));
+		setCaret(viewer, 5);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, " you");
+		type(viewer, " you");
+		processEvents(300);
+		assertEquals(1, requestCount(factory));
+	}
+
+	@Test
+	public void noSuggestionIsRequestedWhileASnippetsPlaceholdersAreEdited(MockLanguageServerFactory factory)
+			throws Exception {
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, true);
+		final var snippet = new InlineCompletionItem();
+		snippet.setInsertText(new StringValue(StringValueKind.SNIPPET, "foo(${1:a}, ${2:b})$0"));
+		final ISourceViewer viewer = open(factory, "\n", items(snippet));
+		setCaret(viewer, 0);
+		controller(viewer).trigger();
+		waitForGhostText(viewer, "foo(a, b)");
+		controller(viewer).accept();
+		assertTrue(LinkedModeModel.hasInstalledModel(viewer.getDocument()));
+		processEvents(300);
+		assertEquals(1, requestCount(factory));
 	}
 }

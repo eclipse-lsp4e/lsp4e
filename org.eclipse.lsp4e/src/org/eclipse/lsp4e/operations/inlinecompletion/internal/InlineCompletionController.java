@@ -216,6 +216,8 @@ public final class InlineCompletionController {
 		/** Whether a server with the capability got this request. */
 		boolean reachedServer;
 		boolean failed;
+		/** Whether this request follows a suggestion the user used up, see {@link #requestFollowUp}. */
+		boolean followUp;
 		private @Nullable Document sentDocument;
 
 		PendingRequest(RequestInfo info, String text, int caret, InlineCompletionTriggerKind triggerKind,
@@ -699,6 +701,7 @@ public final class InlineCompletionController {
 			return;
 		}
 		final IRewriteTarget rewriteTarget = editor == null ? null : editor.getAdapter(IRewriteTarget.class);
+		boolean accepted = false;
 		applying = true;
 		if (rewriteTarget != null) {
 			rewriteTarget.beginCompoundChange();
@@ -725,6 +728,7 @@ public final class InlineCompletionController {
 			if (info != null) {
 				info.fire(kind, ghost.text(), info.takeTimeSinceView());
 			}
+			accepted = true;
 		} catch (BadLocationException e) {
 			LanguageServerPlugin.logError(e);
 		} finally {
@@ -733,6 +737,32 @@ public final class InlineCompletionController {
 			}
 			applying = false;
 		}
+		if (accepted) {
+			// asked for by the user, like the accepted suggestion: also when requests are not automatic
+			requestFollowUp(InlineCompletionTriggerKind.Invoked);
+		}
+	}
+
+	/**
+	 * Requests what comes after a suggestion that the user used up, by accepting it or by typing it to its
+	 * end, at once rather than after the delay, if the preference asks for it. Nothing is requested while a
+	 * snippet's placeholders are edited, as for any request.
+	 *
+	 * @return whether the follow-up request stands in for the automatic request that typing schedules
+	 */
+	private boolean requestFollowUp(InlineCompletionTriggerKind triggerKind) {
+		final IPreferenceStore store = LanguageServerPlugin.getDefault().getPreferenceStore();
+		if (!store.getBoolean(InlineCompletionPreferencePage.PREF_FOLLOW_UP)
+				|| triggerKind == InlineCompletionTriggerKind.Automatic
+						&& (focusLost || !store.getBoolean(InlineCompletionPreferencePage.PREF_AUTOMATIC))) {
+			return false;
+		}
+		request(triggerKind, false);
+		final PendingRequest sent = pending;
+		if (sent != null) {
+			sent.followUp = true;
+		}
+		return true;
 	}
 
 	// ---- requests ------------------------------------------------------------------------------------
@@ -896,10 +926,15 @@ public final class InlineCompletionController {
 				display.asyncExec(() -> {
 					if (!disposed && pending == null && snapshot == null) {
 						request(request.triggerKind, false);
+						final PendingRequest again = pending;
+						if (again != null) {
+							again.followUp = request.followUp;
+						}
 					}
 				});
 			}
-		} else if (request.triggerKind == InlineCompletionTriggerKind.Invoked && session == null) {
+		} else if (request.triggerKind == InlineCompletionTriggerKind.Invoked && session == null && !request.followUp) {
+			// the user did not ask for a follow-up request as such: finding nothing is not worth a message
 			setStatusMessage(Messages.InlineCompletion_noSuggestions);
 			noSuggestionsShown = true;
 		}
@@ -1109,20 +1144,22 @@ public final class InlineCompletionController {
 		if (disposed) {
 			return;
 		}
-		if (userEdit) {
-			fireIfTypedCompletion();
-		}
+		final boolean typedCompletion = userEdit && fireIfTypedCompletion();
 		if (session != null && show()) {
 			return;
 		}
 		endSession();
-		if (userEdit) {
+		if (userEdit && !(typedCompletion && requestFollowUp(InlineCompletionTriggerKind.Automatic))) {
 			scheduleAutomaticRequest();
 		}
 	}
 
-	/** Reports it when what the user typed is the suggestion, rather than accepting it. */
-	private void fireIfTypedCompletion() {
+	/**
+	 * Reports it when what the user typed is the suggestion, rather than accepting it.
+	 *
+	 * @return whether the user typed the suggestion to its end
+	 */
+	private boolean fireIfTypedCompletion() {
 		final InlineCompletionSession current = session;
 		final RequestInfo info = sessionInfo;
 		final IDocument doc = document;
@@ -1130,8 +1167,10 @@ public final class InlineCompletionController {
 			final String typed = current.typedCompletion(doc, caretOffset());
 			if (typed != null) {
 				info.fire(InlineCompletionEventKind.ACCEPT_EDIT, typed, info.takeTimeSinceView());
+				return true;
 			}
 		}
+		return false;
 	}
 
 	// ---- showing -------------------------------------------------------------------------------------
@@ -1763,6 +1802,11 @@ public final class InlineCompletionController {
 			}
 		}
 		return List.of();
+	}
+
+	/** Returns whether the status line says that an explicit request found nothing; for tests. */
+	public boolean isNoSuggestionsShown() {
+		return noSuggestionsShown;
 	}
 
 	/** Returns whether the ghost text shown has been drawn; for tests. */
