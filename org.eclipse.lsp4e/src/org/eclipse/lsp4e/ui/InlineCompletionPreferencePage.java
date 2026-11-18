@@ -25,6 +25,8 @@ public class InlineCompletionPreferencePage extends FieldEditorPreferencePage im
 	public static final String PREF_AUTOMATIC = "inlineCompletion.automatic"; //$NON-NLS-1$
 	/** How long to wait after typing before requesting inline completions, in milliseconds. */
 	public static final String PREF_DELAY = "inlineCompletion.delay"; //$NON-NLS-1$
+	/** Whether the next inline completion is requested as soon as one is accepted or typed to its end. */
+	public static final String PREF_FOLLOW_UP = "inlineCompletion.followUp"; //$NON-NLS-1$
 
 	public static final class PreferenceInitializer extends AbstractPreferenceInitializer {
 		@Override
@@ -32,6 +34,7 @@ public class InlineCompletionPreferencePage extends FieldEditorPreferencePage im
 			final var store = LanguageServerPlugin.getDefault().getPreferenceStore();
 			store.setDefault(PREF_AUTOMATIC, true);
 			store.setDefault(PREF_DELAY, 150);
+			store.setDefault(PREF_FOLLOW_UP, true);
 		}
 	}
 
@@ -44,6 +47,7 @@ public class InlineCompletionPreferencePage extends FieldEditorPreferencePage im
 	public void createFieldEditors() {
 		final Composite parent = getFieldEditorParent();
 		addField(new BooleanFieldEditor(PREF_AUTOMATIC, Messages.PreferencesPage_inlineCompletionAutomatic, parent));
+		addField(new BooleanFieldEditor(PREF_FOLLOW_UP, Messages.PreferencesPage_inlineCompletionFollowUp, parent));
 		final var delay = new IntegerFieldEditor(PREF_DELAY, Messages.PreferencesPage_inlineCompletionDelay, parent);
 		delay.setValidRange(0, 5000);
 		addField(delay);

@@ -50,6 +50,7 @@ public final class Messages extends NLS {
 	public static String PreferencesPage_enableOnTypeFormatting;
 	public static String PreferencesPage_inlineCompletionAutomatic;
 	public static String PreferencesPage_inlineCompletionDelay;
+	public static String PreferencesPage_inlineCompletionFollowUp;
 	public static String InlineCompletion_status;
 	public static String InlineCompletion_moreLines;
 	public static String InlineCompletion_noSuggestions;

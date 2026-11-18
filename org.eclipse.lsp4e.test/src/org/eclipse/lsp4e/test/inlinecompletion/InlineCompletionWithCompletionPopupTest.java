@@ -57,12 +57,15 @@ public class InlineCompletionWithCompletionPopupTest extends AbstractTestWithPro
 	public void setUpPreferences() {
 		store.setValue(InlineCompletionPreferencePage.PREF_AUTOMATIC, true);
 		store.setValue(InlineCompletionPreferencePage.PREF_DELAY, 20);
+		// what follows a used up suggestion has tests of its own
+		store.setValue(InlineCompletionPreferencePage.PREF_FOLLOW_UP, false);
 	}
 
 	@AfterEach
 	public void resetPreferences() {
 		store.setToDefault(InlineCompletionPreferencePage.PREF_AUTOMATIC);
 		store.setToDefault(InlineCompletionPreferencePage.PREF_DELAY);
+		store.setToDefault(InlineCompletionPreferencePage.PREF_FOLLOW_UP);
 	}
 
 	private static CompletionItem completion(String label, String newText, int startCharacter, int endCharacter) {
