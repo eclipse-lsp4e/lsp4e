@@ -418,9 +418,7 @@ public class LanguageServiceAccessor {
 						startedServers.add(w);
 						return w;
 					});
-			if (!wrapper.isActive()) {
-				wrapper.start();
-			}
+			wrapper.start();
 			return wrapper;
 		}
 	}
