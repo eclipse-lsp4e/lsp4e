@@ -186,10 +186,9 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 
 		// Simulate that the user has typed a new name in the primary linked position.
 		// We update the document and the internal LinkedPosition that scheduleRenameJob
-		// reads.
-		int delta = typedName.length() - idLength;
+		// reads. Only the primary position changes: scheduleRenameJob() restores only
+		// that one, and the WorkspaceEdit above is for the original document.
 		document.replace(firstOffset, idLength, typedName);
-		document.replace(secondOffset + delta, idLength, typedName);
 
 		var linkedPosField = LSPInlineRenameLinkedMode.class.getDeclaredField("linkedPosition");
 		linkedPosField.setAccessible(true);
@@ -203,7 +202,10 @@ class LSPInlineRenameLinkedModeTest extends AbstractTestWithProject {
 		schedule.setAccessible(true);
 		schedule.invoke(mode);
 
+		// Wait for the rename request too. If the test ends before the rename job runs,
+		// the job runs during the next test and starts a language server in it.
 		waitForAndAssertCondition("Inline rename workspace edit not applied", 5_000, () -> {
+			assertEquals(1, factory.getServer().getTextDocumentService().renameRequests.get());
 			assertEquals(typedName + "();\n" + typedName + "();", document.get());
 			return true;
 		});

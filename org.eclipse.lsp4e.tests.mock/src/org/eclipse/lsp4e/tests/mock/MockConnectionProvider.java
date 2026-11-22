@@ -58,9 +58,18 @@ public class MockConnectionProvider implements StreamConnectionProvider {
 	private static ExecutorService testRunner = Executors
 			.newCachedThreadPool(Thread.ofVirtual().name("MockLanguageServerListener-", 1).factory());
 
+	/**
+	 * The factory of the test that created this provider. A language server of an
+	 * earlier test can stop after the next test has started, and then it must not
+	 * count in the factory of the next test.
+	 */
+	private final MockLanguageServerFactory owner = factory;
+	private volatile boolean started;
+
 	@Override
 	public void start() throws IOException {
-		factory.connectionProviderStartCounter.incrementAndGet();
+		started = true;
+		owner.connectionProviderStartCounter.incrementAndGet();
 
 		Pipe serverOutputToClientInput = Pipe.open();
 		Pipe clientOutputToServerInput = Pipe.open();
@@ -69,7 +78,7 @@ public class MockConnectionProvider implements StreamConnectionProvider {
 		InputStream serverInputStream = Channels.newInputStream(clientOutputToServerInput.source());
 		OutputStream serverOutputStream = Channels.newOutputStream(serverOutputToClientInput.sink());
 
-		var server = factory.create(serverOutputStream);
+		var server = owner.create(serverOutputStream);
 
 		Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, serverInputStream,
 				serverOutputStream, testRunner, Function.identity());
@@ -102,7 +111,14 @@ public class MockConnectionProvider implements StreamConnectionProvider {
 
 	@Override
 	public void stop() {
-		factory.connectionProviderStopCounter.incrementAndGet();
+		// LanguageServerWrapper can stop a provider two times: when a stop cancels the
+		// initialization, the initialization shuts down the context again. Count only
+		// the first stop of a started provider.
+		if (!started) {
+			return;
+		}
+		started = false;
+		owner.connectionProviderStopCounter.incrementAndGet();
 
 		streams.forEach(t -> {
 			try {
@@ -124,10 +140,10 @@ public class MockConnectionProvider implements StreamConnectionProvider {
 	@Override
 	public void handleMessage(Message message, LanguageServer languageServer, @Nullable URI rootURI) {
 		if (message instanceof RequestMessage request) {
-			factory.requestMethods.put(request.getId(), request.getMethod());
+			owner.requestMethods.put(request.getId(), request.getMethod());
 		}
 		if (message.toString().contains("cancelRequest")) {
-			factory.cancellations.add(message);
+			owner.cancellations.add(message);
 		}
 		StreamConnectionProvider.super.handleMessage(message, languageServer, rootURI);
 	}

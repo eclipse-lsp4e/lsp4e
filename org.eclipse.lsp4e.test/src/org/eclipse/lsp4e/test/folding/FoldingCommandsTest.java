@@ -82,11 +82,14 @@ public class FoldingCommandsTest {
 		TestUtils.waitForAndAssertCondition(MAX_WAIT_MS, () -> countAnnotations(model) == 2);
 		assertEquals(2, countAnnotations(model));
 
-		// Execute "Fold All"
+		// Execute "Fold All". A folding annotation folds only after the ruler painted it
+		// (see FoldingAnnotation.markCollapsed), and the reconcile started above can
+		// replace the annotations, so run the command again until both are folded.
 		IHandlerService handlerService = PlatformUI.getWorkbench().getService(IHandlerService.class);
-		handlerService.executeCommand("org.eclipse.lsp4e.folding.collapseAll", null);
-
-		TestUtils.waitForAndAssertCondition(MAX_WAIT_MS, () -> countCollapsed(model) == 2);
+		TestUtils.waitForAndAssertCondition(MAX_WAIT_MS, () -> {
+			handlerService.executeCommand("org.eclipse.lsp4e.folding.collapseAll", null);
+			return countCollapsed(model) == 2;
+		});
 		assertEquals(2, countCollapsed(model));
 
 		// Execute "Unfold All"
