@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.core.filesystem.EFS;
 import org.eclipse.core.resources.IFile;
@@ -29,9 +30,11 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
+import org.eclipse.jface.text.ITextOperationTarget;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.contentassist.BoldStylerProvider;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
+import org.eclipse.jface.text.source.ISourceViewer;
 import org.eclipse.jface.viewers.StyledString;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerWrapper;
@@ -731,5 +734,115 @@ public class IncompleteCompletionTest extends AbstractCompletionTest {
 		final var incompleIndicatingProcessor = new LSContentAssistProcessor(true, true);
 		ICompletionProposal[] proposalsWithIncompleteProposal = incompleIndicatingProcessor.computeCompletionProposals(viewer, 0);
 		assertEquals(0, proposalsWithIncompleteProposal.length);
+	}
+
+	/**
+	 * The text in the range of the text edit must match the filter text, not only
+	 * the end of that text. rust-analyzer gives "pub(crate)" for the start of a
+	 * struct field, with a range that covers the typed "na": "a" is in "crate", but
+	 * "na" is not.
+	 */
+	@Test
+	public void testFilterUsesAllReplacedText(MockLanguageServerFactory factory) throws CoreException {
+		final var replacedRange = new Range(new Position(0, 0), new Position(0, 2));
+		final var items = List.of(createCompletionItem("pub(crate)", CompletionItemKind.Keyword, replacedRange),
+				createCompletionItem("name", CompletionItemKind.Field, replacedRange));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(true, items));
+		});
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "na"));
+
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 2);
+		assertEquals(1, proposals.length);
+		assertEquals("name", proposals[0].getDisplayString());
+	}
+
+	/**
+	 * Content assist computes the proposals again for each typed character while
+	 * the list is incomplete. After a typed "," the server gives proposals for a
+	 * new word, like "pub(crate)" for the next struct field. These must not show,
+	 * so that the popup closes, as it does for a complete list.
+	 */
+	@Test
+	public void testNoProposalsForNewWordWhenIncompleteListContinues(MockLanguageServerFactory factory)
+			throws CoreException {
+		final var items = List.of(
+				createCompletionItem("name", CompletionItemKind.Field, new Range(new Position(0, 0), new Position(0, 2))),
+				createCompletionItem("pub(crate)", CompletionItemKind.Keyword,
+						new Range(new Position(0, 3), new Position(0, 3))));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(true, items));
+		});
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "na,"));
+
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 2);
+		assertEquals(1, proposals.length);
+		assertEquals("name", proposals[0].getDisplayString());
+
+		// The same session continues after the typed ","
+		proposals = contentAssistProcessor.computeCompletionProposals(viewer, 3);
+		assertEquals(0, proposals.length);
+
+		// A new session after "," (for example Ctrl+Space) still gives the proposals
+		// for the new word
+		proposals = new LSContentAssistProcessor(true, false).computeCompletionProposals(viewer, 3);
+		assertEquals(1, proposals.length);
+		assertEquals("pub(crate)", proposals[0].getDisplayString());
+	}
+
+	/**
+	 * A new content assist session, for example Ctrl+Space, ends the incomplete
+	 * list of the previous session, so the proposals for a new word show again.
+	 */
+	@Test
+	public void testNewSessionShowsProposalsForNewWord(MockLanguageServerFactory factory) throws CoreException {
+		final var items = List.of(
+				createCompletionItem("name", CompletionItemKind.Field, new Range(new Position(0, 0), new Position(0, 2))),
+				createCompletionItem("pub(crate)", CompletionItemKind.Keyword,
+						new Range(new Position(0, 3), new Position(0, 3))));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(true, items));
+		});
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "na,"));
+
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 2);
+		assertEquals(1, proposals.length);
+
+		viewer.setSelectedRange(3, 0);
+		((ITextOperationTarget) viewer).doOperation(ISourceViewer.CONTENTASSIST_PROPOSALS);
+
+		proposals = contentAssistProcessor.computeCompletionProposals(viewer, 3);
+		assertEquals(1, proposals.length);
+		assertEquals("pub(crate)", proposals[0].getDisplayString());
+	}
+
+	/**
+	 * A typed trigger character starts a new completion context, so the proposals
+	 * after it show, also when the list before it was incomplete.
+	 */
+	@Test
+	public void testProposalsAfterTriggerCharacterWhenIncompleteListContinues(MockLanguageServerFactory factory)
+			throws CoreException {
+		final var items = List.of(
+				createCompletionItem("abc", CompletionItemKind.Variable, new Range(new Position(0, 0), new Position(0, 1))),
+				createCompletionItem("length", CompletionItemKind.Field,
+						new Range(new Position(0, 2), new Position(0, 2))));
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(new CompletionList(true, items));
+			server.setCompletionTriggerChars(Set.of("."));
+		});
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "a."));
+
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 1);
+		assertEquals(1, proposals.length);
+		assertEquals("abc", proposals[0].getDisplayString());
+
+		proposals = contentAssistProcessor.computeCompletionProposals(viewer, 2);
+		assertEquals(1, proposals.length);
+		assertEquals("length", proposals[0].getDisplayString());
 	}
 }

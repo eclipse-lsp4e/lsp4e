@@ -37,10 +37,14 @@ import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.IDocument;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.contentassist.CompletionProposal;
+import org.eclipse.jface.text.contentassist.ContentAssistEvent;
+import org.eclipse.jface.text.contentassist.ICompletionListener;
 import org.eclipse.jface.text.contentassist.ICompletionProposal;
 import org.eclipse.jface.text.contentassist.IContentAssistProcessor;
 import org.eclipse.jface.text.contentassist.IContextInformation;
 import org.eclipse.jface.text.contentassist.IContextInformationValidator;
+import org.eclipse.jface.text.source.ContentAssistantFacade;
+import org.eclipse.jface.text.source.ISourceViewerExtension4;
 import org.eclipse.lsp4e.LSPEclipseUtils;
 import org.eclipse.lsp4e.LanguageServerPlugin;
 import org.eclipse.lsp4e.LanguageServerWrapper;
@@ -80,6 +84,32 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 	private @Nullable CompletableFuture<List<@Nullable Void>> contextInformationLanguageServersFuture;
 	private volatile char[] contextTriggerChars = NO_CHARS;
 	private final boolean incompleteAsCompletionItem;
+
+	/**
+	 * The cursor offset of the last incomplete completion list in the current
+	 * content assist session, or -1. Content assist computes the proposals again
+	 * for each typed character while the list is incomplete. This is a restart of
+	 * the session, not a new session, so the offset stays until a session starts
+	 * or ends.
+	 */
+	private volatile int incompleteListOffset = -1;
+	private volatile @Nullable IDocument incompleteListDocument;
+	private volatile @Nullable ContentAssistantFacade listenedContentAssistant;
+	private final ICompletionListener sessionListener = new ICompletionListener() {
+		@Override
+		public void assistSessionStarted(ContentAssistEvent event) {
+			incompleteListOffset = -1;
+		}
+
+		@Override
+		public void assistSessionEnded(ContentAssistEvent event) {
+			incompleteListOffset = -1;
+		}
+
+		@Override
+		public void selectionChanged(@Nullable ICompletionProposal proposal, boolean smartToggle) {
+		}
+	};
 
 	/**
 	 * The cancellation support used to cancel previous LSP requests
@@ -133,6 +163,10 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 		if (uri == null) {
 			return NO_COMPLETION_PROPOSALS;
 		}
+
+		final boolean sessionsTracked = listenToContentAssistSessions(viewer);
+		final int previousIncompleteListOffset = incompleteListDocument == document ? incompleteListOffset : -1;
+		incompleteListOffset = -1;
 
 		initiateLanguageServers(document);
 
@@ -196,6 +230,20 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			}
 			completeProposals.add(completeProposal);
 		}
+		if (previousIncompleteListOffset >= 0
+				&& !containsTriggerCharacter(document, previousIncompleteListOffset, offset)) {
+			// The session continues an incomplete list: keep only the proposals for the
+			// same word. A proposal whose text edit starts after the cursor offset of the
+			// previous list is for a new word, for example after a typed "," or " ".
+			// Without a text edit, the start of the word is only a guess, so such
+			// proposals stay.
+			completeProposals.removeIf(proposal -> proposal.getItem().getTextEdit() != null
+					&& proposal.getBestOffset() > previousIncompleteListOffset);
+		}
+		if (sessionsTracked && anyIncomplete.get() && !completeProposals.isEmpty()) {
+			incompleteListDocument = document;
+			incompleteListOffset = offset;
+		}
 		completeProposals.sort(proposalComparator);
 		final ICompletionProposal incompleteProposal = createIncompleteProposal(offset, anyIncomplete.get());
 		if (incompleteProposal != null && !completeProposals.isEmpty()) {
@@ -208,6 +256,55 @@ public class LSContentAssistProcessor implements IContentAssistProcessor {
 			return incompleteProposals.toArray(ICompletionProposal[]::new);
 		}
 		return completeProposals.toArray(ICompletionProposal[]::new);
+	}
+
+	/**
+	 * Listens to the content assist sessions of the viewer, so that a restart of a
+	 * session for an incomplete list can be told from a new session.
+	 *
+	 * @return {@code true} if the sessions of the viewer are tracked
+	 */
+	private boolean listenToContentAssistSessions(ITextViewer viewer) {
+		if (!(viewer instanceof ISourceViewerExtension4 sourceViewer)) {
+			return false;
+		}
+		ContentAssistantFacade contentAssistant = sourceViewer.getContentAssistantFacade();
+		if (contentAssistant == null) {
+			return false;
+		}
+		// The generic editor makes one processor for each viewer, so one content
+		// assistant is enough. It changes only when the viewer is configured again.
+		synchronized (sessionListener) {
+			ContentAssistantFacade previous = listenedContentAssistant;
+			if (previous != contentAssistant) {
+				if (previous != null) {
+					previous.removeCompletionListener(sessionListener);
+				}
+				contentAssistant.addCompletionListener(sessionListener);
+				listenedContentAssistant = contentAssistant;
+			}
+		}
+		return true;
+	}
+
+	private boolean containsTriggerCharacter(IDocument document, int start, int end) {
+		// The field, and not getCompletionProposalAutoActivationCharacters(), which can
+		// switch to the document of the active editor
+		final char[] triggers = completionTriggerChars;
+		try {
+			for (int i = start; i < end; i++) {
+				char c = document.getChar(i);
+				for (char trigger : triggers) {
+					if (c == trigger) {
+						return true;
+					}
+				}
+			}
+		} catch (BadLocationException e) {
+			// The document changed: treat it as a new completion context
+			return true;
+		}
+		return false;
 	}
 
 	private ICompletionProposal[] createErrorProposal(int offset, Exception ex) {

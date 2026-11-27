@@ -898,7 +898,9 @@ public class LSCompletionProposal
 		try {
 			String documentFilter = getDocumentFilter(offset);
 			if (!documentFilter.isEmpty()) {
-				return !(isIncomplete && currentOffset != initialOffset) && CompletionProposalTools.isSubstringFoundOrderedInString(documentFilter, getFilterString());
+				return !(isIncomplete && currentOffset != initialOffset)
+						&& CompletionProposalTools.isSubstringFoundOrderedInString(documentFilter, getFilterString())
+						&& isReplacedTextMatched(document, offset);
 			} else if (item.getTextEdit() != null) {
 				return offset == LSPEclipseUtils.toOffset(getTextEditRange().getStart(), document);
 			}
@@ -906,6 +908,27 @@ public class LSCompletionProposal
 			LanguageServerPlugin.logError(e);
 		}
 		return true;
+	}
+
+	/**
+	 * For an item of an incomplete list with a text edit, the server tells which
+	 * text the item replaces. All of that text up to the cursor must then match the
+	 * filter text, as the LSP specification says, and not only the end of it.
+	 * Without this check, after "na" an item "pub(crate)" stays in the list because
+	 * "a" is in "crate". The server sends a new incomplete list for each typed
+	 * character, so an item that does not match is not useful. Items of a complete
+	 * list that do not match stay, at the end of the list.
+	 */
+	private boolean isReplacedTextMatched(IDocument document, int offset) throws BadLocationException {
+		if (!isIncomplete || item.getTextEdit() == null) {
+			return true;
+		}
+		int start = LSPEclipseUtils.toOffset(getTextEditRange().getStart(), document);
+		if (start >= offset) {
+			return true;
+		}
+		return CompletionProposalTools.isSubstringFoundOrderedInString(document.get(start, offset - start),
+				getFilterString());
 	}
 
 	@Override
