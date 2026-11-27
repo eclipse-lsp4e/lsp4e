@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2024 Red Hat Inc. and others.
+ * Copyright (c) 2016, 2026 Red Hat Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -147,7 +147,6 @@ public class LSCompletionProposal
 		this.languageServerWrapper = languageServerWrapper;
 		this.initialOffset = offset;
 		this.currentOffset = offset;
-		this.bestOffset = getPrefixCompletionStart(document, offset);
 		this.isIncomplete = isIncomplete;
 		if (defaults != null) {
 			if (item.getInsertTextFormat() == null) {
@@ -159,13 +158,17 @@ public class LSCompletionProposal
 			if (item.getInsertTextMode() == null) {
 				item.setInsertTextMode(defaults.getInsertTextMode());
 			}
-			String textEditText = item.getTextEditText();
-			if (textEditText != null && defaults.getEditRange() != null) {
+			if (item.getTextEdit() == null && defaults.getEditRange() != null) {
+				// per LSP 3.17, the label is used as text when no textEditText is provided
+				final String itemTextEditText = item.getTextEditText();
+				final String textEditText = itemTextEditText != null ? itemTextEditText : item.getLabel();
 				item.setTextEdit(defaults.getEditRange().map(
 					range -> Either.forLeft(new TextEdit(range, textEditText)),
 					insertReplaceRange -> Either.forRight(new InsertReplaceEdit(textEditText, insertReplaceRange.getInsert(), insertReplaceRange.getReplace()))));
 			}
 		}
+		// must be computed after item defaults are applied as it depends on the item's text edit
+		this.bestOffset = getPrefixCompletionStart(document, offset);
 	}
 
 	protected LSCompletionProposal(LSCompletionProposal p) {
