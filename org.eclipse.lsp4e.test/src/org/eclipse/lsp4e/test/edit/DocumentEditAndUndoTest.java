@@ -86,15 +86,20 @@ public class DocumentEditAndUndoTest extends AbstractTestWithProject {
 			}
 
 			private void type(Control control, char c) {
-				control.forceFocus();
+				// Send the key to the widget, not through the window system: display.post()
+				// goes to the window that has the focus, which is not always this one on CI
+				// machines. StyledText types the character for a KeyDown event, and its
+				// verify key listeners, such as the one of linked editing, see it.
+				control.notifyListeners(SWT.KeyDown, keyEvent(control, c));
+				control.notifyListeners(SWT.KeyUp, keyEvent(control, c));
+			}
+
+			private Event keyEvent(Control control, char c) {
 				Event keyEvent= new Event();
 				keyEvent.widget= control;
-				keyEvent.type= SWT.KeyDown;
 				keyEvent.character= c;
 				keyEvent.keyCode= c;
-				display.post(keyEvent);
-				keyEvent.type= SWT.KeyUp;
-				display.post(keyEvent);
+				return keyEvent;
 			}
 		});
 

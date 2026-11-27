@@ -601,11 +601,16 @@ public class LanguageServersTest extends AbstractTestWithProject {
 
 	@Test
 	public void testAnyMatchingIsNonBlocking(MockLanguageServerFactory factory) throws Exception {
+		// The server below answers queries after 5 seconds. A limit far below that
+		// shows that anyMatching() does not wait for an answer, and slow CI machines
+		// can still pass it: on macOS runners anyMatching() took up to 130 ms.
+		final long maxDuration = 1_000;
+
 		// test with no LS available
 		long start = System.currentTimeMillis();
 		assertFalse(LanguageServers.forProject(project).anyMatching());
 		long duration = System.currentTimeMillis() - start;
-		assertTrue(duration < 100, "LanguageServers.anyMatching() took too long: " + duration + "ms");
+		assertTrue(duration < maxDuration, "LanguageServers.anyMatching() took too long: " + duration + "ms");
 
 		// test with one slow LS available
 		factory.withConfiguration((idx, server) -> {
@@ -617,7 +622,7 @@ public class LanguageServersTest extends AbstractTestWithProject {
 		try {
 			assertTrue(LanguageServers.forProject(project).anyMatching());
 			duration = System.currentTimeMillis() - start;
-			assertTrue(duration < 100, "LanguageServers.anyMatching() took too long: " + duration + "ms");
+			assertTrue(duration < maxDuration, "LanguageServers.anyMatching() took too long: " + duration + "ms");
 		} finally {
 			editor1.getSite().getPage().closeEditor(editor1, false);
 		}

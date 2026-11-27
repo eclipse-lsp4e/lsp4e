@@ -149,6 +149,7 @@ public class MockTextDocumentService implements TextDocumentService {
 	private CompletableFuture<?> inlineCompletionGate = CompletableFuture.completedFuture(null);
 	private List<InlayHint> mockInlayHints = Collections.emptyList();
 	public final AtomicInteger inlayHintRequests = new AtomicInteger();
+	public final AtomicInteger renameRequests = new AtomicInteger();
 	public int codeActionRequests = 0;
 
 	public <U> MockTextDocumentService(Function<U, CompletableFuture<U>> futureFactory) {
@@ -288,6 +289,7 @@ public class MockTextDocumentService implements TextDocumentService {
 
 	@Override
 	public CompletableFuture<WorkspaceEdit> rename(RenameParams params) {
+		renameRequests.incrementAndGet();
 		return CompletableFuture.completedFuture(mockRenameEdit);
 	}
 
