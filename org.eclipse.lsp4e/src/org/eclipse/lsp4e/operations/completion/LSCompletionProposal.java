@@ -452,7 +452,8 @@ public class LSCompletionProposal
 				return LSPEclipseUtils.toOffset(getTextEditRange().getStart(), document);
 			}
 
-			final String insertText = getInsertText();
+			String filterText = getFilterText();
+			final String insertText = filterText != null ? filterText : getInsertText();
 			final int insertTextLength = insertText.length();
 			String subDoc = document.get(Math.max(0, completionOffset - insertTextLength),
 					Math.min(insertTextLength, completionOffset));
@@ -864,10 +865,18 @@ public class LSCompletionProposal
 	}
 
 	public String getFilterString() {
+		String filterText = getFilterText();
+		if (filterText != null) {
+			return filterText;
+		}
+		return item.getLabel();
+	}
+
+	private @Nullable String getFilterText() {
 		if (item.getFilterText() != null && !item.getFilterText().isEmpty()) {
 			return item.getFilterText();
 		}
-		return item.getLabel();
+		return null;
 	}
 
 	@Override
