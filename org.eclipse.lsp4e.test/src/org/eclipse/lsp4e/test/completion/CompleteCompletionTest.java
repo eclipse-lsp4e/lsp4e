@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, 2017 Rogue Wave Software Inc. and others.
+ * Copyright (c) 2016, 2026 Rogue Wave Software Inc. and others.
  * This program and the accompanying materials are made
  * available under the terms of the Eclipse Public License 2.0
  * which is available at https://www.eclipse.org/legal/epl-2.0/
@@ -47,6 +47,7 @@ import org.eclipse.lsp4e.tests.mock.MockLanguageServerFactory;
 import org.eclipse.lsp4e.ui.UI;
 import org.eclipse.lsp4j.Command;
 import org.eclipse.lsp4j.CompletionItem;
+import org.eclipse.lsp4j.CompletionItemDefaults;
 import org.eclipse.lsp4j.CompletionItemKind;
 import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.ExecuteCommandParams;
@@ -367,6 +368,47 @@ public class CompleteCompletionTest extends AbstractCompletionTest {
 		lsCompletionProposal.apply(viewer, '\0', 0, invokeOffset + "nc".length());
 		assertEquals(item.getInsertText(), viewer.getDocument().get());
 		assertEquals(new Point(item.getInsertText().length(), 0), lsCompletionProposal.getSelection(viewer.getDocument()));
+	}
+
+	@Test
+	public void testItemDefaultsEditRangeStartingBeforeOffset(MockLanguageServerFactory factory) throws CoreException {
+		// like typescript-language-server for member completion: the edit range covers the '.' before the cursor
+		final var item = new CompletionItem("field");
+		item.setFilterText(".field");
+		item.setTextEditText(".field");
+		final var completionList = new CompletionList(false, List.of(item));
+		final var defaults = new CompletionItemDefaults();
+		defaults.setEditRange(Either.forLeft(new Range(new Position(0, 4), new Position(0, 5))));
+		completionList.setItemDefaults(defaults);
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(completionList);
+		});
+
+		final var content = "this.";
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, content));
+		int invokeOffset = content.length();
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, invokeOffset);
+		assertEquals(1, proposals.length);
+		((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, invokeOffset);
+		assertEquals("this.field", viewer.getDocument().get());
+	}
+
+	@Test
+	public void testItemDefaultsEditRangeWithoutTextEditText(MockLanguageServerFactory factory) throws CoreException {
+		// no textEditText: the label is to be used as text with the default edit range
+		final var completionList = new CompletionList(false, List.of(new CompletionItem("FirstClass")));
+		final var defaults = new CompletionItemDefaults();
+		defaults.setEditRange(Either.forLeft(new Range(new Position(0, 0), new Position(0, 20))));
+		completionList.setItemDefaults(defaults);
+		factory.withConfiguration((idx, server) -> {
+			server.setCompletionList(completionList);
+		});
+
+		ITextViewer viewer = TestUtils.openTextViewer(TestUtils.createUniqueTestFile(project, "FirstNotMatchedLabel"));
+		ICompletionProposal[] proposals = contentAssistProcessor.computeCompletionProposals(viewer, 5);
+		assertEquals(1, proposals.length);
+		((LSCompletionProposal) proposals[0]).apply(viewer, '\n', 0, 5);
+		assertEquals("FirstClass", viewer.getDocument().get());
 	}
 
 	@Test
