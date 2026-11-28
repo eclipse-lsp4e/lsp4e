@@ -919,17 +919,16 @@ public final class InlineCompletionController {
 			endSession();
 		}
 		if (snapshot == null && !request.edits.isEmpty()) {
-			// the user moved on while waiting and nothing fits any more: ask again for where they are now
-			final boolean explicit = request.triggerKind == InlineCompletionTriggerKind.Invoked;
-			if (explicit || LanguageServerPlugin.getDefault().getPreferenceStore()
-					.getBoolean(InlineCompletionPreferencePage.PREF_AUTOMATIC)) {
+			// the user moved on while waiting and nothing fits any more: ask again for where they are now.
+			// The user did not ask for a follow-up request as such, so it is asked again only as any
+			// request is while typing: not when requests are not automatic.
+			final InlineCompletionTriggerKind triggerKind = request.followUp ? InlineCompletionTriggerKind.Automatic
+					: request.triggerKind;
+			if (triggerKind == InlineCompletionTriggerKind.Invoked || LanguageServerPlugin.getDefault()
+					.getPreferenceStore().getBoolean(InlineCompletionPreferencePage.PREF_AUTOMATIC)) {
 				display.asyncExec(() -> {
 					if (!disposed && pending == null && snapshot == null) {
-						request(request.triggerKind, false);
-						final PendingRequest again = pending;
-						if (again != null) {
-							again.followUp = request.followUp;
-						}
+						request(triggerKind, false);
 					}
 				});
 			}
